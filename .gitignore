@@ -1,0 +1,8 @@
+.env
+*.db
+*.sqlite*
+*.xlsx
+*.xls
+__pycache__/
+*.pyc
+.pytest_cache/
