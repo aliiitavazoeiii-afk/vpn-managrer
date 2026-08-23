@@ -58,7 +58,7 @@ tar -xzf "$TMP_TGZ" -C /opt
 rm -f "$TMP_TGZ"
 cd "$APP_DIR"
 
-NEW_ADMIN="$(openssl rand -base64 30 | tr -d '/+=' | head -c 24)"
+NEW_ADMIN="$(openssl rand -hex 12)"
 if [[ -n "$ENV_KEEP" && -f "$ENV_KEEP" ]]; then
   mv "$ENV_KEEP" .env
   if grep -q '^ADMIN_PASSWORD=' .env; then
@@ -69,7 +69,7 @@ if [[ -n "$ENV_KEEP" && -f "$ENV_KEEP" ]]; then
 else
   cp .env.example .env
   SECRET="$(openssl rand -hex 32)"
-  DBPASS="$(openssl rand -base64 30 | tr -d '/+=' | head -c 24)"
+  DBPASS="$(openssl rand -hex 16)"
   sed -i "s|CHANGE_THIS_TO_A_LONG_RANDOM_SECRET|$SECRET|" .env
   sed -i "s|CHANGE_THIS_LONG_PASSWORD|$NEW_ADMIN|" .env
   sed -i "s|CHANGE_THIS_DB_PASSWORD|$DBPASS|" .env
