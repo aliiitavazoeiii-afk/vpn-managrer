@@ -1,5 +1,4 @@
-.git
-.env
 __pycache__
 *.pyc
-vpn_control.db
+.env
+.git

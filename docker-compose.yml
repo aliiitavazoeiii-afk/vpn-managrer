@@ -9,11 +9,10 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vpncontrol} -d ${POSTGRES_DB:-vpncontrol}"]
+      test: ["CMD-SHELL","pg_isready -U ${POSTGRES_USER:-vpncontrol} -d ${POSTGRES_DB:-vpncontrol}"]
       interval: 5s
       timeout: 5s
       retries: 20
-
   app:
     build: .
     restart: unless-stopped
@@ -21,21 +20,21 @@ services:
       db:
         condition: service_healthy
     environment:
-      APP_NAME: ${APP_NAME:-VPN Control Center}
+      APP_NAME: ${APP_NAME:-Hesab VPN}
+      APP_DOMAIN: ${APP_DOMAIN:-hesab.filmjadiid.ir}
       APP_SECRET_KEY: ${APP_SECRET_KEY}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-vpncontrol}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-vpncontrol}
-      POLL_SECONDS: ${POLL_SECONDS:-300}
       APP_TIMEZONE: Asia/Tehran
-      SEED_FILE: /app/seed/users.json
+      SEED_FILE: /app/seed/users.enc
+      SEED_KEY: ${SEED_KEY}
     ports:
-      - "${BIND_IP:-0.0.0.0}:${APP_PORT:-8080}:8000"
+      - "${BIND_IP:-127.0.0.1}:${APP_PORT:-8080}:8000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD","curl","-f","http://localhost:8000/health"]
       interval: 15s
       timeout: 5s
-      retries: 10
-
+      retries: 12
 volumes:
   pgdata:
