@@ -8,6 +8,7 @@ COPY packed ./packed
 COPY patches/v3.py ./patches/v3.py
 COPY patches/v3.css ./patches/v3.css
 COPY patches/date_edit.py ./patches/date_edit.py
+COPY patches/user_manage.py ./patches/user_manage.py
 COPY app/static/app.js ./app/static/app.js
 COPY seed ./seed
 RUN mkdir -p app/static \
@@ -17,6 +18,7 @@ RUN mkdir -p app/static \
  && printf '\n# Ensure SessionMiddleware wraps auth middleware.\napp.user_middleware.sort(key=lambda m: 0 if m.cls is SessionMiddleware else 1)\n' >> app/main.py \
  && cat patches/v3.py >> app/main.py \
  && cat patches/date_edit.py >> app/main.py \
+ && cat patches/user_manage.py >> app/main.py \
  && cat patches/v3.css >> app/static/app.css \
  && python -m py_compile app/main.py \
  && rm -rf packed patches
