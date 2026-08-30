@@ -94,7 +94,11 @@ if _waiting_tpl:
             1,
         )
 
-    _waiting_tpl = _waiting_tpl.replace("{% endblock %}", _WAITING_PHONE_SCRIPT + "{% endblock %}", 1)
+    # Insert the script before the content block's final endblock, not before the title/heading blocks.
+    end_idx = _waiting_tpl.rfind("{% endblock %}")
+    if end_idx >= 0:
+        _waiting_tpl = _waiting_tpl[:end_idx] + _WAITING_PHONE_SCRIPT + _waiting_tpl[end_idx:]
+
     TEMPLATES["followups.html"] = _waiting_tpl
     if hasattr(env.loader, "mapping"):
         env.loader.mapping.update(TEMPLATES)
