@@ -13,6 +13,30 @@ _phone_style = r'''
 </style>
 '''
 
+_phone_focus_script = r'''
+<script>
+window.addEventListener('load',()=>{
+  const p=new URLSearchParams(location.search);
+  if(!p.has('phone_updated')) return;
+  const sid=p.get('sid');
+  if(!sid) return;
+  setTimeout(()=>{
+    const service=document.querySelector(`[data-service-id="${CSS.escape(sid)}"]`);
+    if(!service) return;
+    const group=service.closest('[data-debt-group]');
+    if(group){
+      group.hidden=false;
+      const panel=group.querySelector('[data-debt-panel]');
+      const btn=group.querySelector('[data-debt-toggle]');
+      if(panel) panel.removeAttribute('hidden');
+      if(btn) btn.classList.add('open');
+    }
+    service.scrollIntoView({behavior:'instant',block:'center'});
+  },120);
+});
+</script>
+'''
+
 _phone_ui = r'''
 <details class="phone-editor">
   <summary>ویرایش شماره</summary>
@@ -29,9 +53,9 @@ _phone_ui = r'''
 
 _tpl = TEMPLATES.get("debts.html", "")
 if _tpl:
-    _tpl = _tpl.replace("{% block content %}", "{% block content %}" + _phone_style, 1)
+    _tpl = _tpl.replace("{% block content %}", "{% block content %}" + _phone_style + _phone_focus_script, 1)
 
-    # Mark each service so JS can restore position even when a phone change moves it to another group.
+    # Mark each service so the browser can find it after a phone change moves it to another group.
     service_anchor = '<div class="debt-service-v3">'
     if service_anchor in _tpl:
         _tpl = _tpl.replace(service_anchor, '<div class="debt-service-v3" data-service-id="{{ s.id }}">', 1)
