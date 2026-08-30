@@ -119,5 +119,13 @@ if _debt_tpl and 'id="debt-search"' not in _debt_tpl and '<div class="debt-desk"
 '''
     TEMPLATES["debts.html"] = _debt_tpl.replace('<div class="debt-desk">', _debt_search + '<div class="debt-desk">', 1)
 
+# Force a fresh static bundle because waiting_compact.css is appended to app.css.
+_base_tpl = TEMPLATES.get("base.html", "")
+if _base_tpl:
+    for _v in range(2, 12):
+        _base_tpl = _base_tpl.replace(f'/static/app.css?v={_v}', '/static/app.css?v=11')
+        _base_tpl = _base_tpl.replace(f'/static/app.js?v={_v}', '/static/app.js?v=11')
+    TEMPLATES["base.html"] = _base_tpl
+
 if hasattr(env.loader, "mapping"):
     env.loader.mapping.update(TEMPLATES)
