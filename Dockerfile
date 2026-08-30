@@ -12,6 +12,7 @@ COPY patches/user_manage.py ./patches/user_manage.py
 COPY patches/phone_edit.py ./patches/phone_edit.py
 COPY patches/followup.py ./patches/followup.py
 COPY patches/followup_phone.py ./patches/followup_phone.py
+COPY patches/group_pay.py ./patches/group_pay.py
 COPY patches/followup.css ./patches/followup.css
 COPY app/static/app.js ./app/static/app.js
 COPY seed ./seed
@@ -26,6 +27,7 @@ RUN mkdir -p app/static \
  && cat patches/phone_edit.py >> app/main.py \
  && cat patches/followup.py >> app/main.py \
  && cat patches/followup_phone.py >> app/main.py \
+ && cat patches/group_pay.py >> app/main.py \
  && cat patches/v3.css >> app/static/app.css \
  && cat patches/followup.css >> app/static/app.css \
  && python -m py_compile app/main.py \
