@@ -1,0 +1,23 @@
+/* Compact debt inbox + waiting page */
+.debt-group-v3{border-radius:14px!important}
+.debt-head-v3{padding:8px 12px!important;gap:8px!important;grid-template-columns:minmax(210px,1.15fr) minmax(175px,.9fr) minmax(135px,.7fr) 155px 28px!important}
+.identity-box{min-height:46px!important;padding:6px 10px!important;border-radius:10px!important}
+.identity-box small{margin-bottom:2px!important;font-size:10px!important}
+.identity-box strong{font-size:17px!important}
+.identity-box span{margin-top:1px!important;font-size:10px!important}
+.phone-box strong,.expiry-box strong{font-size:17px!important}
+.phone-box i{bottom:5px!important;left:8px!important}
+.debt-group-total{padding:2px 0!important}
+.debt-group-total small{font-size:10px!important}
+.debt-group-total strong{font-size:18px!important}
+.group-action-row{padding:0 12px 5px!important;gap:6px!important;align-items:center!important;min-height:0!important}
+.followup-track-form{margin:0}
+.followup-track-btn{border:1px solid rgba(96,165,250,.30);background:rgba(59,130,246,.08);color:#b9d7ff;border-radius:8px;padding:5px 9px;font:inherit;font-size:10px;font-weight:800;cursor:pointer}
+.followup-track-btn:hover{background:rgba(59,130,246,.15);color:#e6f1ff}
+.danger-mini{padding:5px 8px!important}
+.debt-desk{gap:7px!important}
+
+.waiting-summary{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:10px;margin-bottom:16px}.waiting-summary>div{background:rgba(17,22,35,.76);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:13px 15px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}.waiting-summary small{font-size:11px;color:#8f99aa}.waiting-summary strong{font-size:20px}.waiting-summary em{font-style:normal;font-size:11px;color:#8f99aa}
+.waiting-list{display:flex;flex-direction:column;gap:9px}.waiting-group{border:1px solid rgba(255,255,255,.08);border-radius:15px;background:rgba(14,19,30,.78);overflow:hidden}.waiting-head{display:grid;grid-template-columns:minmax(200px,1fr) 190px 170px;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.06)}.waiting-head>div{min-width:0}.waiting-head small{display:block;font-size:10px;color:#8590a2;margin-bottom:2px}.waiting-head strong{font-size:15px}.waiting-phone{border:0;background:transparent;color:#eef3f8;font:inherit;font-size:15px;font-weight:800;direction:ltr;cursor:copy;padding:0}.waiting-phone:hover{color:#b9d7ff}.waiting-services{padding:0 12px}.waiting-service{display:grid;grid-template-columns:minmax(220px,1fr) 150px minmax(300px,.9fr);gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.055)}.waiting-service:last-child{border-bottom:0}.waiting-identity{display:flex;flex-direction:column;gap:2px}.waiting-identity a{color:#f5f7fb;text-decoration:none;font-weight:800;font-size:15px}.waiting-identity span{font-size:11px;color:#8c97aa}.waiting-debt small{display:block;font-size:10px;color:#8792a4}.waiting-debt b{font-size:14px;color:#ff9ba6}.waiting-actions{display:grid;grid-template-columns:1fr 1fr .8fr;gap:6px}.waiting-actions form{margin:0}.waiting-actions button{width:100%;height:36px;border-radius:9px;font:inherit;font-size:11px;font-weight:800;cursor:pointer}.waiting-pay{border:0;background:#b8f34a;color:#11170b}.waiting-cut{border:1px solid rgba(248,113,113,.28);background:rgba(239,68,68,.08);color:#ffb8c0}.waiting-restore{border:1px solid rgba(255,255,255,.11);background:rgba(255,255,255,.03);color:#c4ccd8}
+@media(max-width:1000px){.debt-head-v3{grid-template-columns:1fr 1fr!important}.waiting-head{grid-template-columns:1fr 1fr}.waiting-head>div:last-child{grid-column:1/-1}.waiting-service{grid-template-columns:1fr 140px}.waiting-actions{grid-column:1/-1}}
+@media(max-width:640px){.waiting-summary{grid-template-columns:1fr}.waiting-head{grid-template-columns:1fr}.waiting-head>div:last-child{grid-column:auto}.waiting-service{grid-template-columns:1fr}.waiting-actions{grid-column:auto}.debt-head-v3{padding:7px 9px!important}.identity-box{min-height:44px!important}}
