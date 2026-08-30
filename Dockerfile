@@ -14,7 +14,9 @@ RUN mkdir -p app/static \
  && touch app/__init__.py \
  && printf '\n# Ensure SessionMiddleware wraps auth middleware.\napp.user_middleware.sort(key=lambda m: 0 if m.cls is SessionMiddleware else 1)\n' >> app/main.py \
  && cat patches/v3.py >> app/main.py \
+ && cat patches/v4.py >> app/main.py \
  && cat patches/v3.css >> app/static/app.css \
+ && cat patches/v4.css >> app/static/app.css \
  && python -m py_compile app/main.py \
  && rm -rf packed patches
 CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000","--proxy-headers","--forwarded-allow-ips=*"]
