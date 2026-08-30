@@ -1,9 +1,23 @@
 document.addEventListener("DOMContentLoaded",()=>{
+  // Load a cleaner Persian-capable UI font without bundling font files.
+  if(!document.querySelector('link[data-hesab-font]')){
+    const l=document.createElement('link');
+    l.rel='stylesheet';
+    l.href='https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700;800&display=swap';
+    l.dataset.hesabFont='1';
+    document.head.appendChild(l);
+  }
+
   document.querySelectorAll("input[type=number]").forEach(el=>{
     el.addEventListener("wheel",e=>e.target.blur(),{passive:true});
   });
+
   const q=document.querySelector('.search input[name="q"]');
-  if(q){window.addEventListener("keydown",e=>{if(e.key==="/" && document.activeElement!==q){e.preventDefault();q.focus();}})}
+  if(q){
+    window.addEventListener("keydown",e=>{
+      if(e.key==="/" && document.activeElement!==q){e.preventDefault();q.focus();}
+    });
+  }
 
   document.querySelectorAll('[data-debt-toggle]').forEach(btn=>{
     btn.addEventListener('click',e=>{
@@ -22,10 +36,15 @@ document.addEventListener("DOMContentLoaded",()=>{
       e.preventDefault();e.stopPropagation();
       const text=el.dataset.copy||el.textContent.trim();
       try{await navigator.clipboard.writeText(text);}catch(_){
-        const t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();
+        const t=document.createElement('textarea');
+        t.value=text;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();
       }
       const toast=document.getElementById('copy-toast');
-      if(toast){toast.classList.add('show');clearTimeout(window.__copyTimer);window.__copyTimer=setTimeout(()=>toast.classList.remove('show'),1300);}
+      if(toast){
+        toast.classList.add('show');
+        clearTimeout(window.__copyTimer);
+        window.__copyTimer=setTimeout(()=>toast.classList.remove('show'),1300);
+      }
     });
   });
 });
