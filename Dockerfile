@@ -9,6 +9,7 @@ COPY patches/v3.py ./patches/v3.py
 COPY patches/v3.css ./patches/v3.css
 COPY patches/date_edit.py ./patches/date_edit.py
 COPY patches/user_manage.py ./patches/user_manage.py
+COPY patches/phone_edit.py ./patches/phone_edit.py
 COPY app/static/app.js ./app/static/app.js
 COPY seed ./seed
 RUN mkdir -p app/static \
@@ -19,6 +20,7 @@ RUN mkdir -p app/static \
  && cat patches/v3.py >> app/main.py \
  && cat patches/date_edit.py >> app/main.py \
  && cat patches/user_manage.py >> app/main.py \
+ && cat patches/phone_edit.py >> app/main.py \
  && cat patches/v3.css >> app/static/app.css \
  && python -m py_compile app/main.py \
  && rm -rf packed patches
