@@ -1,0 +1,161 @@
+@import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap');
+
+/* UI rescue only — no business logic here. */
+:root{
+  --res-font:"Vazirmatn","Segoe UI",Tahoma,Arial,sans-serif;
+  --res-bg:#07111c;
+  --res-panel:rgba(13,24,38,.86);
+  --res-panel-2:rgba(10,19,31,.92);
+  --res-line:rgba(255,255,255,.09);
+  --res-line-2:rgba(255,255,255,.14);
+  --res-text:#f3f7fb;
+  --res-muted:#9aa8b8;
+  --res-blue:#6eb7ff;
+  --res-green:#9be6b5;
+  --res-red:#ff9daa;
+}
+*{box-sizing:border-box}
+html{font-size:17px!important}
+body,button,input,select,textarea{font-family:var(--res-font)!important}
+body{
+  font-size:16px!important;
+  line-height:1.72!important;
+  color:var(--res-text)!important;
+  background:
+    radial-gradient(circle at 6% -8%,rgba(0,164,205,.22),transparent 34%),
+    radial-gradient(circle at 92% 112%,rgba(67,107,194,.17),transparent 38%),
+    linear-gradient(180deg,#07121d 0%,#07101a 58%,#060d16 100%)!important;
+  background-attachment:fixed!important;
+}
+.aurora{display:block!important;opacity:.24!important;filter:blur(92px)!important}
+
+.main{padding:28px 32px 46px!important;max-width:1700px!important}
+.topbar{margin-bottom:18px!important}
+.topbar h1{font-size:31px!important;line-height:1.35!important;font-weight:800!important;letter-spacing:-.25px!important}
+.topbar p{font-size:14px!important;color:var(--res-muted)!important;margin-top:5px!important}
+
+.sidebar{background:rgba(6,15,25,.82)!important;backdrop-filter:blur(18px)!important;border-left:1px solid rgba(255,255,255,.07)!important}
+.sidebar nav{gap:5px!important}
+.sidebar nav a{font-size:15px!important;min-height:46px!important;padding:10px 13px!important;border-radius:11px!important;color:#a5b3c2!important}
+.sidebar nav a:hover{background:rgba(255,255,255,.05)!important;color:#fff!important}
+.sidebar nav a.active,.sidebar nav a[aria-current="page"]{background:rgba(91,154,226,.13)!important;border:1px solid rgba(113,179,255,.16)!important;color:#f6fbff!important}
+.sidebar nav a b{font-weight:700!important}
+
+/* Workflow: the three pages used every day */
+.work-flowbar{
+  position:sticky;top:10px;z-index:30;
+  display:grid;grid-template-columns:1fr 28px 1fr 28px 1fr;
+  align-items:stretch;gap:7px;
+  margin:0 0 16px;padding:7px;
+  background:rgba(7,16,27,.78);backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.09);border-radius:16px;
+  box-shadow:0 14px 40px rgba(0,0,0,.18)
+}
+.work-flowbar>a{min-height:64px;border-radius:12px;padding:9px 12px;display:grid;grid-template-columns:30px 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;text-decoration:none;color:#a7b5c5;border:1px solid transparent;transition:.15s ease}
+.work-flowbar>a>span{grid-row:1/3;width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.055);font-size:12px;font-weight:800;color:#b7c3d0}
+.work-flowbar>a>b{font-size:15px;font-weight:800;color:#e5ebf2;align-self:end}
+.work-flowbar>a>small{font-size:10px;color:#8392a3;align-self:start}
+.work-flowbar>a:hover{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.07)}
+.work-flowbar>a.active{background:linear-gradient(135deg,rgba(66,149,229,.17),rgba(41,105,176,.08));border-color:rgba(104,179,255,.25)}
+.work-flowbar>a.active>span{background:#77bfff;color:#07111b}
+.work-flowbar>a.active>b{color:#fff}
+.work-flowbar>i{font-style:normal;display:flex;align-items:center;justify-content:center;color:#536275;font-size:21px}
+
+/* Summary: visible but not dominant */
+.debt-summary-clean,.waiting-summary{grid-template-columns:1.4fr 1fr 1fr!important;gap:9px!important;margin-bottom:12px!important}
+.debt-summary-clean>div,.waiting-summary>div{min-height:74px!important;padding:13px 16px!important;border-radius:14px!important;background:rgba(12,23,37,.72)!important;border:1px solid var(--res-line)!important;box-shadow:none!important}
+.debt-summary-clean small,.waiting-summary small{font-size:12px!important;color:var(--res-muted)!important}
+.debt-summary-clean strong,.waiting-summary strong{font-size:23px!important;font-weight:800!important;color:#fff!important}
+.debt-summary-clean em,.waiting-summary em{font-size:11px!important;color:#8e9cac!important}
+
+/* Search should feel like the main tool, not a decoration */
+.debt-searchbar,.waiting-searchbar{height:50px!important;padding:0 14px!important;margin-bottom:12px!important;border-radius:13px!important;background:rgba(9,19,31,.82)!important;border:1px solid rgba(255,255,255,.10)!important;box-shadow:0 8px 24px rgba(0,0,0,.10)!important}
+.debt-searchbar input,.waiting-searchbar input{font-size:15px!important;color:#fff!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.debt-searchbar input::placeholder,.waiting-searchbar input::placeholder{color:#758596!important}
+.debt-searchbar small,.waiting-searchbar small{font-size:11px!important;color:#8e9baa!important}
+.debt-searchbar>span,.waiting-searchbar>span{font-size:19px!important;color:#8b9aac!important}
+
+/* One clear row per payer */
+.debt-desk,.waiting-list{gap:8px!important}
+.debt-group-v3,.waiting-group{background:rgba(11,21,34,.80)!important;border:1px solid rgba(255,255,255,.085)!important;border-radius:14px!important;box-shadow:0 8px 28px rgba(0,0,0,.10)!important;overflow:hidden!important}
+.debt-group-v3:hover,.waiting-group:hover{border-color:rgba(113,180,255,.18)!important}
+.debt-head-v3{min-height:68px!important;padding:8px 14px!important;gap:0!important;grid-template-columns:minmax(240px,1.25fr) minmax(180px,.9fr) minmax(145px,.68fr) 160px 30px!important;align-items:center!important}
+.waiting-head{min-height:68px!important;padding:8px 14px!important;gap:0!important;grid-template-columns:minmax(240px,1.2fr) minmax(180px,.9fr) minmax(145px,.68fr) 150px 130px 28px!important;align-items:center!important}
+.debt-head-v3:hover,.waiting-head:hover{background:rgba(255,255,255,.025)!important}
+
+/* Stop the box-inside-box feeling */
+.identity-box,.waiting-head>div:not(.waiting-head-pay){min-height:48px!important;padding:4px 14px!important;background:transparent!important;border:0!important;border-left:1px solid rgba(255,255,255,.06)!important;border-radius:0!important;box-shadow:none!important;display:flex!important;flex-direction:column!important;justify-content:center!important}
+.identity-box small,.waiting-head small{font-size:11px!important;color:#8291a2!important;margin-bottom:2px!important;font-weight:500!important}
+.identity-box strong,.waiting-head strong,.waiting-head .waiting-phone{font-size:17px!important;line-height:1.45!important;font-weight:750!important;color:#f7f9fb!important}
+.identity-box span,.waiting-head-name span{font-size:10px!important;color:#8290a0!important;margin-top:1px!important}
+.phone-box{direction:ltr!important;text-align:left!important}.phone-box small{direction:rtl!important;text-align:right!important}.phone-box i{display:none!important}
+.phone-box strong,.expiry-box strong{font-size:17px!important}
+.name-box,.phone-box,.expiry-box{background:transparent!important;border-top:0!important;border-right:0!important;border-bottom:0!important}
+.debt-group-total{padding:0 14px!important;text-align:right!important;border-left:1px solid rgba(255,255,255,.06)!important}
+.debt-group-total small,.waiting-head-debt small{font-size:11px!important;color:#8291a2!important}
+.debt-group-total strong,.waiting-head-debt strong{font-size:18px!important;color:#ffa2af!important;font-weight:800!important}
+.debt-group-total em,.waiting-head-debt em{font-size:10px!important;color:#8d9aaa!important}
+.debt-chevron,.waiting-chevron{font-size:19px!important;color:#90a0b2!important}
+
+/* Actions should explain the workflow */
+.group-action-row{min-height:44px!important;padding:6px 12px 8px!important;gap:8px!important;border-top:1px solid rgba(255,255,255,.045)!important;background:rgba(4,10,18,.16)!important}
+.followup-track-btn,.group-pay-btn,.danger-mini{min-height:34px!important;padding:6px 12px!important;border-radius:9px!important;font-size:12px!important;font-weight:750!important;box-shadow:none!important}
+.followup-track-btn{background:rgba(72,148,225,.13)!important;border:1px solid rgba(101,177,255,.24)!important;color:#b9d9ff!important}
+.group-pay-btn{background:rgba(75,174,116,.12)!important;border:1px solid rgba(113,219,153,.23)!important;color:#b7ebc9!important}
+.danger-mini{background:transparent!important;border:1px solid rgba(244,137,151,.18)!important;color:#d99ca5!important}
+
+/* Expanded children: less visual noise, still readable */
+.debt-children-v3,.waiting-services{padding:6px 12px 10px!important;background:rgba(4,10,17,.34)!important;border-top:1px solid rgba(255,255,255,.06)!important}
+.debt-service-v3,.waiting-service{min-height:64px!important;padding:10px 6px!important;gap:12px!important;border-bottom:1px solid rgba(255,255,255,.05)!important}
+.debt-service-name,.waiting-identity a{font-size:16px!important;font-weight:750!important;color:#f5f8fb!important}
+.debt-expiry,.waiting-identity span{font-size:12px!important;color:#8e9baa!important}
+.debt-metric small,.waiting-debt small{font-size:10px!important;color:#7e8d9e!important}
+.debt-metric b,.waiting-debt b{font-size:15px!important;font-weight:750!important}
+.debt-metric.danger b,.waiting-debt b{color:#f5a4ae!important}
+
+.service-actions,.waiting-actions{gap:7px!important}
+.collect-btn,.waiting-pay,.waiting-cut,.waiting-restore,.service-delete-btn{height:38px!important;min-height:38px!important;padding:0 12px!important;border-radius:9px!important;font-size:12px!important;font-weight:750!important}
+.collect-btn,.waiting-pay{background:#a4e3bb!important;color:#0b1710!important;border:0!important}
+.waiting-cut,.service-delete-btn{background:rgba(231,88,105,.07)!important;border:1px solid rgba(243,137,151,.20)!important;color:#e5a5ad!important}
+.waiting-restore{background:rgba(255,255,255,.035)!important;border:1px solid rgba(255,255,255,.10)!important;color:#c6d0db!important}
+
+.waiting-head-pay{padding:0 10px!important;justify-content:center!important}.waiting-group-pay-btn{height:36px!important;min-height:36px!important;padding:0 11px!important;border-radius:9px!important;font-size:11px!important;font-weight:800!important;background:rgba(75,174,116,.12)!important;border:1px solid rgba(113,219,153,.24)!important;color:#b8ebca!important;white-space:nowrap!important}
+
+/* Message is important, so make Copy obvious */
+.ready-message{margin:12px 4px 5px!important;padding:13px!important;border-radius:12px!important;background:rgba(10,20,32,.72)!important;border:1px solid rgba(255,255,255,.08)!important}
+.ready-message-head b{font-size:14px!important}.ready-message-head small{font-size:11px!important}.ready-message-head button{min-height:36px!important;padding:7px 14px!important;border-radius:9px!important;font-size:12px!important;font-weight:800!important;background:rgba(72,148,225,.13)!important;border:1px solid rgba(101,177,255,.23)!important;color:#c7e1ff!important}
+.ready-message textarea{min-height:155px!important;padding:12px 14px!important;font-size:14px!important;line-height:2!important;background:rgba(4,10,17,.72)!important}
+
+/* Forms/editors: keep advanced operations secondary */
+.debt-adjust,.expiry-editor,.phone-editor,.waiting-phone-editor{border-radius:9px!important;background:rgba(8,17,28,.78)!important;border:1px solid rgba(255,255,255,.08)!important}
+.debt-adjust summary,.expiry-editor summary,.phone-editor summary,.waiting-phone-editor summary{padding:7px 9px!important;font-size:11px!important;color:#9cabbc!important}
+.adjust-form input,.expiry-edit-form input,.phone-edit-row input,.waiting-phone-edit-row input{font-size:13px!important;min-height:38px!important}
+
+/* Payments */
+.pay-history{gap:8px!important}.pay-row{padding:13px 14px!important;border-radius:13px!important;background:rgba(11,21,34,.78)!important;border:1px solid rgba(255,255,255,.08)!important;min-height:72px!important}.pay-cell small{font-size:11px!important}.pay-cell b,.pay-cell a{font-size:15px!important}.undo-pay{height:38px!important;font-size:12px!important;border-radius:9px!important}
+
+/* Generic panels */
+.panel,.kpi,.card{background:rgba(12,23,37,.76)!important;border:1px solid rgba(255,255,255,.08)!important;border-radius:14px!important;box-shadow:0 8px 28px rgba(0,0,0,.10)!important}
+.kpi{min-height:94px!important;padding:15px 16px!important}.kpi small{font-size:12px!important}.kpi strong{font-size:26px!important}
+table{font-size:14px!important}th{font-size:12px!important;padding:12px 13px!important}td{padding:13px!important}
+
+@media(max-width:1100px){
+  .main{padding:24px 20px 38px!important}
+  .work-flowbar{position:relative;top:auto}
+  .debt-head-v3{grid-template-columns:1fr 1fr!important}
+  .waiting-head{grid-template-columns:1fr 1fr!important}
+  .debt-group-total,.waiting-head-debt{text-align:right!important}
+  .waiting-head-pay{justify-content:flex-start!important;padding:5px 12px!important}
+  .debt-service-v3,.waiting-service{grid-template-columns:1fr 1fr!important}
+  .debt-service-main,.service-actions,.waiting-actions{grid-column:1/-1!important}
+}
+@media(max-width:700px){
+  html{font-size:16px!important}.topbar h1{font-size:27px!important}
+  .work-flowbar{grid-template-columns:1fr!important}.work-flowbar>i{display:none}.work-flowbar>a{min-height:54px}
+  .debt-summary-clean,.waiting-summary{grid-template-columns:1fr!important}
+  .debt-head-v3,.waiting-head{grid-template-columns:1fr!important}
+  .identity-box,.waiting-head>div:not(.waiting-head-pay){border-left:0!important;border-bottom:1px solid rgba(255,255,255,.05)!important;padding:6px 10px!important}
+  .debt-group-total{border-left:0!important;padding:8px 10px!important}.debt-chevron,.waiting-chevron{display:none!important}
+  .debt-service-v3,.waiting-service{grid-template-columns:1fr!important}
+}
