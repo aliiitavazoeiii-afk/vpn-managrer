@@ -1,0 +1,151 @@
+/* Core workspace only. Keeps the current visual theme/font and styles the simplified pages. */
+
+.core-dashboard{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+  margin-top:4px
+}
+.core-kpi{
+  min-height:150px;
+  padding:20px 21px;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:17px;
+  background:rgba(10,21,34,.80);
+  box-shadow:0 12px 34px rgba(0,0,0,.12);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  text-decoration:none;
+  color:inherit;
+  transition:.16s ease
+}
+.core-kpi small{font-size:13px;color:#92a1b1;margin-bottom:8px}
+.core-kpi strong{font-size:30px;line-height:1.25;color:#fff;font-weight:800}
+.core-kpi span{font-size:11px;color:#8190a1;margin-top:8px;line-height:1.8}
+.core-link:hover{transform:translateY(-2px);border-color:rgba(111,181,255,.22);background:rgba(13,27,43,.88)}
+
+.removed-summary{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-bottom:12px
+}
+.removed-summary>div{
+  min-height:76px;
+  padding:13px 16px;
+  border-radius:14px;
+  background:rgba(11,22,35,.78);
+  border:1px solid rgba(255,255,255,.085);
+  display:flex;
+  align-items:center;
+  justify-content:space-between
+}
+.removed-summary small{font-size:12px;color:#91a0b0}
+.removed-summary strong{font-size:22px;color:#fff}
+.removed-summary em{font-size:11px;font-style:normal;color:#8795a5}
+
+.removed-search{
+  height:50px;
+  display:grid;
+  grid-template-columns:28px 1fr auto;
+  gap:8px;
+  align-items:center;
+  padding:0 14px;
+  margin-bottom:12px;
+  border-radius:13px;
+  background:rgba(9,19,31,.82);
+  border:1px solid rgba(255,255,255,.10)
+}
+.removed-search>span{font-size:18px;color:#8999aa}
+.removed-search input{
+  height:100%;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  font-size:15px!important
+}
+.removed-search small{font-size:11px;color:#8997a7}
+
+.removed-list{display:flex;flex-direction:column;gap:8px}
+.removed-row{
+  min-height:72px;
+  display:grid;
+  grid-template-columns:minmax(220px,1.25fr) minmax(170px,.9fr) 145px 160px minmax(220px,.9fr);
+  gap:0;
+  align-items:center;
+  border:1px solid rgba(255,255,255,.085);
+  border-radius:14px;
+  background:rgba(11,21,34,.80);
+  overflow:hidden
+}
+.removed-row>div{min-width:0;padding:8px 14px;border-left:1px solid rgba(255,255,255,.055)}
+.removed-row small{display:block;font-size:10px;color:#8190a1;margin-bottom:3px}
+.removed-row b,.removed-person a{font-size:15px;color:#f3f7fb;font-weight:750;text-decoration:none}
+.removed-person a:hover{color:#9fd0ff}
+.removed-debt{color:#f1a1ab!important}
+.removed-actions{display:flex;align-items:center;justify-content:flex-start;gap:7px;border-left:0!important}
+.removed-actions>a,.removed-actions button{
+  min-height:34px;
+  padding:6px 10px;
+  border-radius:9px;
+  font:inherit;
+  font-size:11px;
+  font-weight:750;
+  cursor:pointer;
+  text-decoration:none
+}
+.removed-actions>a{
+  display:inline-flex;
+  align-items:center;
+  border:1px solid rgba(255,255,255,.10);
+  color:#c6d2df;
+  background:rgba(255,255,255,.035)
+}
+.removed-actions form{margin:0}
+.removed-actions button{
+  border:1px solid rgba(111,181,255,.22);
+  color:#badbff;
+  background:rgba(67,142,219,.10)
+}
+
+.control-placeholder{
+  min-height:360px;
+  border:1px dashed rgba(255,255,255,.14);
+  border-radius:18px;
+  background:rgba(10,20,33,.54);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:34px
+}
+.control-icon{
+  width:62px;height:62px;border-radius:18px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(102,174,255,.11);
+  border:1px solid rgba(120,190,255,.17);
+  font-size:27px;color:#b8dcff;margin-bottom:14px
+}
+.control-placeholder h2{margin:0 0 7px;font-size:22px;color:#fff}
+.control-placeholder p{margin:0;max-width:520px;color:#93a2b2;font-size:13px;line-height:2}
+
+/* Minimal sidebar means the workflow bar is redundant. */
+.work-flowbar{display:none!important}
+
+@media(max-width:1150px){
+  .core-dashboard{grid-template-columns:1fr 1fr}
+  .removed-row{grid-template-columns:1fr 1fr}
+  .removed-actions{border-top:1px solid rgba(255,255,255,.055);grid-column:1/-1}
+}
+@media(max-width:700px){
+  .core-dashboard{grid-template-columns:1fr}
+  .core-kpi{min-height:120px}
+  .removed-summary{grid-template-columns:1fr}
+  .removed-search{grid-template-columns:24px 1fr}
+  .removed-search small{display:none}
+  .removed-row{grid-template-columns:1fr}
+  .removed-row>div{border-left:0;border-bottom:1px solid rgba(255,255,255,.045)}
+  .removed-actions{grid-column:auto;border-bottom:0}
+}
