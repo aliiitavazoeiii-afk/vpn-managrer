@@ -17,9 +17,11 @@ COPY patches/waiting_group_pay.py ./patches/waiting_group_pay.py
 COPY patches/group_pay.py ./patches/group_pay.py
 COPY patches/payment_undo.py ./patches/payment_undo.py
 COPY patches/ui_rescue.py ./patches/ui_rescue.py
+COPY patches/font_global.py ./patches/font_global.py
 COPY patches/followup.css ./patches/followup.css
 COPY patches/waiting_compact.css ./patches/waiting_compact.css
 COPY patches/ui_rescue.css ./patches/ui_rescue.css
+COPY patches/font_global.css ./patches/font_global.css
 COPY app/static/app.js ./app/static/app.js
 COPY seed ./seed
 RUN mkdir -p app/static \
@@ -38,10 +40,12 @@ RUN mkdir -p app/static \
  && cat patches/group_pay.py >> app/main.py \
  && cat patches/payment_undo.py >> app/main.py \
  && cat patches/ui_rescue.py >> app/main.py \
+ && cat patches/font_global.py >> app/main.py \
  && cat patches/v3.css >> app/static/app.css \
  && cat patches/followup.css >> app/static/app.css \
  && cat patches/waiting_compact.css >> app/static/app.css \
  && cat patches/ui_rescue.css >> app/static/app.css \
+ && cat patches/font_global.css >> app/static/app.css \
  && python -m py_compile app/main.py \
  && rm -rf packed patches
 CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000","--proxy-headers","--forwarded-allow-ips=*"]
