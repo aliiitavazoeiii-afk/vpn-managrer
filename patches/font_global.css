@@ -1,0 +1,39 @@
+/* Global typography override only. Intentionally loaded LAST. */
+:root{
+  --site-font:"Estedad",Tahoma,"Segoe UI",Arial,sans-serif;
+}
+
+html,
+body,
+body *,
+body *::before,
+body *::after,
+button,
+input,
+select,
+textarea,
+table,
+thead,
+tbody,
+th,
+td,
+a,
+span,
+b,
+strong,
+small,
+label,
+summary,
+details,
+option,
+code,
+pre,
+svg text{
+  font-family:var(--site-font)!important;
+}
+
+html,body{
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+}
