@@ -13,6 +13,7 @@ COPY patches/phone_edit.py ./patches/phone_edit.py
 COPY patches/followup.py ./patches/followup.py
 COPY patches/waiting_compact.py ./patches/waiting_compact.py
 COPY patches/followup_phone.py ./patches/followup_phone.py
+COPY patches/waiting_group_pay.py ./patches/waiting_group_pay.py
 COPY patches/group_pay.py ./patches/group_pay.py
 COPY patches/payment_undo.py ./patches/payment_undo.py
 COPY patches/followup.css ./patches/followup.css
@@ -31,6 +32,7 @@ RUN mkdir -p app/static \
  && cat patches/followup.py >> app/main.py \
  && cat patches/waiting_compact.py >> app/main.py \
  && cat patches/followup_phone.py >> app/main.py \
+ && cat patches/waiting_group_pay.py >> app/main.py \
  && cat patches/group_pay.py >> app/main.py \
  && cat patches/payment_undo.py >> app/main.py \
  && cat patches/v3.css >> app/static/app.css \
