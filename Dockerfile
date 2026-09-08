@@ -20,12 +20,14 @@ COPY patches/ui_rescue.py ./patches/ui_rescue.py
 COPY patches/font_global.py ./patches/font_global.py
 COPY patches/core_workspace.py ./patches/core_workspace.py
 COPY patches/reference_ui.py ./patches/reference_ui.py
+COPY patches/dashboard_focus.py ./patches/dashboard_focus.py
 COPY patches/followup.css ./patches/followup.css
 COPY patches/waiting_compact.css ./patches/waiting_compact.css
 COPY patches/ui_rescue.css ./patches/ui_rescue.css
 COPY patches/font_global.css ./patches/font_global.css
 COPY patches/core_workspace.css ./patches/core_workspace.css
 COPY patches/reference_ui.css ./patches/reference_ui.css
+COPY patches/dashboard_focus.css ./patches/dashboard_focus.css
 COPY app/static/app.js ./app/static/app.js
 COPY seed ./seed
 RUN mkdir -p app/static \
@@ -47,6 +49,7 @@ RUN mkdir -p app/static \
  && cat patches/font_global.py >> app/main.py \
  && cat patches/core_workspace.py >> app/main.py \
  && cat patches/reference_ui.py >> app/main.py \
+ && cat patches/dashboard_focus.py >> app/main.py \
  && cat patches/v3.css >> app/static/app.css \
  && cat patches/followup.css >> app/static/app.css \
  && cat patches/waiting_compact.css >> app/static/app.css \
@@ -54,6 +57,7 @@ RUN mkdir -p app/static \
  && cat patches/font_global.css >> app/static/app.css \
  && cat patches/core_workspace.css >> app/static/app.css \
  && cat patches/reference_ui.css >> app/static/app.css \
+ && cat patches/dashboard_focus.css >> app/static/app.css \
  && python -m py_compile app/main.py \
  && rm -rf packed patches
 CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000","--proxy-headers","--forwarded-allow-ips=*"]
