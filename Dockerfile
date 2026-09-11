@@ -23,6 +23,7 @@ COPY patches/reference_ui.py ./patches/reference_ui.py
 COPY patches/dashboard_focus.py ./patches/dashboard_focus.py
 COPY patches/quick_users.py ./patches/quick_users.py
 COPY patches/date_guard.py ./patches/date_guard.py
+COPY patches/waiting_partial_pay.py ./patches/waiting_partial_pay.py
 COPY patches/followup.css ./patches/followup.css
 COPY patches/waiting_compact.css ./patches/waiting_compact.css
 COPY patches/ui_rescue.css ./patches/ui_rescue.css
@@ -31,6 +32,7 @@ COPY patches/core_workspace.css ./patches/core_workspace.css
 COPY patches/reference_ui.css ./patches/reference_ui.css
 COPY patches/dashboard_focus.css ./patches/dashboard_focus.css
 COPY patches/quick_users.css ./patches/quick_users.css
+COPY patches/waiting_partial_pay.css ./patches/waiting_partial_pay.css
 COPY app/static/app.js ./app/static/app.js
 COPY seed ./seed
 RUN mkdir -p app/static \
@@ -55,6 +57,7 @@ RUN mkdir -p app/static \
  && cat patches/dashboard_focus.py >> app/main.py \
  && cat patches/quick_users.py >> app/main.py \
  && cat patches/date_guard.py >> app/main.py \
+ && cat patches/waiting_partial_pay.py >> app/main.py \
  && cat patches/v3.css >> app/static/app.css \
  && cat patches/followup.css >> app/static/app.css \
  && cat patches/waiting_compact.css >> app/static/app.css \
@@ -64,6 +67,7 @@ RUN mkdir -p app/static \
  && cat patches/reference_ui.css >> app/static/app.css \
  && cat patches/dashboard_focus.css >> app/static/app.css \
  && cat patches/quick_users.css >> app/static/app.css \
+ && cat patches/waiting_partial_pay.css >> app/static/app.css \
  && python -m py_compile app/main.py \
  && rm -rf packed patches
 CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000","--proxy-headers","--forwarded-allow-ips=*"]
