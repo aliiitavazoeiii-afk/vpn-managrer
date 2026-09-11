@@ -1,0 +1,8 @@
+/* Fifth quick-action card: keep the dashboard spacious on wide screens. */
+.focus-quick-grid{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+.focus-action-users{background:linear-gradient(145deg,rgba(92,74,210,.22),rgba(30,34,82,.78))!important;border-color:rgba(143,121,255,.28)!important}
+.focus-action-users>i{background:linear-gradient(135deg,rgba(139,108,255,.28),rgba(78,95,232,.18))!important;color:#d0c4ff!important;box-shadow:0 0 28px rgba(116,91,255,.16)!important}
+.focus-action-users:hover{border-color:rgba(161,141,255,.48)!important;box-shadow:0 22px 60px rgba(33,25,90,.34),0 0 36px rgba(116,91,255,.10)!important}
+@media(max-width:1380px){.focus-quick-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:900px){.focus-quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:580px){.focus-quick-grid{grid-template-columns:1fr!important}}
