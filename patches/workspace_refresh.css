@@ -1,0 +1,182 @@
+/* Workspace refresh: revenue hero + dedicated user-management presentation. */
+
+/* Dashboard hero: title right, monthly revenue center, orb left. */
+.focus-hero{
+  display:grid!important;
+  grid-template-columns:minmax(430px,1.15fr) minmax(330px,.9fr) 300px!important;
+  gap:28px!important;
+  align-items:center!important;
+}
+.focus-hero-copy{min-width:0}
+.focus-command-title{
+  direction:ltr!important;
+  text-align:right!important;
+  font-family:"Estedad","Vazirmatn","Segoe UI",sans-serif!important;
+  font-size:52px!important;
+  letter-spacing:-1.4px!important;
+  white-space:nowrap;
+}
+.focus-hero-copy p{max-width:620px}
+.focus-income-card{
+  min-height:164px;
+  padding:25px 30px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:flex-start;
+  border-radius:24px;
+  border:1px solid rgba(151,124,255,.23);
+  background:
+    radial-gradient(circle at 15% 10%,rgba(92,209,255,.12),transparent 35%),
+    linear-gradient(145deg,rgba(48,38,111,.62),rgba(18,20,60,.72));
+  box-shadow:inset 0 1px rgba(255,255,255,.04),0 20px 55px rgba(0,0,0,.22),0 0 40px rgba(107,78,255,.08);
+  backdrop-filter:blur(20px);
+  position:relative;
+  overflow:hidden;
+}
+.focus-income-card:after{
+  content:"";
+  position:absolute;
+  width:180px;height:180px;border-radius:50%;
+  left:-90px;bottom:-105px;
+  background:#7258ff;opacity:.12;filter:blur(18px)
+}
+.focus-income-card small{font-size:14px!important;color:#a5acd1!important;font-weight:700!important}
+.focus-income-card strong{font-size:43px!important;line-height:1.2!important;color:#fff!important;font-weight:900!important;margin-top:8px;position:relative;z-index:1}
+.focus-income-card span{font-size:14px!important;color:#8f97be!important;margin-top:5px;position:relative;z-index:1}
+.focus-orb{margin-left:0!important;justify-self:end}
+
+/* Debt desk user-list launcher. */
+.debt-users-launch{
+  min-height:104px;
+  margin:0 0 14px;
+  padding:17px 19px;
+  border-radius:17px;
+  border:1px solid rgba(145,122,255,.18);
+  background:linear-gradient(135deg,rgba(51,43,111,.30),rgba(13,22,42,.78));
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  box-shadow:0 12px 36px rgba(0,0,0,.13);
+}
+.debt-users-launch-main{display:flex;align-items:center;gap:14px;min-width:0}
+.debt-users-launch-icon{
+  width:58px;height:58px;border-radius:16px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:27px;
+  background:linear-gradient(135deg,rgba(130,94,255,.30),rgba(58,93,232,.14));
+  border:1px solid rgba(151,125,255,.18)
+}
+.debt-users-launch-main small{display:block;font-size:11px!important;color:#8f98b8!important}
+.debt-users-launch-main strong{display:block;font-size:20px!important;color:#fff!important;margin-top:1px}
+.debt-users-launch-main p{margin:3px 0 0!important;font-size:12px!important;color:#8590ad!important}
+.debt-users-launch-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.debt-users-launch-actions a{
+  min-height:42px;padding:0 14px;border-radius:10px;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  text-decoration:none!important;font-size:12px!important;font-weight:800!important
+}
+.debt-users-primary{background:linear-gradient(90deg,#7659ef,#6250dc);color:#fff!important;box-shadow:0 8px 24px rgba(95,74,220,.22)}
+.debt-users-secondary{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);color:#cbd0e8!important}
+
+/* Dedicated add-user page. */
+.add-user-page{max-width:1150px;margin:0 auto;direction:rtl}
+.add-user-success,.add-user-error{
+  margin-bottom:14px;padding:12px 15px;border-radius:12px;font-size:14px;font-weight:800
+}
+.add-user-success{background:rgba(67,198,137,.10);border:1px solid rgba(88,221,160,.20);color:#a7efc8}
+.add-user-error{background:rgba(235,83,108,.09);border:1px solid rgba(244,123,143,.20);color:#ffc1cb}
+.add-user-page-card{
+  border-radius:24px;border:1px solid rgba(147,126,255,.17);
+  background:linear-gradient(145deg,rgba(19,22,59,.88),rgba(9,13,37,.92));
+  box-shadow:0 24px 70px rgba(0,0,0,.25);overflow:hidden
+}
+.add-user-page-card>header{
+  min-height:105px;padding:22px 25px;
+  display:grid;grid-template-columns:58px 1fr auto;align-items:center;gap:15px;
+  border-bottom:1px solid rgba(255,255,255,.06)
+}
+.add-user-page-icon{width:58px;height:58px;border-radius:17px;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;color:#c4b4ff;background:linear-gradient(135deg,rgba(130,91,255,.27),rgba(65,82,219,.13));border:1px solid rgba(150,124,255,.17)}
+.add-user-page-card h2{margin:0!important;font-size:25px!important;color:#fff!important;font-weight:900!important}
+.add-user-page-card header p{margin:5px 0 0!important;font-size:13px!important;color:#8f97b8!important}
+.add-user-page-card header>a{min-height:40px;padding:0 13px;border-radius:10px;display:flex;align-items:center;text-decoration:none!important;border:1px solid rgba(146,122,255,.16);background:rgba(111,82,255,.06);color:#bfb3ee!important;font-size:12px;font-weight:800}
+.add-user-page-form{padding:26px;display:grid;grid-template-columns:1.2fr 1fr .75fr;gap:18px}
+.add-user-page-field{display:flex;flex-direction:column;gap:8px}
+.add-user-page-field label{font-size:13px!important;color:#a1a9c5!important;font-weight:700!important}
+.add-user-page-field input,.add-user-page-field select{
+  height:52px!important;border-radius:12px!important;padding:0 13px!important;
+  background:rgba(7,11,32,.72)!important;border:1px solid rgba(151,132,230,.15)!important;
+  color:#fff!important;font-size:16px!important;outline:none!important
+}
+.add-user-page-field input:focus,.add-user-page-field select:focus{border-color:rgba(150,116,255,.52)!important;box-shadow:0 0 0 3px rgba(114,83,239,.08)}
+.add-user-page-date{grid-column:1/-1}
+.add-user-page-date-grid{display:grid;grid-template-columns:130px 1fr 140px;gap:10px}
+.add-user-page-note{grid-column:1/-1;padding:14px 16px;border-radius:12px;background:rgba(111,82,244,.055);border:1px solid rgba(143,120,242,.10)}
+.add-user-page-note b{display:block;font-size:13px;color:#d6d0ef}.add-user-page-note span{display:block;margin-top:3px;font-size:12px;color:#838cab}
+.add-user-page-submit{grid-column:1/-1;height:54px;border:0;border-radius:13px;background:linear-gradient(90deg,#7759ef,#5d4bd5);color:#fff;font:inherit;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 12px 32px rgba(91,70,213,.24)}
+.add-user-page-submit:hover{filter:brightness(1.08);transform:translateY(-1px)}
+
+/* User list + profile: deliberately match the readable debt-desk scale. */
+.users-readable-page,.user-detail-readable-page{
+  font-size:16px!important;
+  line-height:1.75!important;
+}
+.users-page-toolbar{
+  min-height:82px;margin-bottom:14px;padding:14px 17px;border-radius:16px;
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  background:linear-gradient(135deg,rgba(55,44,121,.28),rgba(12,22,40,.76));
+  border:1px solid rgba(145,122,255,.17)
+}
+.users-page-toolbar>div{display:flex;align-items:center;gap:12px}
+.users-page-toolbar>div>span{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;background:rgba(122,91,255,.16)}
+.users-page-toolbar b{display:block;font-size:19px!important;color:#fff!important}.users-page-toolbar small{display:block;font-size:12px!important;color:#8e97b5!important;margin-top:2px}
+.users-page-toolbar>a{min-height:42px;padding:0 14px;border-radius:10px;display:flex;align-items:center;background:linear-gradient(90deg,#7558ed,#604dd8);color:#fff!important;text-decoration:none!important;font-size:13px!important;font-weight:850!important}
+
+/* Generic overrides are scoped so the debt/payment screens are untouched. */
+.users-readable-page table,.user-detail-readable-page table{font-size:16px!important}
+.users-readable-page th,.user-detail-readable-page th{font-size:13px!important;padding:14px 15px!important;color:#9ca5c1!important}
+.users-readable-page td,.user-detail-readable-page td{font-size:15px!important;padding:15px!important;line-height:1.65!important}
+.users-readable-page td a,.user-detail-readable-page td a{font-size:15px!important;font-weight:750!important}
+.users-readable-page small,.user-detail-readable-page small{font-size:12px!important;line-height:1.6!important}
+.users-readable-page label,.user-detail-readable-page label{font-size:13px!important;color:#9ea7c2!important;font-weight:650!important}
+.users-readable-page input,.users-readable-page select,.users-readable-page textarea,
+.user-detail-readable-page input,.user-detail-readable-page select,.user-detail-readable-page textarea{
+  min-height:46px!important;font-size:15px!important;border-radius:10px!important;padding:9px 12px!important
+}
+.users-readable-page button,.users-readable-page .btn,
+.user-detail-readable-page button,.user-detail-readable-page .btn{
+  min-height:42px!important;font-size:13px!important;border-radius:10px!important;padding:8px 13px!important
+}
+.users-readable-page h2,.user-detail-readable-page h2{font-size:23px!important;line-height:1.45!important}
+.users-readable-page h3,.user-detail-readable-page h3{font-size:18px!important;line-height:1.5!important}
+.users-readable-page strong,.user-detail-readable-page strong{font-size:16px!important}
+.users-readable-page .panel,.users-readable-page .card,
+.user-detail-readable-page .panel,.user-detail-readable-page .card{
+  padding:18px!important;border-radius:16px!important
+}
+
+/* Common profile patterns from the current template. */
+.user-detail-readable-page [class*="profile"]{font-size:15px}
+.user-detail-readable-page [class*="profile"] small{font-size:12px!important}
+.user-detail-readable-page [class*="profile"] b,
+.user-detail-readable-page [class*="profile"] strong{font-size:16px!important}
+.user-detail-readable-page [class*="info"]{line-height:1.7!important}
+
+@media(max-width:1250px){
+  .focus-hero{grid-template-columns:1fr 360px!important}.focus-orb{display:none}
+  .focus-command-title{font-size:44px!important}
+}
+@media(max-width:850px){
+  .focus-hero{grid-template-columns:1fr!important}.focus-income-card{min-height:130px}.focus-command-title{font-size:38px!important;white-space:normal}
+  .debt-users-launch{align-items:flex-start;flex-direction:column}.debt-users-launch-actions{width:100%}.debt-users-launch-actions a{flex:1}
+  .add-user-page-form{grid-template-columns:1fr 1fr}.add-user-page-date{grid-column:1/-1}
+  .add-user-page-card>header{grid-template-columns:52px 1fr}.add-user-page-card header>a{grid-column:1/-1;justify-content:center}
+}
+@media(max-width:580px){
+  .focus-command-title{font-size:31px!important}
+  .focus-income-card strong{font-size:34px!important}
+  .debt-users-launch-actions{flex-direction:column}.debt-users-launch-actions a{width:100%}
+  .add-user-page-form{grid-template-columns:1fr;padding:18px}.add-user-page-date{grid-column:auto}.add-user-page-date-grid{grid-template-columns:80px 1fr 100px}
+  .users-page-toolbar{align-items:flex-start;flex-direction:column}.users-page-toolbar>a{width:100%;justify-content:center}
+}
