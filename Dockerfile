@@ -26,6 +26,7 @@ COPY patches/date_guard.py ./patches/date_guard.py
 COPY patches/waiting_partial_pay.py ./patches/waiting_partial_pay.py
 COPY patches/debt_adjust_bidirectional.py ./patches/debt_adjust_bidirectional.py
 COPY patches/workspace_refresh.py ./patches/workspace_refresh.py
+COPY patches/waiting_prepay.py ./patches/waiting_prepay.py
 COPY patches/followup.css ./patches/followup.css
 COPY patches/waiting_compact.css ./patches/waiting_compact.css
 COPY patches/ui_rescue.css ./patches/ui_rescue.css
@@ -63,6 +64,7 @@ RUN mkdir -p app/static \
  && cat patches/waiting_partial_pay.py >> app/main.py \
  && cat patches/debt_adjust_bidirectional.py >> app/main.py \
  && cat patches/workspace_refresh.py >> app/main.py \
+ && cat patches/waiting_prepay.py >> app/main.py \
  && cat patches/v3.css >> app/static/app.css \
  && cat patches/followup.css >> app/static/app.css \
  && cat patches/waiting_compact.css >> app/static/app.css \
