@@ -1,0 +1,11 @@
+hesab.filmjadiid.ir {
+    encode zstd gzip
+
+    handle_path /sms-gateway/* {
+        reverse_proxy sms-gateway:8090
+    }
+
+    handle {
+        reverse_proxy app:8000
+    }
+}
