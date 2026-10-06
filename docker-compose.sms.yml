@@ -1,0 +1,35 @@
+services:
+  app:
+    volumes:
+      - ./patches/sms_admin.py:/sms-patch/sms_admin.py:ro
+    command:
+      - /bin/sh
+      - -lc
+      - |
+        if ! grep -q 'SMS_GATEWAY_PATCH_V1' /app/app/main.py; then
+          cat /sms-patch/sms_admin.py >> /app/app/main.py
+        fi
+        python -m py_compile /app/app/main.py
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*
+
+  sms-gateway:
+    build:
+      context: ./sms_gateway
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_DSN: postgresql://${POSTGRES_USER:-vpncontrol}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-vpncontrol}
+      SMS_GATEWAY_TOKEN: ${SMS_GATEWAY_TOKEN}
+    expose:
+      - "8090"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=3).read()"
+      interval: 15s
+      timeout: 5s
+      retries: 10
