@@ -366,3 +366,240 @@ if _sms_base and 'href="/sms"' not in _sms_base:
 
 if hasattr(env.loader, "mapping"):
     env.loader.mapping.update(TEMPLATES)
+
+
+# ---------------------------------------------------------------------------
+# Debt desk one-click SMS
+# ---------------------------------------------------------------------------
+# Keep the workflow explicit:
+#   SMS -> visible sent status -> operator manually moves the group to "waiting".
+# Sending an SMS never changes billing/follow-up state by itself.
+import re as _sms_debt_re
+
+_SMS_DEBT_DEFAULT_TEXT = "سلام، وقت بخیر. زمان تمدید اشتراک شما رسیده است. لطفاً جهت تمدید اقدام کنید."
+
+
+_SMS_DEBT_STYLE = r'''
+<style>
+.debt-sms-form{margin:0}
+.debt-sms-btn{border:1px solid rgba(96,165,250,.36);background:rgba(59,130,246,.09);color:#b9d8ff;border-radius:8px;padding:5px 9px;font:inherit;font-size:10px;font-weight:850;cursor:pointer;white-space:nowrap;transition:.15s ease}
+.debt-sms-btn:hover{background:rgba(59,130,246,.16);border-color:rgba(96,165,250,.58);color:#e4f0ff}
+.debt-sms-btn:disabled{cursor:default;opacity:1}
+.debt-sms-btn.sms-pending{border-color:rgba(250,204,21,.30);background:rgba(250,204,21,.07);color:#f8df82}
+.debt-sms-btn.sms-sent{border-color:rgba(34,197,94,.34);background:rgba(34,197,94,.09);color:#adf3c0}
+.debt-sms-btn.sms-failed{border-color:rgba(248,113,113,.34);background:rgba(239,68,68,.08);color:#ffc0c5}
+.debt-sms-btn.sms-no-phone{border-color:rgba(148,163,184,.14);background:rgba(148,163,184,.04);color:#697487}
+</style>
+'''
+
+_SMS_DEBT_FORM = r'''
+      <form method="post" action="/sms/debt-send" data-preserve-position class="debt-sms-form"
+            data-debt-sms-form
+            data-sms-phone="{{ g.phone or '' }}"
+            data-sms-cycle="{{ g.first_expiry or '' }}">
+        <input type="hidden" name="phone" value="{{ g.phone or '' }}">
+        <input type="hidden" name="cycle" value="{{ g.first_expiry or '' }}">
+        {% if g.phone %}
+          <button type="submit" class="debt-sms-btn" data-debt-sms-btn>✉ ارسال پیامک</button>
+        {% else %}
+          <button type="button" class="debt-sms-btn sms-no-phone" disabled>بدون شماره</button>
+        {% endif %}
+      </form>
+'''
+
+_SMS_DEBT_SCRIPT = r'''
+<script>
+(function(){
+  const forms=[...document.querySelectorAll('[data-debt-sms-form]')];
+  if(!forms.length) return;
+
+  const keyOf=f=>(f.dataset.smsPhone||'')+'|'+(f.dataset.smsCycle||'');
+
+  function paint(form,status){
+    const btn=form.querySelector('[data-debt-sms-btn]');
+    if(!btn) return;
+    btn.classList.remove('sms-pending','sms-sent','sms-failed');
+    btn.disabled=false;
+
+    if(status==='queued'){
+      btn.classList.add('sms-pending');
+      btn.textContent='… پیامک در صف';
+      btn.disabled=true;
+    }else if(status==='claimed' || status==='dispatching'){
+      btn.classList.add('sms-pending');
+      btn.textContent='… در حال ارسال';
+      btn.disabled=true;
+    }else if(status==='sent' || status==='delivered'){
+      btn.classList.add('sms-sent');
+      btn.textContent='✓ پیامک ارسال شد';
+      btn.disabled=true;
+    }else if(status==='failed'){
+      btn.classList.add('sms-failed');
+      btn.textContent='↻ خطا؛ ارسال دوباره';
+      btn.disabled=false;
+    }else{
+      btn.textContent='✉ ارسال پیامک';
+    }
+  }
+
+  async function refresh(){
+    try{
+      const res=await fetch('/sms/debt-status',{headers:{'Accept':'application/json'},cache:'no-store'});
+      if(!res.ok) return;
+      const data=await res.json();
+      const states=(data&&data.states)||{};
+      forms.forEach(f=>paint(f,states[keyOf(f)]||''));
+    }catch(_e){}
+  }
+
+  forms.forEach(form=>{
+    form.addEventListener('submit',()=>{
+      const btn=form.querySelector('[data-debt-sms-btn]');
+      if(btn){
+        btn.disabled=true;
+        btn.classList.add('sms-pending');
+        btn.textContent='… در حال ثبت';
+      }
+    });
+  });
+
+  refresh();
+  let rounds=0;
+  const timer=setInterval(()=>{
+    rounds++;
+    refresh();
+    if(rounds>=15) clearInterval(timer);
+  },4000);
+})();
+</script>
+'''
+
+_sms_debt_tpl = TEMPLATES.get("debts.html", "")
+if _sms_debt_tpl and "/sms/debt-send" not in _sms_debt_tpl:
+    _sms_debt_tpl = _sms_debt_tpl.replace(
+        "{% block content %}",
+        "{% block content %}" + _SMS_DEBT_STYLE,
+        1,
+    )
+
+    _sms_track_pattern = _sms_debt_re.compile(
+        r'(<form\s+method="post"\s+action="/followups/track-group".*?</form>)',
+        flags=_sms_debt_re.S,
+    )
+    _sms_match = _sms_track_pattern.search(_sms_debt_tpl)
+    if _sms_match:
+        _sms_debt_tpl = (
+            _sms_debt_tpl[:_sms_match.start()]
+            + _SMS_DEBT_FORM
+            + _sms_debt_tpl[_sms_match.start():]
+        )
+
+    _sms_last_endblock = _sms_debt_tpl.rfind("{% endblock %}")
+    if _sms_last_endblock >= 0:
+        _sms_debt_tpl = (
+            _sms_debt_tpl[:_sms_last_endblock]
+            + _SMS_DEBT_SCRIPT
+            + _sms_debt_tpl[_sms_last_endblock:]
+        )
+
+    TEMPLATES["debts.html"] = _sms_debt_tpl
+
+
+def _sms_debt_source(cycle):
+    raw = str(cycle or "").strip()
+    if not _sms_debt_re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
+        raw = "unknown"
+    return "debt:" + raw
+
+
+def sms_debt_send(
+    phone: str = _SmsForm(...),
+    cycle: str = _SmsForm(""),
+    db: _SmsSession = _SmsDepends(get_db),
+):
+    _sms_ensure_schema(db)
+    normalized = _sms_normalize_phone(phone)
+    if not normalized:
+        return _SmsRedirectResponse("/debts?sms_error=phone", 303)
+
+    states = _followup_states(db) if "_followup_states" in globals() else {}
+    candidates = (
+        db.query(Subscription)
+        .filter(
+            Subscription.phone == normalized,
+            Subscription.is_free.is_(False),
+        )
+        .order_by(Subscription.id.asc())
+        .all()
+    )
+    actionable = [
+        s for s in candidates
+        if current_debt_for(s, today_local()) > 0
+        and states.get(s.id) not in ("waiting", "cut")
+    ]
+    if not actionable:
+        return _SmsRedirectResponse("/debts?sms_error=not_actionable", 303)
+
+    source = _sms_debt_source(cycle)
+    row = db.execute(
+        _sms_text(
+            """
+            INSERT INTO sms_jobs(phone, message, status, source)
+            VALUES (:phone, :message, 'queued', :source)
+            RETURNING id
+            """
+        ),
+        {
+            "phone": normalized,
+            "message": _SMS_DEBT_DEFAULT_TEXT,
+            "source": source,
+        },
+    ).first()
+
+    try:
+        if "AuditEvent" in globals():
+            db.add(AuditEvent(
+                kind="sms_queue",
+                message=(
+                    f"Debt SMS queued; job={row[0] if row else '?'}; "
+                    f"phone={normalized}; source={source}; "
+                    f"accounts={','.join(str(s.id) for s in actionable)}"
+                ),
+            ))
+    except Exception:
+        pass
+
+    db.commit()
+    return _SmsRedirectResponse(
+        f"/debts?sms_queued=1&job={row[0] if row else ''}",
+        303,
+    )
+
+
+def sms_debt_status(db: _SmsSession = _SmsDepends(get_db)):
+    _sms_ensure_schema(db)
+    rows = db.execute(
+        _sms_text(
+            """
+            SELECT DISTINCT ON (phone, source)
+                   phone, source, status, id
+            FROM sms_jobs
+            WHERE source LIKE 'debt:%'
+            ORDER BY phone, source, id DESC
+            """
+        )
+    ).mappings().all()
+
+    states = {}
+    for row in rows:
+        cycle = str(row["source"] or "")[5:]
+        states[f"{row['phone']}|{cycle}"] = row["status"]
+
+    return {"ok": True, "states": states}
+
+
+app.add_api_route("/sms/debt-send", sms_debt_send, methods=["POST"])
+app.add_api_route("/sms/debt-status", sms_debt_status, methods=["GET"])
+
+if hasattr(env.loader, "mapping"):
+    env.loader.mapping.update(TEMPLATES)
