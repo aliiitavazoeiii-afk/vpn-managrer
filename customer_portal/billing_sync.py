@@ -400,6 +400,17 @@ def _sync_paid_reference(reference):
                 (request_row["id"],),
             )
             allocations = cur.fetchall()
+            if not allocations:
+                cur.execute(
+                    """
+                    UPDATE ayria_payment_requests
+                    SET sync_status='legacy', sync_error='no per-account allocation; not auto-applied', updated_at=NOW()
+                    WHERE id=%s
+                    """,
+                    (request_row["id"],),
+                )
+                conn.commit()
+                return {"ok": False, "reason": "legacy_without_allocations"}
 
             # Preflight every child before mutating any account. This is what prevents
             # a group payment from accidentally extending siblings that were changed
@@ -554,6 +565,11 @@ async def _ayria_sync_loop():
                         WHERE reference_code IS NOT NULL
                           AND paid_at IS NULL
                           AND COALESCE(status,'') NOT IN ('failed','canceled')
+                          AND EXISTS (
+                              SELECT 1
+                              FROM ayria_payment_allocations a
+                              WHERE a.request_id=ayria_payment_requests.id
+                          )
                         ORDER BY id
                         LIMIT 50
                         """
