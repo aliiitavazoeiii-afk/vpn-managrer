@@ -43,6 +43,8 @@ services:
   customer-portal:
     build:
       context: ./customer_portal
+    volumes:
+      - ./customer_portal/logo.png:/srv/logo.png:ro
     restart: unless-stopped
     depends_on:
       db:
