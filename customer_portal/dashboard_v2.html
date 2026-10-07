@@ -9,24 +9,38 @@
 <link rel="stylesheet" href="/assets/v2_polish.css">
 </head>
 <body>
-{% if show_welcome %}
-<div class="welcome-overlay" id="welcome-overlay">
-  <div class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
-    <div class="welcome-icon">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5m0 3.5v.01M10.3 3.9 2.5 17.4A2 2 0 0 0 4.2 20h15.6a2 2 0 0 0 1.7-2.6L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-    </div>
-    <h2 id="welcome-title">تغییر سررسید اکانت‌ها</h2>
-    <p>لطفاً توجه داشته باشید تمامی اکانت‌ها تا <b>یک آبان</b> محاسبه می‌شود. از این پس سررسید تمامی اکانت‌ها <b>یکم هر ماه</b> خواهد بود.</p>
-    <button type="button" class="welcome-btn" onclick="closeWelcome()">متوجه شدم، ورود به پنل</button>
+
+{% if show_notice %}
+<div class="entry-modal" id="entryModal" role="dialog" aria-modal="true">
+  <div class="entry-modal-backdrop"></div>
+  <div class="entry-modal-card">
+    <div class="entry-modal-icon">!</div>
+    <div class="entry-modal-kicker">اطلاعیه مهم</div>
+    <h2>لطفاً توجه داشته باشید تمامی اکانت‌ها تا یک آبان محاسبه می‌شود.</h2>
+    <p>از این پس سررسید تمامی اکانت‌ها یکم هر ماه خواهد بود.</p>
+    <button type="button" class="entry-modal-btn" onclick="dismissEntryNotice()">متوجه شدم، نمایش پنل</button>
   </div>
 </div>
+<script>
+function dismissEntryNotice(){
+  const modal=document.getElementById('entryModal');
+  if(modal){modal.classList.add('leaving');setTimeout(()=>modal.remove(),220);}
+  try{
+    const u=new URL(window.location.href);
+    u.searchParams.delete('notice');
+    history.replaceState({},'',u.pathname+u.search+u.hash);
+  }catch(e){}
+}
+</script>
 {% endif %}
 
 <main class="shell">
   <header class="topbar">
     <div class="brand">
-      <img class="brand-logo" src="/assets/logo.png" alt="VPN">
-      <div class="brandcopy"><b>پنل مشترکین</b></div>
+      <div class="brandmark"><img src="/assets/logo.png" alt="VPN"></div>
+      <div class="brandcopy">
+        <b>پنل مشترکین</b>
+      </div>
     </div>
     <div class="top-actions">
       <div class="phone-chip">{{ phone }}</div>
@@ -41,7 +55,7 @@
       <div class="stat-head">
         <span class="stat-label">تعداد اکانت‌ها</span>
         <span class="stat-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M7 8.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm10 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20v-2.2C2 14.6 4.7 12 8 12s6 2.6 6 5.8V20H2Zm12.5 0v-2.2a7 7 0 0 0-2.2-5.1A6.8 6.8 0 0 1 16 11.6c3.3 0 6 2.6 6 5.8V20h-7.5Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M7.5 11A3.5 3.5 0 1 0 7.5 4a3.5 3.5 0 0 0 0 7ZM16.5 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2.5 19.5c.4-3.6 2.1-5.5 5-5.5s4.6 1.9 5 5.5M13 14.5c1-.6 2.1-.9 3.5-.9 2.8 0 4.5 1.8 5 5.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </span>
       </div>
       <strong>{{ accounts|length|fa }}</strong>
@@ -52,7 +66,7 @@
       <div class="stat-head">
         <span class="stat-label">جمع بدهی</span>
         <span class="stat-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-11Zm0 2.5h18m-5 4h5m-5 0a2 2 0 1 0 0 4h5v-4h-5Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 7.5h16v10H4v-10Z" stroke="currentColor" stroke-width="1.8"/><path d="M8 7.5v-2h8v2M8 12h4M16 11v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </span>
       </div>
       <strong>{{ total_debt|money }}</strong>
@@ -64,7 +78,7 @@
     <div class="renew-copy">
       <div class="renew-eyebrow">ONE PAYMENT · ALL ACCOUNTS</div>
       <h2>تمدید همه اکانت‌ها تا یکم آبان ماه</h2>
-      <p>مبلغ زیر جمع هزینه همسان‌سازی سررسید تمام اکانت‌های شما تا یکم آبان است.</p>
+      <p>این مبلغ براساس انتقال سررسید اکانت‌های شما به ابتدای ماه محاسبه شده است.</p>
     </div>
     <div class="renew-total">
       <div class="renew-price"><small>مبلغ قابل پرداخت</small><strong>{{ total_debt|money }}</strong><span> تومان</span></div>
@@ -82,7 +96,7 @@
   <div class="section-head">
     <div>
       <h2>اکانت‌های شما</h2>
-      <p>برای هر اکانت، تغییر سررسید و مبلغ محاسبه‌شده را جداگانه می‌بینید.</p>
+      <p>تاریخ فعلی و تاریخ جدید هر اکانت را قبل از پرداخت ببینید.</p>
     </div>
     <span>{{ accounts|length|fa }} اکانت</span>
   </div>
@@ -107,25 +121,25 @@
         {% endif %}
       </div>
 
-      <div class="expiry-transition">
-        <div class="expiry-date old">
+      <div class="expiry-shift">
+        <div class="expiry-point current">
           <span>انقضای فعلی</span>
-          <strong>{{ a.expiry_jalali }}</strong>
+          <strong>{{ a.transition_original_jalali or a.expiry_jalali }}</strong>
         </div>
         <div class="expiry-arrow" aria-hidden="true">
           <span></span>
-          <svg viewBox="0 0 24 24"><path d="M5 12h13m-5-5 5 5-5 5"/></svg>
+          <svg viewBox="0 0 48 18" fill="none"><path d="M2 9h39M35 3l7 6-7 6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <div class="expiry-date new">
-          <span>انقضای جدید پس از پرداخت</span>
-          <strong>{{ a.target_expiry_jalali }}</strong>
-          {% if a.is_anchor_target %}<small>سررسید جدید: یکم آبان</small>{% endif %}
+        <div class="expiry-point target">
+          <span>انقضای جدید</span>
+          <strong>{{ a.transition_target_jalali or '۱۴۰۵/۰۸/۰۱' }}</strong>
+          {% if a.transition_status %}<small>مبنای مبلغ این دوره</small>{% endif %}
         </div>
       </div>
 
       <div class="account-meta">
         <div class="meta"><span>مبلغ ماهانه</span><strong>{{ a.monthly_fee|money }} تومان</strong></div>
-        <div class="meta debt"><span>مبلغ محاسبه‌شده تا سررسید جدید</span><strong>{{ a.debt|money }} تومان</strong></div>
+        <div class="meta debt"><span>مبلغ این دوره</span><strong>{{ a.debt|money }} تومان</strong></div>
       </div>
 
       <div class="account-actions">
@@ -137,6 +151,7 @@
         {% else %}
         <div class="no-debt">✓ این اکانت بدهی ندارد</div>
         {% endif %}
+
         <form method="post" action="/disable/{{ a.id }}" onsubmit="return confirm('این اکانت غیرفعال شود؟')">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <button class="disable-btn" type="submit">غیرفعال کردن اکانت</button>
@@ -148,13 +163,5 @@
     {% endfor %}
   </section>
 </main>
-
-<script>
-function closeWelcome(){
-  const el=document.getElementById('welcome-overlay');
-  if(el){el.classList.add('closing');setTimeout(()=>el.remove(),220);}
-  if(history.replaceState){history.replaceState({},'',location.pathname);}
-}
-</script>
 </body>
 </html>
