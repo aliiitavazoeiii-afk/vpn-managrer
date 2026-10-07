@@ -96,16 +96,20 @@ def active_subscriptions(conn, phone):
             item["transition_original_jalali"] = jalali_text(a["original_expiry"])
             item["transition_target_jalali"] = jalali_text(a["anchor_expiry"])
             item["transition_status"] = a["status"]
-            if a["status"] == "scheduled" and a["original_expiry"] and today < a["original_expiry"]:
+            item["portal_payable_amount"] = _anchor_debt(a, item["monthly_fee"], today)
+            item["is_overdue"] = bool(a["original_expiry"] and a["original_expiry"] <= today)
+            if a["original_expiry"] and today < a["original_expiry"]:
                 item["debt"] = 0
             else:
-                item["debt"] = _anchor_debt(a, item["monthly_fee"], today)
+                item["debt"] = item["portal_payable_amount"]
         else:
             item["transition_original_expiry"] = item.get("expiry_date")
             item["transition_target_expiry"] = item.get("expiry_date")
             item["transition_original_jalali"] = item.get("expiry_jalali") or "—"
             item["transition_target_jalali"] = item.get("expiry_jalali") or "—"
             item["transition_status"] = None
+            item["portal_payable_amount"] = int(item.get("debt") or 0)
+            item["is_overdue"] = bool(item.get("expiry_date") and item["expiry_date"] <= today)
     return rows
 
 
@@ -133,8 +137,8 @@ def _allocation_plan(conn, selected):
         anchor = anchors.get(sid)
 
         if anchor and anchor["status"] in ("pending", "scheduled"):
-            if anchor["status"] == "scheduled" and anchor["original_expiry"] and today < anchor["original_expiry"]:
-                continue
+            # Customer portal may prepay the transition before the current
+            # expiry. This does not make the admin debt inbox show it early.
             extra_periods = _periods_due_from(anchor["anchor_expiry"], today) if today >= anchor["anchor_expiry"] else 0
             amount = int(anchor["transition_amount_toman"] or 0) + extra_periods * fee
             new_expiry = add_jalali_months(anchor["anchor_expiry"], extra_periods) if extra_periods else anchor["anchor_expiry"]
