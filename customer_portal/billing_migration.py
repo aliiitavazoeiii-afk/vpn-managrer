@@ -106,49 +106,124 @@ def load_rows(conn):
     return [r for r in rows if int(r["id"]) not in excluded]
 
 
+def transition_for(expiry, fee):
+    if not expiry:
+        return None
+
+    j = jdatetime.date.fromgregorian(date=expiry)
+
+    if expiry <= ANCHOR_DATE:
+        target = ANCHOR_DATE
+        amount = prorated_to_anchor(expiry, fee)
+        status = "pending" if amount > 0 else "paid"
+        return target, amount, status
+
+    # Already beyond 1 Aban: never shorten paid service. If the account is not
+    # already on day 1, schedule a one-time proration from its current expiry to
+    # the first day of the following Jalali month.
+    if j.day == 1:
+        return None
+
+    target = next_jalali_month_start(expiry)
+    cursor = expiry
+    total = Decimal(0)
+    fee_d = Decimal(int(fee))
+    while cursor < target:
+        month_start = jalali_month_start(cursor)
+        next_start = next_jalali_month_start(cursor)
+        segment_end = min(next_start, target)
+        days = Decimal((segment_end - cursor).days)
+        month_days = Decimal((next_start - month_start).days)
+        total += fee_d * days / month_days
+        cursor = segment_end
+    amount = int(total.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return target, amount, "scheduled"
+
+
 def preview(conn):
     rows = load_rows(conn)
-    total = 0
-    future = []
+    immediate_total = 0
+    missing = []
+    scheduled = []
+
     print(f"ANCHOR: {ANCHOR_DATE} (1405/08/01)")
-    print("id | name | expiry | fee | current_debt | proposed_to_1405/08/01")
-    print("-" * 110)
+    print("id | name | expiry | fee | current_debt | proposed_now | target | mode")
+    print("-" * 132)
+
     for r in rows:
         expiry = r["expiry_date"]
         fee = int(r["monthly_fee_toman"] or 0)
-        if expiry and expiry > ANCHOR_DATE:
-            future.append(r)
-            proposed = 0
-        else:
-            proposed = prorated_to_anchor(expiry, fee)
-        total += proposed
+        t = transition_for(expiry, fee)
+
+        if not expiry:
+            missing.append(r)
+            print(
+                f"{r['id']} | {str(r['display_name'])[:28]} | - | "
+                f"{fee:,} | {int(r['debt_toman'] or 0):,} | 0 | - | MISSING_EXPIRY"
+            )
+            continue
+
+        if t is None:
+            print(
+                f"{r['id']} | {str(r['display_name'])[:28]} | {jalali(expiry)} | "
+                f"{fee:,} | {int(r['debt_toman'] or 0):,} | 0 | {jalali(expiry)} | ALREADY_ALIGNED"
+            )
+            continue
+
+        target, amount, status = t
+        proposed_now = amount if status == "pending" else 0
+        immediate_total += proposed_now
+        if status == "scheduled":
+            scheduled.append((r, target, amount))
+
         print(
             f"{r['id']} | {str(r['display_name'])[:28]} | {jalali(expiry)} | "
-            f"{fee:,} | {int(r['debt_toman'] or 0):,} | {proposed:,}"
+            f"{fee:,} | {int(r['debt_toman'] or 0):,} | {proposed_now:,} | "
+            f"{jalali(target)} | {status.upper()}"
         )
 
-    print("-" * 110)
-    print(f"accounts={len(rows)} proposed_total={total:,} toman")
-    if future:
-        print("\nWARNING: these accounts expire AFTER 1405/08/01 and are NOT shortened:")
-        for r in future:
-            print(f"  sid={r['id']} name={r['display_name']} expiry={jalali(r['expiry_date'])}")
+    print("-" * 132)
+    print(f"accounts={len(rows)} immediate_total={immediate_total:,} toman")
+
+    if scheduled:
+        print("\nSCHEDULED ALIGNMENT (paid service is preserved; charge starts at current expiry):")
+        for r, target, amount in scheduled:
+            print(
+                f"  sid={r['id']} name={r['display_name']} "
+                f"expiry={jalali(r['expiry_date'])} -> target={jalali(target)} "
+                f"future_proration={amount:,}"
+            )
+
+    if missing:
+        print("\nERROR: accounts with no expiry cannot be aligned:")
+        for r in missing:
+            print(f"  sid={r['id']} name={r['display_name']}")
+        print("APPLY WILL REFUSE until these expiry dates are fixed.")
 
 
 def apply(conn):
     rows = load_rows(conn)
+    missing = [r for r in rows if not r["expiry_date"]]
+    if missing:
+        print("REFUSED: accounts with missing expiry:")
+        for r in missing:
+            print(f"  sid={r['id']} name={r['display_name']}")
+        raise SystemExit(2)
+
     with conn.cursor() as cur:
         cur.execute(SCHEMA)
 
+        migrated = 0
+        scheduled_count = 0
         for r in rows:
             expiry = r["expiry_date"]
             fee = int(r["monthly_fee_toman"] or 0)
-
-            if not expiry or expiry > ANCHOR_DATE:
+            t = transition_for(expiry, fee)
+            if t is None:
                 continue
 
-            amount = prorated_to_anchor(expiry, fee)
-            status = "pending" if amount > 0 else "paid"
+            target, amount, status = t
+            paid_at_status = "paid" if status == "paid" else ""
 
             cur.execute(
                 """
@@ -164,28 +239,40 @@ def apply(conn):
                     status=EXCLUDED.status,
                     paid_at=EXCLUDED.paid_at
                 """,
-                (r["id"], expiry, ANCHOR_DATE, amount, status, status),
+                (r["id"], expiry, target, amount, status, paid_at_status),
             )
 
-            cur.execute(
-                """
-                UPDATE subscriptions
-                SET debt_toman=%s,
-                    payment_status=%s
-                WHERE id=%s
-                """,
-                (amount, "unpaid" if amount > 0 else "paid", r["id"]),
-            )
+            if status == "pending":
+                cur.execute(
+                    """
+                    UPDATE subscriptions
+                    SET debt_toman=%s,
+                        payment_status=%s
+                    WHERE id=%s
+                    """,
+                    (amount, "unpaid" if amount > 0 else "paid", r["id"]),
+                )
+            elif status == "scheduled":
+                scheduled_count += 1
+
+            migrated += 1
 
         cur.execute(
             """
             INSERT INTO audit_events(kind, message, created_at)
             VALUES ('billing_anchor_migration', %s, NOW())
             """,
-            (f"Prepared first-of-month billing alignment to 1405/08/01; accounts={len(rows)}",),
+            (
+                f"Prepared first-of-month billing alignment; "
+                f"migrated={migrated}; scheduled={scheduled_count}; "
+                f"primary_anchor=1405/08/01",
+            ),
         )
     conn.commit()
-    print("APPLIED: billing alignment rows created. No expiry date was shortened or advanced yet.")
+    print(
+        f"APPLIED: migrated={migrated}; scheduled={scheduled_count}. "
+        "No paid service was shortened."
+    )
 
 
 def main():
