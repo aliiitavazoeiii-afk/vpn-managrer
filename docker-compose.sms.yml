@@ -38,3 +38,32 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
+
+
+  customer-portal:
+    build:
+      context: ./customer_portal
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      sms-gateway:
+        condition: service_healthy
+    environment:
+      DATABASE_DSN: postgresql://${POSTGRES_USER:-vpncontrol}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-vpncontrol}
+      CUSTOMER_PORTAL_SECRET: ${CUSTOMER_PORTAL_SECRET}
+      AYRIA_API_BASE: ${AYRIA_API_BASE:-https://api.ayriaclub.ir}
+      AYRIA_APG_API_KEY: ${AYRIA_APG_API_KEY}
+      AYRIA_APG_WALLET_ID: ${AYRIA_APG_WALLET_ID}
+      AYRIA_REFERRAL_CODE: ${AYRIA_REFERRAL_CODE}
+    expose:
+      - "8091"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8091/health', timeout=3).read()"
+      interval: 15s
+      timeout: 5s
+      retries: 10
