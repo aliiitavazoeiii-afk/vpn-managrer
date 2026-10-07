@@ -1,75 +1,147 @@
 :root{
   color-scheme:light;
-  --bg:#f4f4f2;
-  --card:#fff;
-  --ink:#111;
-  --muted:#777d86;
-  --line:#e7e7e4;
-  --soft:#f7f7f5;
-  --black:#111;
-  --shadow:0 18px 55px rgba(17,17,17,.08);
+  --mono-bg:#f4f5f7;
+  --mono-card:rgba(255,255,255,.92);
+  --mono-card-solid:#fff;
+  --mono-text:#101114;
+  --mono-muted:#7b808a;
+  --mono-line:#e5e7eb;
+  --mono-line-strong:#d5d8de;
+  --mono-black:#101114;
+  --mono-shadow:0 18px 55px rgba(16,17,20,.08);
 }
-html{background:var(--bg)!important}
-body{color:var(--ink)!important;background:radial-gradient(720px 420px at 100% 0,rgba(0,0,0,.035),transparent 60%),linear-gradient(180deg,#fafafa,#f1f1ef)!important}
+html{background:var(--mono-bg)!important}
+body{
+  color:var(--mono-text)!important;
+  background:
+    radial-gradient(900px 450px at 100% -5%,rgba(0,0,0,.035),transparent 62%),
+    radial-gradient(720px 420px at -10% 15%,rgba(0,0,0,.025),transparent 60%),
+    linear-gradient(180deg,#fafafa 0%,#f2f3f5 100%)!important;
+}
 body:before,body:after{display:none!important}
 .shell,.login-shell{position:relative;z-index:1}
-.brand-logo{width:52px;height:52px;object-fit:contain;display:block;filter:drop-shadow(0 8px 12px rgba(0,0,0,.12))}
-.brandcopy b{font-size:23px!important;color:#111!important}
-.brandcopy span{display:none!important}
-.phone-chip,.logout{background:#fff!important;border:1px solid var(--line)!important;color:#111!important;border-radius:14px!important}
-.logout{font-weight:800!important}
-.stats{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important}
-.stat,.account-card,.login-panel{background:#fff!important;border:1px solid var(--line)!important;box-shadow:var(--shadow)!important;color:#111!important}
-.stat{border-radius:24px!important;padding:20px!important}
-.stat-label,.stat small,.section-head p,.section-head span,.account-name small,.meta span,.renew-copy p,.renew-eyebrow,.renew-price small,.renew-price span,.login-panel p,.field label,.login-note{color:var(--muted)!important}
-.stat strong,.section-head h2,.account-name b,.meta strong,.renew-copy h2,.renew-price strong,.login-panel h1{color:#111!important}
-.stat-icon{width:44px!important;height:44px!important;border-radius:14px!important;background:#111!important;color:#fff!important;display:grid!important;place-items:center!important}
-.stat-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.renew-all{background:linear-gradient(135deg,#111,#222)!important;color:#fff!important;border:1px solid #111!important;border-radius:28px!important;box-shadow:0 22px 60px rgba(0,0,0,.15)!important}
-.renew-copy h2,.renew-price strong{color:#fff!important}
-.renew-copy p,.renew-eyebrow,.renew-price small,.renew-price span{color:#bfc3c8!important}
-.primary-btn{background:#fff!important;color:#111!important;border:1px solid #fff!important;border-radius:16px!important;font-weight:900!important}
-.section-head h2{font-size:32px!important}
-.account-card{border-radius:25px!important;padding:22px!important}
-.account-avatar{width:54px!important;height:54px!important;background:#111!important;color:#fff!important;border:0!important;border-radius:17px!important;font-size:18px!important}
-.account-name b{font-size:22px!important}
-.badge{padding:8px 12px!important;font-size:11px!important}
-.badge.active{background:#f1f1ef!important;color:#111!important}
-.badge.due{background:#111!important;color:#fff!important}
-.badge.waiting{background:#e7e7e4!important;color:#111!important}
-.expiry-transition{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;margin-top:19px;padding:17px;border:1px solid var(--line);background:var(--soft);border-radius:20px}
-.expiry-date{min-width:0}.expiry-date span{display:block;color:var(--muted);font-size:11px}.expiry-date strong{display:block;margin-top:6px;font-size:21px;color:#111}.expiry-date.new strong{font-size:24px;font-weight:900}.expiry-date.new small{display:inline-block;margin-top:6px;padding:4px 8px;border-radius:999px;background:#111;color:#fff;font-size:9px}
-.expiry-arrow{display:flex;align-items:center;gap:0;color:#111;min-width:74px}.expiry-arrow span{height:1px;background:#111;flex:1}.expiry-arrow svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.account-meta{grid-template-columns:repeat(2,minmax(0,1fr))!important}.meta{background:#fafafa!important;border:1px solid var(--line)!important;border-radius:16px!important}.meta.debt strong{color:#111!important}
-.account-actions{border-top:1px solid var(--line)!important}
-.pay-one,.disable-btn,.no-debt{padding:15px 20px!important;border-radius:16px!important;font-size:15px!important;font-weight:900!important}
-.pay-one{background:#111!important;color:#fff!important;border:1px solid #111!important;box-shadow:none!important}
+.brandcopy b,.section-head h2,.account-name b,.login-panel h1,.stat strong,.renew-copy h2,.renew-price strong,.meta strong,.expiry-point strong{color:var(--mono-text)!important}
+.brandcopy span,.stat-label,.stat small,.renew-copy p,.renew-eyebrow,.renew-price small,.renew-price span,.section-head p,.section-head span,.account-name small,.meta span,.phone-chip,.login-panel p,.login-note,.field label,.expiry-point span,.expiry-point small{color:var(--mono-muted)!important}
+
+.brandmark{
+  width:54px!important;height:54px!important;
+  border-radius:0!important;overflow:visible!important;
+  background:transparent!important;border:0!important;box-shadow:none!important;
+}
+.brandmark img{width:54px!important;height:54px!important;object-fit:contain!important;mix-blend-mode:multiply}
+.phone-chip,.logout{
+  background:#fff!important;border:1px solid var(--mono-line)!important;color:#111!important;
+  border-radius:14px!important;box-shadow:0 7px 20px rgba(0,0,0,.035)!important;
+}
+.logout:hover{background:#111!important;color:#fff!important}
+
+.stats{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;margin-top:16px!important}
+.stat,.account-card,.login-panel{
+  background:var(--mono-card)!important;border:1px solid var(--mono-line)!important;
+  box-shadow:var(--mono-shadow)!important;backdrop-filter:blur(14px);
+}
+.stat{min-height:140px!important;border-radius:24px!important;padding:20px!important;transition:.18s}
+.stat:hover,.account-card:hover{transform:translateY(-3px);border-color:var(--mono-line-strong)!important;box-shadow:0 24px 62px rgba(16,17,20,.11)!important}
+.stat-label{font-size:13px!important;font-weight:750!important}
+.stat-icon{
+  width:44px!important;height:44px!important;border-radius:14px!important;
+  background:#111!important;color:#fff!important;border:1px solid #111!important;
+  display:grid!important;place-items:center!important;
+}
+.stat-icon svg{width:24px;height:24px;display:block}
+.stat strong{font-size:34px!important}.stat small{font-size:11px!important}
+
+.renew-all{
+  border-radius:28px!important;padding:24px!important;
+  background:
+    radial-gradient(280px 170px at 7% 10%,rgba(0,0,0,.06),transparent 72%),
+    linear-gradient(180deg,#fff,#f7f7f7)!important;
+  color:#111!important;border:1px solid var(--mono-line)!important;box-shadow:var(--mono-shadow)!important;
+}
+.renew-copy h2{font-size:28px!important}.renew-copy p{font-size:13px!important}.renew-price strong{font-size:34px!important}
+.primary-btn{
+  border-radius:17px!important;padding:15px 21px!important;background:#111!important;color:#fff!important;
+  border:1px solid #111!important;font-size:14px!important;font-weight:900!important;box-shadow:0 12px 24px rgba(0,0,0,.14)!important;
+}
+.primary-btn:hover{background:#222!important;transform:translateY(-2px)}
+.primary-btn:disabled{background:#d8dadd!important;color:#777!important;border-color:#d8dadd!important;box-shadow:none!important}
+
+.section-head{margin:30px 3px 14px!important}.section-head h2{font-size:32px!important;font-weight:900!important}.section-head p{font-size:14px!important}.section-head span{font-size:13px!important}
+.account-list{gap:15px!important}.account-card{border-radius:26px!important;padding:22px!important;transition:.18s}
+.account-avatar{
+  width:56px!important;height:56px!important;border-radius:18px!important;background:#111!important;color:#fff!important;
+  border:1px solid #111!important;font-size:18px!important;
+}
+.account-name b{font-size:22px!important}.account-name small{font-size:11px!important}
+.badge{padding:9px 13px!important;font-size:11px!important;font-weight:850!important;border-radius:999px!important}
+.badge.active{background:#f3f4f6!important;color:#111!important;border:1px solid #e4e6ea!important}
+.badge.due{background:#111!important;color:#fff!important;border:1px solid #111!important}
+.badge.waiting{background:#e9eaed!important;color:#111!important;border:1px solid #d9dbe0!important}
+
+.expiry-shift{
+  margin-top:18px;padding:16px;border-radius:20px;background:#f7f7f8;border:1px solid #e8e9ec;
+  display:grid;grid-template-columns:minmax(0,1fr) 86px minmax(0,1fr);align-items:center;gap:12px;
+}
+.expiry-point{padding:4px}.expiry-point span{display:block;font-size:11px;font-weight:700}
+.expiry-point strong{display:block;margin-top:6px;font-size:20px;letter-spacing:-.02em}
+.expiry-point.target{background:#111;color:#fff;border-radius:16px;padding:13px 14px}
+.expiry-point.target span,.expiry-point.target strong,.expiry-point.target small{color:#fff!important}
+.expiry-point.target small{display:block;margin-top:4px;font-size:9px;opacity:.68}
+.expiry-arrow{position:relative;color:#111;display:flex;align-items:center;justify-content:center}
+.expiry-arrow svg{width:58px;height:23px;animation:arrowNudge 1.35s ease-in-out infinite}
+.expiry-arrow span{position:absolute;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.045);animation:arrowPulse 1.35s ease-in-out infinite}
+@keyframes arrowNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(-5px)}}
+@keyframes arrowPulse{0%,100%{transform:scale(.85);opacity:.25}50%{transform:scale(1.2);opacity:.7}}
+
+.account-meta{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;margin-top:12px!important}
+.meta{border-radius:17px!important;padding:15px!important;background:#fbfbfc!important;border:1px solid #eceef1!important}
+.meta span{font-size:11px!important}.meta strong{font-size:18px!important}.meta.debt strong{color:#111!important}
+.account-actions{gap:10px!important;margin-top:18px!important;padding-top:18px!important;border-top:1px solid var(--mono-line)!important}
+.pay-one,.disable-btn,.no-debt{border-radius:17px!important;padding:15px 21px!important;font-size:15px!important;font-weight:900!important}
+.pay-one{background:#111!important;color:#fff!important;border:1px solid #111!important;box-shadow:0 12px 24px rgba(0,0,0,.13)!important}
+.pay-one:hover{background:#222!important;transform:translateY(-2px)}
 .disable-btn{background:#fff!important;color:#111!important;border:1px solid #111!important}
-.no-debt{background:#f3f3f1!important;color:#111!important;border:1px solid var(--line)!important}
-.login-shell{width:min(500px,calc(100% - 28px))!important;margin:6vh auto 0!important}
-.login-panel{border-radius:30px!important;padding:28px!important}
-.login-head{display:flex;flex-direction:column;align-items:center;text-align:center}
-.hero-logo{width:auto!important;height:auto!important;margin:0 0 12px!important;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important}
-.hero-logo img{width:180px!important;height:180px!important;object-fit:contain!important;filter:drop-shadow(0 12px 18px rgba(0,0,0,.16))!important}
-.login-panel h1{font-size:34px!important;margin:0!important}
-.field input{height:56px!important;background:#fff!important;color:#111!important;border:1px solid #cfcfcb!important;border-radius:15px!important}
-.field input:focus{border-color:#111!important;box-shadow:0 0 0 4px rgba(0,0,0,.05)!important}
-.login-btn{height:56px!important;border-radius:15px!important;background:#111!important;color:#fff!important;font-size:15px!important;font-weight:900!important;box-shadow:none!important}
-.flash.ok{background:#f4f4f2!important;color:#111!important;border-color:var(--line)!important}.flash.bad{background:#111!important;color:#fff!important;border-color:#111!important}
-.welcome-overlay{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:22px;background:rgba(245,245,243,.52);backdrop-filter:blur(14px);animation:overlayIn .22s ease}
-.welcome-overlay.closing{opacity:0;transition:.22s ease}
-.welcome-modal{width:min(520px,100%);background:#fff;border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:0 30px 90px rgba(0,0,0,.18);text-align:center;animation:modalIn .3s cubic-bezier(.2,.8,.2,1)}
-.welcome-icon{width:58px;height:58px;margin:0 auto 14px;border-radius:18px;background:#111;color:#fff;display:grid;place-items:center}.welcome-icon svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.welcome-modal h2{margin:0;font-size:26px}.welcome-modal p{margin:12px 0 20px;color:#656b74;line-height:2;font-size:14px}.welcome-modal p b{color:#111}.welcome-btn{width:100%;height:54px;border:0;border-radius:15px;background:#111;color:#fff;font:inherit;font-weight:900;cursor:pointer}
-@keyframes overlayIn{from{opacity:0}to{opacity:1}}@keyframes modalIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
-@media(max-width:760px){
+.disable-btn:hover{background:#111!important;color:#fff!important}
+.no-debt{background:#f4f5f6!important;color:#111!important;border:1px solid #e1e3e6!important}
+
+.login-shell{width:min(520px,calc(100% - 28px))!important;margin:6vh auto 0!important}
+.login-panel{border-radius:30px!important;padding:30px!important}
+.login-head{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:20px}
+.hero-logo{
+  width:auto!important;height:auto!important;margin:0 0 14px!important;padding:0!important;
+  border-radius:0!important;background:transparent!important;border:0!important;box-shadow:none!important;
+}
+.hero-logo img{
+  width:180px!important;height:180px!important;object-fit:contain!important;display:block!important;
+  mix-blend-mode:multiply;filter:none!important;
+}
+.login-panel h1{font-size:35px!important;font-weight:900!important}.login-panel p{font-size:14px!important;line-height:2!important}
+.field input{height:58px!important;border-radius:16px!important;background:#fff!important;color:#111!important;border:1px solid #d8dadd!important;font-size:18px!important}
+.field input:focus{border-color:#111!important;box-shadow:0 0 0 4px rgba(0,0,0,.06)!important}
+.login-btn{height:58px!important;border-radius:16px!important;background:#111!important;color:#fff!important;font-size:16px!important;box-shadow:0 14px 26px rgba(0,0,0,.14)!important}
+.login-btn:hover{background:#222!important}
+
+.entry-modal{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:22px}
+.entry-modal-backdrop{position:absolute;inset:0;background:rgba(15,15,17,.28);backdrop-filter:blur(13px);animation:modalFade .2s ease both}
+.entry-modal-card{
+  position:relative;z-index:1;width:min(520px,100%);background:#fff;border:1px solid #e4e5e8;border-radius:28px;
+  padding:28px;box-shadow:0 32px 100px rgba(0,0,0,.22);text-align:right;animation:modalPop .24s ease both;
+}
+.entry-modal-icon{width:48px;height:48px;border-radius:15px;background:#111;color:#fff;display:grid;place-items:center;font-size:22px;font-weight:900;margin-bottom:18px}
+.entry-modal-kicker{font-size:11px;color:#777;font-weight:800}.entry-modal-card h2{font-size:22px;line-height:1.9;margin:8px 0 4px;color:#111}.entry-modal-card p{font-size:14px;line-height:1.9;color:#686d76;margin:0}
+.entry-modal-btn{width:100%;height:54px;border:0;border-radius:16px;background:#111;color:#fff;font-size:15px;font-weight:900;margin-top:22px;cursor:pointer}
+.entry-modal.leaving{opacity:0;transition:.22s ease}
+@keyframes modalFade{from{opacity:0}to{opacity:1}}@keyframes modalPop{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+
+@media(max-width:860px){
   .stats{grid-template-columns:1fr!important}
-  .expiry-transition{grid-template-columns:1fr!important;text-align:center}
-  .expiry-arrow{transform:rotate(90deg);width:56px;min-width:56px;margin:0 auto}
+  .renew-all{grid-template-columns:1fr!important}
+  .renew-total{justify-content:space-between;align-items:flex-end}
+  .section-head{flex-direction:column;align-items:flex-start}.section-head h2{font-size:27px!important}
+  .account-top{flex-direction:column;align-items:flex-start}
+  .expiry-shift{grid-template-columns:1fr 54px 1fr;gap:8px;padding:12px}
+  .expiry-point strong{font-size:16px}.expiry-arrow svg{width:44px}
   .account-meta{grid-template-columns:1fr!important}
-  .account-actions{flex-direction:column!important}
-  .pay-one,.disable-btn,.no-debt,.primary-btn{width:100%!important;text-align:center}
-  .hero-logo img{width:150px!important;height:150px!important}
-  .login-panel{padding:22px!important}
-  .section-head h2{font-size:27px!important}
+  .account-actions{flex-direction:column}.pay-one,.disable-btn,.no-debt,.primary-btn{width:100%!important;text-align:center}
+  .login-panel{padding:22px!important}.hero-logo img{width:150px!important;height:150px!important}.login-panel h1{font-size:30px!important}
 }
