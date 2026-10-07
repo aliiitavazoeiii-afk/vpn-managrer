@@ -8,6 +8,7 @@ import json as _v2_json
 
 _V2_DIR = _v2_Path(__file__).resolve().parent
 _V2_CSS = (_V2_DIR / "v2.css").read_text(encoding="utf-8")
+_V2_POLISH = (_V2_DIR / "v2_polish.css").read_text(encoding="utf-8")
 _V2_LOGIN = (_V2_DIR / "login_v2.html").read_text(encoding="utf-8")
 _V2_DASH = (_V2_DIR / "dashboard_v2.html").read_text(encoding="utf-8")
 _V2_SAFARI = (_V2_DIR / "safari_required.html").read_text(encoding="utf-8")
@@ -222,6 +223,15 @@ app.router.routes[:] = [
 def v2_css():
     return _v2_Response(
         _V2_CSS,
+        media_type="text/css; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@app.get("/assets/v2_polish.css")
+def v2_polish_css():
+    return _v2_Response(
+        _V2_POLISH,
         media_type="text/css; charset=utf-8",
         headers={"Cache-Control": "public, max-age=3600"},
     )
