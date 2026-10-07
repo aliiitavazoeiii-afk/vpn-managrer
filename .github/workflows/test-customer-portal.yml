@@ -1,0 +1,22 @@
+name: Test Hesab Customer Portal
+
+on:
+  push:
+    branches:
+      - sms-app
+    paths:
+      - "customer_portal/**"
+      - ".github/workflows/test-customer-portal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build customer portal image
+        run: docker build -t hesab-customer-portal:test customer_portal
