@@ -603,3 +603,408 @@ app.add_api_route("/sms/debt-status", sms_debt_status, methods=["GET"])
 
 if hasattr(env.loader, "mapping"):
     env.loader.mapping.update(TEMPLATES)
+
+
+# ---------------------------------------------------------------------------
+# Ayria APG: create a payment from the debt desk, enqueue returned payment URL
+# through the existing personal-SIM SMS gateway, then move the group to waiting.
+# ---------------------------------------------------------------------------
+import json as _ayria_json
+import os as _ayria_os
+import time as _ayria_time
+import urllib.error as _ayria_urlerror
+import urllib.request as _ayria_urlrequest
+
+
+_AYRIA_SCHEMA = (
+    """
+    CREATE TABLE IF NOT EXISTS ayria_payment_requests (
+        id BIGSERIAL PRIMARY KEY,
+        phone VARCHAR(32) NOT NULL,
+        cycle_key VARCHAR(96) NOT NULL,
+        amount_toman BIGINT NOT NULL,
+        amount_rial BIGINT NOT NULL,
+        status VARCHAR(32) NOT NULL DEFAULT 'creating',
+        reference_code VARCHAR(160),
+        tracking_number VARCHAR(160),
+        payment_url TEXT,
+        sms_job_id BIGINT,
+        error TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(phone, cycle_key)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_ayria_requests_phone ON ayria_payment_requests(phone, created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_ayria_requests_reference ON ayria_payment_requests(reference_code)",
+)
+
+
+def _ayria_ensure_schema(db):
+    for stmt in _AYRIA_SCHEMA:
+        db.execute(_sms_text(stmt))
+    db.commit()
+
+
+def _ayria_settings():
+    base = (_ayria_os.environ.get("AYRIA_API_BASE") or "https://api.ayriaclub.ir").rstrip("/")
+    api_key = (_ayria_os.environ.get("AYRIA_APG_API_KEY") or "").strip()
+    wallet_id = (_ayria_os.environ.get("AYRIA_APG_WALLET_ID") or "").strip()
+    referral_raw = (_ayria_os.environ.get("AYRIA_REFERRAL_CODE") or "").strip()
+
+    if not api_key or not wallet_id or not referral_raw:
+        raise RuntimeError("Ayria APG environment is incomplete")
+
+    try:
+        referral = int(referral_raw)
+    except Exception as exc:
+        raise RuntimeError("AYRIA_REFERRAL_CODE is invalid") from exc
+
+    return base, api_key, wallet_id, referral
+
+
+def _ayria_create_payment(payload):
+    base, api_key, wallet_id, _referral = _ayria_settings()
+    body = _ayria_json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = _ayria_urlrequest.Request(
+        base + "/apg/v1/create",
+        data=body,
+        method="POST",
+        headers={
+            "Content-Type": "application/json;charset=UTF-8",
+            "Accept": "application/json",
+            "APG-API-KEY": api_key,
+            "APG-WALLET-ID": wallet_id,
+        },
+    )
+    try:
+        with _ayria_urlrequest.urlopen(req, timeout=20) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            code = int(getattr(resp, "status", 200) or 200)
+    except _ayria_urlerror.HTTPError as exc:
+        try:
+            raw = exc.read().decode("utf-8", errors="replace")
+        except Exception:
+            raw = ""
+        raise RuntimeError(f"Ayria HTTP {exc.code}: {raw[:500]}") from exc
+    except Exception as exc:
+        raise RuntimeError(f"Ayria connection error: {type(exc).__name__}") from exc
+
+    if code < 200 or code >= 300:
+        raise RuntimeError(f"Ayria HTTP {code}")
+
+    try:
+        data = _ayria_json.loads(raw)
+    except Exception as exc:
+        raise RuntimeError("Ayria returned invalid JSON") from exc
+
+    payment_url = str(data.get("paymentUrl") or "").strip()
+    reference_code = str(data.get("referenceCode") or "").strip()
+    if not payment_url or not reference_code:
+        raise RuntimeError("Ayria response is missing paymentUrl/referenceCode")
+
+    return data
+
+
+_AYRIA_DEBT_STYLE = r'''
+<style>
+.ayria-pay-form{margin:0}
+.ayria-pay-btn{border:1px solid rgba(168,85,247,.38);background:rgba(168,85,247,.09);color:#dfc4ff;border-radius:8px;padding:5px 9px;font:inherit;font-size:10px;font-weight:850;cursor:pointer;white-space:nowrap;transition:.15s ease}
+.ayria-pay-btn:hover{background:rgba(168,85,247,.17);border-color:rgba(192,132,252,.58);color:#f1e4ff}
+.ayria-pay-btn:disabled{opacity:.58;cursor:wait}
+</style>
+'''
+
+_AYRIA_DEBT_FORM = r'''
+      <form method="post" action="/ayria/debt-create" data-preserve-position class="ayria-pay-form"
+            onsubmit="const b=this.querySelector('button'); if(b){b.disabled=true;b.textContent='… ساخت درگاه';} return confirm('درگاه پرداخت {{ g.debt|money }} تومان در Ayria ساخته و لینک آن برای {{ g.phone or 'این کاربر' }} ارسال شود؟');">
+        <input type="hidden" name="phone" value="{{ g.phone or '' }}">
+        {% if g.phone %}
+          <button type="submit" class="ayria-pay-btn" title="مبلغ: {{ g.debt|money }} تومان">◆ ارسال لینک پرداخت</button>
+        {% else %}
+          <button type="button" class="ayria-pay-btn" disabled>بدون شماره</button>
+        {% endif %}
+      </form>
+'''
+
+_ayria_debt_tpl = TEMPLATES.get("debts.html", "")
+if _ayria_debt_tpl and "/ayria/debt-create" not in _ayria_debt_tpl:
+    _ayria_debt_tpl = _ayria_debt_tpl.replace(
+        "{% block content %}",
+        "{% block content %}" + _AYRIA_DEBT_STYLE,
+        1,
+    )
+
+    _ayria_sms_pattern = _sms_debt_re.compile(
+        r'(<form\s+method="post"\s+action="/sms/debt-send".*?</form>)',
+        flags=_sms_debt_re.S,
+    )
+    _ayria_match = _ayria_sms_pattern.search(_ayria_debt_tpl)
+    if _ayria_match:
+        _ayria_debt_tpl = (
+            _ayria_debt_tpl[:_ayria_match.end()]
+            + _AYRIA_DEBT_FORM
+            + _ayria_debt_tpl[_ayria_match.end():]
+        )
+
+    _ayria_banner_anchor = "{% block content %}"
+    _ayria_banners = r'''
+{% if request.query_params.get("ayria_error") == "config" %}<div class="manage-banner error">اتصال Ayria هنوز روی سرور تنظیم نشده است.</div>{% endif %}
+{% if request.query_params.get("ayria_error") == "phone" %}<div class="manage-banner error">شماره همراه این سرگروه معتبر نیست.</div>{% endif %}
+{% if request.query_params.get("ayria_error") == "api" %}<div class="manage-banner error">ساخت درگاه در Ayria ناموفق بود؛ هیچ کاربری به «در انتظار» منتقل نشد.</div>{% endif %}
+{% if request.query_params.get("ayria_error") == "duplicate" %}<div class="manage-banner error">برای همین دوره قبلاً یک درخواست Ayria ساخته شده است.</div>{% endif %}
+'''
+    _ayria_debt_tpl = _ayria_debt_tpl.replace(
+        _ayria_banner_anchor,
+        _ayria_banner_anchor + _ayria_banners,
+        1,
+    )
+    TEMPLATES["debts.html"] = _ayria_debt_tpl
+
+
+_ayria_wait_tpl = TEMPLATES.get("followups.html", "")
+if _ayria_wait_tpl and "ayria_link_sent" not in _ayria_wait_tpl:
+    _ayria_wait_banner = r'''
+{% if request.query_params.get("ayria_link_sent") %}<div class="collect-success">✓ درگاه Ayria ساخته شد، لینک پرداخت در صف SMS قرار گرفت و سرگروه به «در انتظار» منتقل شد.</div>{% endif %}
+{% if request.query_params.get("ayria_existing") %}<div class="collect-success">برای این دوره قبلاً درگاه Ayria ساخته شده بود؛ سرگروه در «در انتظار» نگه داشته شد.</div>{% endif %}
+'''
+    _ayria_wait_tpl = _ayria_wait_tpl.replace(
+        "{% block content %}",
+        "{% block content %}" + _ayria_wait_banner,
+        1,
+    )
+    TEMPLATES["followups.html"] = _ayria_wait_tpl
+
+
+def ayria_debt_create(
+    phone: str = _SmsForm(...),
+    db: _SmsSession = _SmsDepends(get_db),
+):
+    _sms_ensure_schema(db)
+    _ayria_ensure_schema(db)
+
+    normalized = _sms_normalize_phone(phone)
+    if not normalized:
+        return _SmsRedirectResponse("/debts?ayria_error=phone", 303)
+
+    try:
+        _base, _api_key, _wallet_id, referral = _ayria_settings()
+    except Exception:
+        return _SmsRedirectResponse("/debts?ayria_error=config", 303)
+
+    refresh_billing(db)
+    states = _followup_states(db) if "_followup_states" in globals() else {}
+    candidates = (
+        db.query(Subscription)
+        .filter(
+            Subscription.phone == normalized,
+            Subscription.is_free.is_(False),
+        )
+        .order_by(Subscription.expiry_date.asc().nullslast(), Subscription.id.asc())
+        .all()
+    )
+    actionable = [
+        s for s in candidates
+        if current_debt_for(s, today_local()) > 0
+        and states.get(s.id) not in ("waiting", "cut")
+    ]
+    if not actionable:
+        return _SmsRedirectResponse("/debts?ayria_error=duplicate", 303)
+
+    amount_toman = sum(int(current_debt_for(s, today_local()) or 0) for s in actionable)
+    if amount_toman <= 0:
+        return _SmsRedirectResponse("/debts?ayria_error=duplicate", 303)
+
+    amount_rial = amount_toman * 10
+    expiries = [s.expiry_date for s in actionable if s.expiry_date]
+    first_expiry = min(expiries).isoformat() if expiries else "no-expiry"
+    cycle_key = f"{first_expiry}:{amount_toman}"
+
+    existing = db.execute(
+        _sms_text(
+            """
+            SELECT id, status, payment_url, reference_code
+            FROM ayria_payment_requests
+            WHERE phone=:phone AND cycle_key=:cycle
+            LIMIT 1
+            """
+        ),
+        {"phone": normalized, "cycle": cycle_key},
+    ).mappings().first()
+
+    if existing:
+        if existing["status"] in ("created", "sms_queued", "waiting"):
+            for s in actionable:
+                _followup_set(
+                    db,
+                    s.id,
+                    "waiting",
+                    f"Ayria existing payment; reference={existing['reference_code'] or ''}; phone={normalized}",
+                )
+            db.commit()
+            return _SmsRedirectResponse("/followups?ayria_existing=1", 303)
+        return _SmsRedirectResponse("/debts?ayria_error=duplicate", 303)
+
+    reserve = db.execute(
+        _sms_text(
+            """
+            INSERT INTO ayria_payment_requests(
+                phone, cycle_key, amount_toman, amount_rial, status
+            )
+            VALUES (:phone, :cycle, :toman, :rial, 'creating')
+            RETURNING id
+            """
+        ),
+        {
+            "phone": normalized,
+            "cycle": cycle_key,
+            "toman": amount_toman,
+            "rial": amount_rial,
+        },
+    ).first()
+    request_id = int(reserve[0])
+    db.commit()
+
+    names = [str(s.display_name or "").strip() for s in actionable if str(s.display_name or "").strip()]
+    payer_name = ("، ".join(names[:3]) or "کاربر")[:255]
+    subscription_ids = [int(s.id) for s in actionable]
+    payment_number = f"hesab-{request_id}-{int(_ayria_time.time())}"
+
+    payload = {
+        "referralCode": referral,
+        "amount": amount_rial,
+        "payerMobile": normalized,
+        "payerName": payer_name,
+        "description": "تمدید اشتراک",
+        "paymentNumber": payment_number,
+        "extraData": _ayria_json.dumps(
+            {
+                "source": "hesab",
+                "requestId": request_id,
+                "phone": normalized,
+                "subscriptionIds": subscription_ids,
+                "amountToman": amount_toman,
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ),
+        "issuerMustVerifyPayment": False,
+    }
+
+    try:
+        response = _ayria_create_payment(payload)
+    except Exception as exc:
+        db.execute(
+            _sms_text(
+                """
+                UPDATE ayria_payment_requests
+                SET status='failed', error=:error, updated_at=NOW()
+                WHERE id=:id
+                """
+            ),
+            {"id": request_id, "error": str(exc)[:1000]},
+        )
+        try:
+            if "AuditEvent" in globals():
+                db.add(AuditEvent(
+                    kind="ayria_payment_error",
+                    message=f"Ayria create failed; request={request_id}; phone={normalized}; amount_toman={amount_toman}",
+                ))
+        except Exception:
+            pass
+        db.commit()
+        return _SmsRedirectResponse("/debts?ayria_error=api", 303)
+
+    payment_url = str(response.get("paymentUrl") or "").strip()
+    reference_code = str(response.get("referenceCode") or "").strip()
+    tracking_number = str(response.get("trackingNumber") or "").strip()
+
+    sms_text = (
+        "سلام، لینک پرداخت تمدید اشتراک شما:\n"
+        + payment_url
+        + "\nمبلغ: "
+        + f"{amount_toman:,}"
+        + " تومان"
+    )
+
+    sms_row = db.execute(
+        _sms_text(
+            """
+            INSERT INTO sms_jobs(phone, message, status, source)
+            VALUES (:phone, :message, 'queued', :source)
+            RETURNING id
+            """
+        ),
+        {
+            "phone": normalized,
+            "message": sms_text,
+            "source": "ayria:" + reference_code,
+        },
+    ).first()
+    sms_job_id = int(sms_row[0])
+
+    db.execute(
+        _sms_text(
+            """
+            UPDATE ayria_payment_requests
+            SET status='sms_queued',
+                reference_code=:reference,
+                tracking_number=:tracking,
+                payment_url=:url,
+                sms_job_id=:sms_job,
+                error=NULL,
+                updated_at=NOW()
+            WHERE id=:id
+            """
+        ),
+        {
+            "id": request_id,
+            "reference": reference_code,
+            "tracking": tracking_number,
+            "url": payment_url,
+            "sms_job": sms_job_id,
+        },
+    )
+
+    for s in actionable:
+        _followup_set(
+            db,
+            s.id,
+            "waiting",
+            (
+                f"Ayria payment link queued; reference={reference_code}; "
+                f"request={request_id}; sms_job={sms_job_id}; phone={normalized}"
+            ),
+        )
+
+    try:
+        if "AuditEvent" in globals():
+            db.add(AuditEvent(
+                kind="ayria_payment_create",
+                message=(
+                    f"Ayria payment created; request={request_id}; reference={reference_code}; "
+                    f"phone={normalized}; amount_toman={amount_toman}; sms_job={sms_job_id}; "
+                    f"subscriptions={subscription_ids}"
+                ),
+            ))
+    except Exception:
+        pass
+
+    db.execute(
+        _sms_text(
+            "UPDATE ayria_payment_requests SET status='waiting', updated_at=NOW() WHERE id=:id"
+        ),
+        {"id": request_id},
+    )
+    db.commit()
+
+    return _SmsRedirectResponse(
+        f"/followups?ayria_link_sent=1&request={request_id}",
+        303,
+    )
+
+
+app.add_api_route("/ayria/debt-create", ayria_debt_create, methods=["POST"])
+
+if hasattr(env.loader, "mapping"):
+    env.loader.mapping.update(TEMPLATES)
