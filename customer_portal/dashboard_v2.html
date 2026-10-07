@@ -81,8 +81,8 @@ function dismissEntryNotice(){
       <p>این مبلغ براساس انتقال سررسید اکانت‌های شما به ابتدای ماه محاسبه شده است.</p>
     </div>
     <div class="renew-total">
-      <div class="renew-price"><small>مبلغ قابل پرداخت</small><strong>{{ total_debt|money }}</strong><span> تومان</span></div>
-      {% if total_debt > 0 %}
+      <div class="renew-price"><small>مبلغ قابل پرداخت</small><strong>{{ total_payable|money }}</strong><span> تومان</span></div>
+      {% if total_payable > 0 %}
       <form method="post" action="/pay-all">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <button class="primary-btn" type="submit">ورود به درگاه ←</button>
@@ -103,7 +103,7 @@ function dismissEntryNotice(){
 
   <section class="account-list">
     {% for a in accounts %}
-    <article class="account-card">
+    <article class="account-card {{ 'is-overdue' if a.is_overdue else 'is-active' }}">
       <div class="account-top">
         <div class="account-title">
           <div class="account-avatar">{{ a.initial }}</div>
