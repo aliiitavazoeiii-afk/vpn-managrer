@@ -10,9 +10,7 @@ COPY v2_polish.css .
 COPY login_v2.html .
 COPY dashboard_v2.html .
 COPY safari_required.html .
-RUN printf '
-exec(compile(open("/srv/v2.py", "r", encoding="utf-8").read(), "/srv/v2.py", "exec"))
-' >> server.py \
+RUN printf '\nexec(compile(open("/srv/v2.py", "r", encoding="utf-8").read(), "/srv/v2.py", "exec"))\n' >> server.py \
  && python -m py_compile server.py
 EXPOSE 8091
 CMD ["uvicorn","server:app","--host","0.0.0.0","--port","8091","--proxy-headers","--forwarded-allow-ips=*"]
