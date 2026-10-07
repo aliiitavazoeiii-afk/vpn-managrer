@@ -96,11 +96,9 @@ def _anchor_apply_manual(db, s, note):
         return False
 
     today = today_local()
-    # Never allow a manual/group collection before the account's current
-    # expiry, even if its 1-Aban transition amount has already been prepared.
-    if row["original_expiry"] and today < row["original_expiry"]:
-        return False
-
+    # Manual/group payment is intentionally allowed before the current expiry:
+    # the debt inbox still hides future accounts via _anchor_amount_for(), but
+    # a customer who wants to prepay the whole phone group can do so.
     extra = _anchor_extra_periods(row["anchor_expiry"], today)
     amount = int(row["transition_amount_toman"] or 0) + extra * int(s.monthly_fee_toman or 0)
     new_expiry = add_jalali_months(row["anchor_expiry"], extra) if extra else row["anchor_expiry"]
