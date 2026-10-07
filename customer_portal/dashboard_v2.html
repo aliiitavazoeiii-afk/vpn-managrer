@@ -1,16 +1,21 @@
 <!doctype html>
-<html lang="fa" dir="rtl"><head>
+<html lang="fa" dir="rtl">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <title>پنل مشترکین</title>
 <link rel="stylesheet" href="/assets/v2.css">
-</head><body>
+</head>
+<body>
 <main class="shell">
   <header class="topbar">
     <div class="brand">
-      <div class="brandmark">M</div>
-      <div class="brandcopy"><b>پنل مشترکین</b><span>Subscription Center</span></div>
+      <div class="brandmark"><img src="/assets/logo.png" alt="VPN"></div>
+      <div class="brandcopy">
+        <b>پنل مشترکین</b>
+        <span>moshtarakin.filmjadiid.ir</span>
+      </div>
     </div>
     <div class="top-actions">
       <div class="phone-chip">{{ phone }}</div>
@@ -21,7 +26,6 @@
   <section class="notice">
     <div class="notice-tag"><i></i> اطلاعیه سررسید</div>
     <h1>لطفاً توجه داشته باشید تمامی اکانت‌ها از این پس تا یک آبان محاسبه می‌شود، سررسید همه اکانت‌ها از این پس تاریخ یکم هر ماه هستش.</h1>
-    <p>اطلاعات هر اکانت، مبلغ بدهی و امکان تمدید جداگانه در همین صفحه در دسترس است.</p>
   </section>
 
   {% if message %}<div class="flash {{ 'bad' if message_is_error else 'ok' }}">{{ message }}</div>{% endif %}
@@ -29,15 +33,13 @@
   <section class="stats">
     <article class="stat">
       <div class="stat-head"><span class="stat-label">تعداد اکانت‌ها</span><span class="stat-icon">◫</span></div>
-      <strong>{{ accounts|length|fa }}</strong><small>اکانت فعال زیر این شماره</small>
+      <strong>{{ accounts|length|fa }}</strong>
+      <small>اکانت فعال زیر این شماره</small>
     </article>
     <article class="stat">
       <div class="stat-head"><span class="stat-label">جمع بدهی</span><span class="stat-icon">◈</span></div>
-      <strong>{{ total_debt|money }}</strong><small>تومان · مجموع بدهی فعلی</small>
-    </article>
-    <article class="stat">
-      <div class="stat-head"><span class="stat-label">نزدیک‌ترین سررسید</span><span class="stat-icon">⌁</span></div>
-      <strong>{{ nearest_expiry }}</strong><small>تاریخ شمسی</small>
+      <strong>{{ total_debt|money }}</strong>
+      <small>تومان · مجموع بدهی فعلی</small>
     </article>
   </section>
 
@@ -45,7 +47,7 @@
     <div class="renew-copy">
       <div class="renew-eyebrow">ONE PAYMENT · ALL ACCOUNTS</div>
       <h2>تمدید همه اکانت‌ها</h2>
-      <p>جمع بدهی تمام اکانت‌های نیازمند تمدید را یکجا پرداخت کنید.</p>
+      <p>اگر بخواهید، می‌توانید تمام بدهی‌ها را یکجا پرداخت کنید.</p>
     </div>
     <div class="renew-total">
       <div class="renew-price"><small>مبلغ قابل پرداخت</small><strong>{{ total_debt|money }}</strong><span> تومان</span></div>
@@ -61,7 +63,10 @@
   </section>
 
   <div class="section-head">
-    <div><h2>اکانت‌های شما</h2><p>هر اکانت را جداگانه تمدید یا غیرفعال کنید.</p></div>
+    <div>
+      <h2>اکانت‌های شما</h2>
+      <p>هر اکانت را جداگانه تمدید کنید یا در صورت نیاز غیرفعال کنید.</p>
+    </div>
     <span>{{ accounts|length|fa }} اکانت</span>
   </div>
 
@@ -71,7 +76,10 @@
       <div class="account-top">
         <div class="account-title">
           <div class="account-avatar">{{ a.initial }}</div>
-          <div class="account-name"><b>{{ a.display_name }}</b><small>Account #{{ a.id }}</small></div>
+          <div class="account-name">
+            <b>{{ a.display_name }}</b>
+            <small>Account #{{ a.id }}</small>
+          </div>
         </div>
         {% if a.followup_state == 'waiting' %}
           <span class="badge waiting">در انتظار پرداخت</span>
@@ -97,7 +105,8 @@
         {% else %}
         <div class="no-debt">✓ این اکانت بدهی ندارد</div>
         {% endif %}
-        <form method="post" action="/disable/{{ a.id }}" onsubmit="return confirm('این اکانت غیرفعال شود؟ بعد از تأیید از پنل و وصول بدهی خارج می‌شود.')">
+
+        <form method="post" action="/disable/{{ a.id }}" onsubmit="return confirm('این اکانت غیرفعال شود؟')">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <button class="disable-btn" type="submit">غیرفعال کردن اکانت</button>
         </form>
@@ -110,4 +119,5 @@
 
   <div class="footer">moshtarakin.filmjadiid.ir · پنل مدیریت اشتراک</div>
 </main>
-</body></html>
+</body>
+</html>
