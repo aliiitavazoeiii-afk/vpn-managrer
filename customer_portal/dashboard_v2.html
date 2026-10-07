@@ -10,7 +10,7 @@
 </head>
 <body>
 
-{% if show_notice %}
+{% if show_welcome %}
 <div class="entry-modal" id="entryModal" role="dialog" aria-modal="true">
   <div class="entry-modal-backdrop"></div>
   <div class="entry-modal-card">
@@ -27,7 +27,7 @@ function dismissEntryNotice(){
   if(modal){modal.classList.add('leaving');setTimeout(()=>modal.remove(),220);}
   try{
     const u=new URL(window.location.href);
-    u.searchParams.delete('notice');
+    u.searchParams.delete('welcome');
     history.replaceState({},'',u.pathname+u.search+u.hash);
   }catch(e){}
 }
