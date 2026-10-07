@@ -11,6 +11,7 @@ _V2_CSS = (_V2_DIR / "v2.css").read_text(encoding="utf-8")
 _V2_LOGIN = (_V2_DIR / "login_v2.html").read_text(encoding="utf-8")
 _V2_DASH = (_V2_DIR / "dashboard_v2.html").read_text(encoding="utf-8")
 _V2_SAFARI = (_V2_DIR / "safari_required.html").read_text(encoding="utf-8")
+_V2_LOGO = (_V2_DIR / "logo.png").read_bytes()
 
 
 def _v2_render(source, **ctx):
@@ -226,6 +227,15 @@ def v2_css():
     )
 
 
+@app.get("/assets/logo.png")
+def v2_logo():
+    return _v2_Response(
+        _V2_LOGO,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
 @app.get("/", response_class=HTMLResponse)
 def v2_home(request: Request):
     phone = _v2_session_phone(request)
@@ -240,9 +250,6 @@ def v2_home(request: Request):
         item["initial"] = name[:1].upper() if name else "?"
 
     total_debt = sum(int(a["debt"] or 0) for a in accounts)
-    expiries = [a["expiry_date"] for a in accounts if a["expiry_date"]]
-    nearest = jalali_text(min(expiries)) if expiries else "—"
-
     message = None
     message_is_error = False
     if request.query_params.get("payment_error"):
@@ -256,7 +263,6 @@ def v2_home(request: Request):
         phone=phone,
         accounts=accounts,
         total_debt=total_debt,
-        nearest_expiry=nearest,
         csrf=csrf_for(phone),
         message=message,
         message_is_error=message_is_error,
