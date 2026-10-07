@@ -1,21 +1,23 @@
 <!doctype html>
-<html lang="fa" dir="rtl"><head>
+<html lang="fa" dir="rtl">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>ورود مشترکین</title>
+<title>پنل مشترکین</title>
 <link rel="stylesheet" href="/assets/v2.css">
-</head><body>
+</head>
+<body>
 <main class="login-shell">
   <section class="login-panel">
-    <div class="login-art"></div>
-    <div class="brand" style="margin-bottom:16px">
-      <div class="brandmark">M</div>
-      <div class="brandcopy"><b>پنل مشترکین</b><span>مدیریت و تمدید اشتراک</span></div>
+    <div class="login-head">
+      <div class="hero-logo"><img src="/assets/logo.png" alt="VPN"></div>
+      <h1>پنل مشترکین</h1>
+      <p>شماره موبایلی که اکانت با آن ثبت شده را وارد کنید تا مستقیم وارد پنل شوید.</p>
     </div>
-    <h1>خوش آمدید</h1>
-    <p>شماره موبایلی که اکانت با آن ثبت شده را وارد کنید تا مستقیماً وارد پنل شوید.</p>
+
     {% if error %}<div class="flash bad">{{ error }}</div>{% endif %}
+
     <form method="post" action="/login">
       <div class="field">
         <label>شماره موبایل</label>
@@ -23,7 +25,9 @@
       </div>
       <button class="login-btn" type="submit">ورود به پنل ←</button>
     </form>
-    <div class="login-note">ورود فقط برای شماره‌هایی که در سیستم مشترکین ثبت شده‌اند امکان‌پذیر است.</div>
+
+    <div class="login-note">فقط شماره‌هایی که در سیستم ثبت شده‌اند امکان ورود دارند.</div>
   </section>
 </main>
-</body></html>
+</body>
+</html>
