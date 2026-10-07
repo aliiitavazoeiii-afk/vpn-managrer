@@ -5,7 +5,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY server.py .
 COPY v2.py .
-COPY v2.css .
+COPY v2.css .\nCOPY v2_polish.css .
 COPY login_v2.html .
 COPY dashboard_v2.html .
 COPY safari_required.html .
