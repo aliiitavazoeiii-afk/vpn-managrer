@@ -10,10 +10,48 @@ _V2_DIR = _v2_Path(__file__).resolve().parent
 _V2_CSS = (_V2_DIR / "v2.css").read_text(encoding="utf-8")
 _V2_LOGIN = (_V2_DIR / "login_v2.html").read_text(encoding="utf-8")
 _V2_DASH = (_V2_DIR / "dashboard_v2.html").read_text(encoding="utf-8")
+_V2_SAFARI = (_V2_DIR / "safari_required.html").read_text(encoding="utf-8")
 
 
 def _v2_render(source, **ctx):
     return HTMLResponse(jinja.from_string(source).render(**ctx))
+
+
+
+
+def _v2_requires_safari(request: Request):
+    ua = (request.headers.get("user-agent") or "").lower()
+    is_ios = (
+        "iphone" in ua
+        or "ipad" in ua
+        or "ipod" in ua
+        or ("macintosh" in ua and "mobile" in ua)
+    )
+    if not is_ios:
+        return False
+
+    blocked_markers = (
+        "crios",
+        "fxios",
+        "edgios",
+        "opios",
+        "gsa/",
+        "fban",
+        "fbios",
+        "instagram",
+    )
+    if any(marker in ua for marker in blocked_markers):
+        return True
+
+    # Real Safari on iPhone/iPad normally includes both Version/ and Safari/.
+    # In-app webviews commonly omit one of them, so fail closed for payments.
+    return not ("version/" in ua and "safari/" in ua)
+
+
+def _v2_safari_gate(request: Request):
+    if _v2_requires_safari(request):
+        return _v2_render(_V2_SAFARI)
+    return None
 
 
 def _v2_session_phone(request: Request):
@@ -258,6 +296,9 @@ def v2_logout():
 
 @app.post("/pay-all")
 def v2_pay_all(request: Request, csrf: str = Form(...)):
+    gate = _v2_safari_gate(request)
+    if gate:
+        return gate
     phone = _v2_session_phone(request)
     if not phone or not verify_csrf(phone, csrf):
         return RedirectResponse("/", status_code=303)
@@ -272,6 +313,9 @@ def v2_pay_all(request: Request, csrf: str = Form(...)):
 
 @app.post("/pay/{sid}")
 def v2_pay_one(sid: int, request: Request, csrf: str = Form(...)):
+    gate = _v2_safari_gate(request)
+    if gate:
+        return gate
     phone = _v2_session_phone(request)
     if not phone or not verify_csrf(phone, csrf):
         return RedirectResponse("/", status_code=303)
