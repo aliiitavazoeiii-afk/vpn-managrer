@@ -9,14 +9,24 @@
 <link rel="stylesheet" href="/assets/v2_polish.css">
 </head>
 <body>
+{% if show_welcome %}
+<div class="welcome-overlay" id="welcome-overlay">
+  <div class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+    <div class="welcome-icon">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5m0 3.5v.01M10.3 3.9 2.5 17.4A2 2 0 0 0 4.2 20h15.6a2 2 0 0 0 1.7-2.6L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+    </div>
+    <h2 id="welcome-title">تغییر سررسید اکانت‌ها</h2>
+    <p>لطفاً توجه داشته باشید تمامی اکانت‌ها تا <b>یک آبان</b> محاسبه می‌شود. از این پس سررسید تمامی اکانت‌ها <b>یکم هر ماه</b> خواهد بود.</p>
+    <button type="button" class="welcome-btn" onclick="closeWelcome()">متوجه شدم، ورود به پنل</button>
+  </div>
+</div>
+{% endif %}
+
 <main class="shell">
   <header class="topbar">
     <div class="brand">
-      <div class="brandmark"><img src="/assets/logo.png" alt="VPN"></div>
-      <div class="brandcopy">
-        <b>پنل مشترکین</b>
-        <span>moshtarakin.filmjadiid.ir</span>
-      </div>
+      <img class="brand-logo" src="/assets/logo.png" alt="VPN">
+      <div class="brandcopy"><b>پنل مشترکین</b></div>
     </div>
     <div class="top-actions">
       <div class="phone-chip">{{ phone }}</div>
@@ -24,21 +34,27 @@
     </div>
   </header>
 
-  <section class="notice">
-    <div class="notice-tag"><i></i> اطلاعیه سررسید</div>
-    <h1>لطفاً توجه داشته باشید تمامی اکانت‌ها از این پس تا یک آبان محاسبه می‌شود، سررسید همه اکانت‌ها از این پس تاریخ یکم هر ماه هستش.</h1>
-  </section>
-
   {% if message %}<div class="flash {{ 'bad' if message_is_error else 'ok' }}">{{ message }}</div>{% endif %}
 
   <section class="stats">
     <article class="stat">
-      <div class="stat-head"><span class="stat-label">تعداد اکانت‌ها</span><span class="stat-icon">◫</span></div>
+      <div class="stat-head">
+        <span class="stat-label">تعداد اکانت‌ها</span>
+        <span class="stat-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M7 8.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm10 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20v-2.2C2 14.6 4.7 12 8 12s6 2.6 6 5.8V20H2Zm12.5 0v-2.2a7 7 0 0 0-2.2-5.1A6.8 6.8 0 0 1 16 11.6c3.3 0 6 2.6 6 5.8V20h-7.5Z"/></svg>
+        </span>
+      </div>
       <strong>{{ accounts|length|fa }}</strong>
       <small>اکانت فعال زیر این شماره</small>
     </article>
+
     <article class="stat">
-      <div class="stat-head"><span class="stat-label">جمع بدهی</span><span class="stat-icon">◈</span></div>
+      <div class="stat-head">
+        <span class="stat-label">جمع بدهی</span>
+        <span class="stat-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-11Zm0 2.5h18m-5 4h5m-5 0a2 2 0 1 0 0 4h5v-4h-5Z"/></svg>
+        </span>
+      </div>
       <strong>{{ total_debt|money }}</strong>
       <small>تومان · مجموع بدهی فعلی</small>
     </article>
@@ -47,8 +63,8 @@
   <section class="renew-all">
     <div class="renew-copy">
       <div class="renew-eyebrow">ONE PAYMENT · ALL ACCOUNTS</div>
-      <h2>تمدید همه اکانت‌ها</h2>
-      <p>اگر بخواهید، می‌توانید تمام بدهی‌ها را یکجا پرداخت کنید.</p>
+      <h2>تمدید همه اکانت‌ها تا یکم آبان ماه</h2>
+      <p>مبلغ زیر جمع هزینه همسان‌سازی سررسید تمام اکانت‌های شما تا یکم آبان است.</p>
     </div>
     <div class="renew-total">
       <div class="renew-price"><small>مبلغ قابل پرداخت</small><strong>{{ total_debt|money }}</strong><span> تومان</span></div>
@@ -66,7 +82,7 @@
   <div class="section-head">
     <div>
       <h2>اکانت‌های شما</h2>
-      <p>هر اکانت را جداگانه تمدید کنید یا در صورت نیاز غیرفعال کنید.</p>
+      <p>برای هر اکانت، تغییر سررسید و مبلغ محاسبه‌شده را جداگانه می‌بینید.</p>
     </div>
     <span>{{ accounts|length|fa }} اکانت</span>
   </div>
@@ -91,10 +107,25 @@
         {% endif %}
       </div>
 
+      <div class="expiry-transition">
+        <div class="expiry-date old">
+          <span>انقضای فعلی</span>
+          <strong>{{ a.expiry_jalali }}</strong>
+        </div>
+        <div class="expiry-arrow" aria-hidden="true">
+          <span></span>
+          <svg viewBox="0 0 24 24"><path d="M5 12h13m-5-5 5 5-5 5"/></svg>
+        </div>
+        <div class="expiry-date new">
+          <span>انقضای جدید پس از پرداخت</span>
+          <strong>{{ a.target_expiry_jalali }}</strong>
+          {% if a.is_anchor_target %}<small>سررسید جدید: یکم آبان</small>{% endif %}
+        </div>
+      </div>
+
       <div class="account-meta">
-        <div class="meta"><span>تاریخ انقضا</span><strong>{{ a.expiry_jalali }}</strong></div>
         <div class="meta"><span>مبلغ ماهانه</span><strong>{{ a.monthly_fee|money }} تومان</strong></div>
-        <div class="meta debt"><span>بدهی فعلی</span><strong>{{ a.debt|money }} تومان</strong></div>
+        <div class="meta debt"><span>مبلغ محاسبه‌شده تا سررسید جدید</span><strong>{{ a.debt|money }} تومان</strong></div>
       </div>
 
       <div class="account-actions">
@@ -106,7 +137,6 @@
         {% else %}
         <div class="no-debt">✓ این اکانت بدهی ندارد</div>
         {% endif %}
-
         <form method="post" action="/disable/{{ a.id }}" onsubmit="return confirm('این اکانت غیرفعال شود؟')">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <button class="disable-btn" type="submit">غیرفعال کردن اکانت</button>
@@ -117,8 +147,14 @@
       <div class="empty">اکانت فعالی برای این شماره وجود ندارد.</div>
     {% endfor %}
   </section>
-
-  <div class="footer">moshtarakin.filmjadiid.ir · پنل مدیریت اشتراک</div>
 </main>
+
+<script>
+function closeWelcome(){
+  const el=document.getElementById('welcome-overlay');
+  if(el){el.classList.add('closing');setTimeout(()=>el.remove(),220);}
+  if(history.replaceState){history.replaceState({},'',location.pathname);}
+}
+</script>
 </body>
 </html>
