@@ -1,12 +1,13 @@
+moshtarakin.filmjadiid.ir {
+    encode zstd gzip
+    reverse_proxy customer-portal:8091
+}
+
 hesab.filmjadiid.ir {
     encode zstd gzip
 
-    @customer_root path /my
-    redir @customer_root /my/ 308
-
-    handle_path /my/* {
-        reverse_proxy customer-portal:8091
-    }
+    @old_customer_portal path /my /my/*
+    redir @old_customer_portal https://moshtarakin.filmjadiid.ir 308
 
     handle_path /sms-gateway/* {
         reverse_proxy sms-gateway:8090
