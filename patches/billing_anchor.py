@@ -23,14 +23,21 @@ def _anchor_load(db):
     rows = db.execute(
         _anchor_text(
             """
-            SELECT subscription_id, anchor_expiry, transition_amount_toman, status
+            SELECT subscription_id, original_expiry, anchor_expiry, transition_amount_toman, status
             FROM billing_anchor
-            WHERE status='pending'
+            WHERE status IN ('pending','scheduled')
             """
         )
     ).mappings().all()
     _anchor_cache = {int(r["subscription_id"]): dict(r) for r in rows}
     return _anchor_cache
+
+
+def _anchor_amount_for(a, s, when):
+    if a.get("status") == "scheduled" and a.get("original_expiry") and when < a["original_expiry"]:
+        return 0
+    extra = _anchor_extra_periods(a["anchor_expiry"], when)
+    return int(a["transition_amount_toman"] or 0) + extra * int(s.monthly_fee_toman or 0)
 
 
 def refresh_billing(db):
@@ -53,8 +60,7 @@ def refresh_billing(db):
         a = rows.get(int(s.id))
         if not a:
             continue
-        extra = _anchor_extra_periods(a["anchor_expiry"], today)
-        amount = int(a["transition_amount_toman"] or 0) + extra * int(s.monthly_fee_toman or 0)
+        amount = _anchor_amount_for(a, s, today)
         s.debt_toman = amount
         s.payment_status = "unpaid" if amount > 0 else "paid"
         s.billing_cursor_date = today
@@ -65,8 +71,7 @@ def current_debt_for(s, as_of=None):
     a = _anchor_cache.get(int(getattr(s, "id", 0) or 0))
     if a:
         when = as_of or today_local()
-        extra = _anchor_extra_periods(a["anchor_expiry"], when)
-        return int(a["transition_amount_toman"] or 0) + extra * int(s.monthly_fee_toman or 0)
+        return _anchor_amount_for(a, s, when)
     return _anchor_original_current_debt_for(s, as_of) if as_of is not None else _anchor_original_current_debt_for(s)
 
 
@@ -84,10 +89,13 @@ def _anchor_apply_manual(db, s, note):
         {"sid": int(s.id)},
     ).mappings().first()
 
-    if not row or row["status"] != "pending":
+    if not row or row["status"] not in ("pending", "scheduled"):
         return False
 
     today = today_local()
+    if row["status"] == "scheduled" and row["original_expiry"] and today < row["original_expiry"]:
+        return False
+
     extra = _anchor_extra_periods(row["anchor_expiry"], today)
     amount = int(row["transition_amount_toman"] or 0) + extra * int(s.monthly_fee_toman or 0)
     new_expiry = add_jalali_months(row["anchor_expiry"], extra) if extra else row["anchor_expiry"]
