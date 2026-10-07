@@ -376,7 +376,7 @@ if hasattr(env.loader, "mapping"):
 # Sending an SMS never changes billing/follow-up state by itself.
 import re as _sms_debt_re
 
-_SMS_DEBT_DEFAULT_TEXT = "سلام، وقت بخیر. برای مشاهده وضعیت اشتراک و تمدید آنلاین وارد پنل خود شوید:\\nhttps://hesab.filmjadiid.ir/my/"
+_SMS_DEBT_DEFAULT_TEXT = "سلام، وقت بخیر. برای مشاهده وضعیت اشتراک و تمدید آنلاین وارد پنل خود شوید:\\nhttps://moshtarakin.filmjadiid.ir/"
 
 
 _SMS_DEBT_STYLE = r'''
