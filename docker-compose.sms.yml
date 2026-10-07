@@ -1,5 +1,10 @@
 services:
   app:
+    environment:
+      AYRIA_API_BASE: ${AYRIA_API_BASE:-https://api.ayriaclub.ir}
+      AYRIA_APG_API_KEY: ${AYRIA_APG_API_KEY}
+      AYRIA_APG_WALLET_ID: ${AYRIA_APG_WALLET_ID}
+      AYRIA_REFERRAL_CODE: ${AYRIA_REFERRAL_CODE}
     volumes:
       - ./patches/sms_admin.py:/sms-patch/sms_admin.py:ro
     command:
