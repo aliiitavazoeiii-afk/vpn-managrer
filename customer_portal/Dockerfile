@@ -9,6 +9,7 @@ COPY v2.css .
 COPY login_v2.html .
 COPY dashboard_v2.html .
 COPY safari_required.html .
+COPY logo.png .
 RUN printf '\nexec(compile(open("/srv/v2.py", "r", encoding="utf-8").read(), "/srv/v2.py", "exec"))\n' >> server.py \
  && python -m py_compile server.py
 EXPOSE 8091
