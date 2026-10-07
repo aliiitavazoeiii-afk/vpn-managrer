@@ -280,6 +280,7 @@ def v2_home(request: Request):
         item["is_anchor_target"] = bool(anchor and anchor.get("anchor_expiry"))
 
     total_debt = sum(int(a["debt"] or 0) for a in accounts)
+    total_payable = sum(int(a.get("portal_payable_amount", a.get("debt", 0)) or 0) for a in accounts)
     message = None
     message_is_error = False
     if request.query_params.get("payment_error"):
@@ -293,6 +294,7 @@ def v2_home(request: Request):
         phone=phone,
         accounts=accounts,
         total_debt=total_debt,
+        total_payable=total_payable,
         csrf=csrf_for(phone),
         message=message,
         message_is_error=message_is_error,
@@ -342,7 +344,10 @@ def v2_pay_all(request: Request, csrf: str = Form(...)):
 
     with db_conn() as conn:
         accounts = active_subscriptions(conn, phone)
-        selected = [a for a in accounts if int(a["debt"] or 0) > 0]
+        selected = [
+            a for a in accounts
+            if int(a.get("portal_payable_amount", a.get("debt", 0)) or 0) > 0
+        ]
         if not selected:
             return RedirectResponse("/", status_code=303)
         return _v2_payment_redirect(conn, phone, selected, "all")
