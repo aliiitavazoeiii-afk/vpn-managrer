@@ -1,6 +1,13 @@
 hesab.filmjadiid.ir {
     encode zstd gzip
 
+    @customer_root path /my
+    redir @customer_root /my/ 308
+
+    handle_path /my/* {
+        reverse_proxy customer-portal:8091
+    }
+
     handle_path /sms-gateway/* {
         reverse_proxy sms-gateway:8090
     }
