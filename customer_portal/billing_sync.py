@@ -91,10 +91,21 @@ def active_subscriptions(conn, phone):
     for item in rows:
         a = anchors.get(int(item["id"]))
         if a and a["status"] in ("pending", "scheduled"):
+            item["transition_original_expiry"] = a["original_expiry"]
+            item["transition_target_expiry"] = a["anchor_expiry"]
+            item["transition_original_jalali"] = jalali_text(a["original_expiry"])
+            item["transition_target_jalali"] = jalali_text(a["anchor_expiry"])
+            item["transition_status"] = a["status"]
             if a["status"] == "scheduled" and a["original_expiry"] and today < a["original_expiry"]:
                 item["debt"] = 0
             else:
                 item["debt"] = _anchor_debt(a, item["monthly_fee"], today)
+        else:
+            item["transition_original_expiry"] = item.get("expiry_date")
+            item["transition_target_expiry"] = item.get("expiry_date")
+            item["transition_original_jalali"] = item.get("expiry_jalali") or "—"
+            item["transition_target_jalali"] = item.get("expiry_jalali") or "—"
+            item["transition_status"] = None
     return rows
 
 
