@@ -19,6 +19,21 @@ def _v2_render(source, **ctx):
     return HTMLResponse(jinja.from_string(source).render(**ctx))
 
 
+def _v2_load_anchor_targets(conn, ids):
+    if not ids:
+        return {}
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT subscription_id, anchor_expiry, status
+            FROM billing_anchor
+            WHERE subscription_id = ANY(%s)
+            """,
+            (ids,),
+        )
+        return {int(r["subscription_id"]): r for r in cur.fetchall()}
+
+
 
 
 def _v2_requires_safari(request: Request):
@@ -254,10 +269,15 @@ def v2_home(request: Request):
 
     with db_conn() as conn:
         accounts = active_subscriptions(conn, phone)
+        anchors = _v2_load_anchor_targets(conn, [int(a["id"]) for a in accounts])
 
     for item in accounts:
         name = str(item.get("display_name") or "?").strip()
         item["initial"] = name[:1].upper() if name else "?"
+        anchor = anchors.get(int(item["id"]))
+        target = anchor["anchor_expiry"] if anchor and anchor.get("anchor_expiry") else item.get("expiry_date")
+        item["target_expiry_jalali"] = jalali_text(target)
+        item["is_anchor_target"] = bool(anchor and anchor.get("anchor_expiry"))
 
     total_debt = sum(int(a["debt"] or 0) for a in accounts)
     message = None
@@ -276,6 +296,7 @@ def v2_home(request: Request):
         csrf=csrf_for(phone),
         message=message,
         message_is_error=message_is_error,
+        show_welcome=request.query_params.get("welcome") == "1",
     )
 
 
@@ -290,7 +311,7 @@ def v2_login(phone: str = Form(...)):
             return _v2_render(_V2_LOGIN, error="اکانتی با این شماره در سیستم پیدا نشد.")
 
     token = session_signer.dumps({"phone": normalized})
-    response = RedirectResponse("/", status_code=303)
+    response = RedirectResponse("/?welcome=1", status_code=303)
     response.set_cookie(
         "moshtarakin_customer",
         token,
