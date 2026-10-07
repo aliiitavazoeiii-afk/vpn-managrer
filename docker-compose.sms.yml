@@ -7,12 +7,16 @@ services:
       AYRIA_REFERRAL_CODE: ${AYRIA_REFERRAL_CODE}
     volumes:
       - ./patches/sms_admin.py:/sms-patch/sms_admin.py:ro
+      - ./patches/billing_anchor.py:/sms-patch/billing_anchor.py:ro
     command:
       - /bin/sh
       - -lc
       - |
         if ! grep -q 'SMS_GATEWAY_PATCH_V1' /app/app/main.py; then
           cat /sms-patch/sms_admin.py >> /app/app/main.py
+        fi
+        if ! grep -q 'BILLING_ANCHOR_14050801_V1' /app/app/main.py; then
+          cat /sms-patch/billing_anchor.py >> /app/app/main.py
         fi
         python -m py_compile /app/app/main.py
         exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*
