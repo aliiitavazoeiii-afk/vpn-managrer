@@ -34,7 +34,10 @@ def _anchor_load(db):
 
 
 def _anchor_amount_for(a, s, when):
-    if a.get("status") == "scheduled" and a.get("original_expiry") and when < a["original_expiry"]:
+    # The transition charge can be calculated in advance for the customer portal,
+    # but the admin debt inbox must not treat an account as collectible before
+    # its CURRENT expiry date actually arrives.
+    if a.get("original_expiry") and when < a["original_expiry"]:
         return 0
     extra = _anchor_extra_periods(a["anchor_expiry"], when)
     return int(a["transition_amount_toman"] or 0) + extra * int(s.monthly_fee_toman or 0)
@@ -93,7 +96,9 @@ def _anchor_apply_manual(db, s, note):
         return False
 
     today = today_local()
-    if row["status"] == "scheduled" and row["original_expiry"] and today < row["original_expiry"]:
+    # Never allow a manual/group collection before the account's current
+    # expiry, even if its 1-Aban transition amount has already been prepared.
+    if row["original_expiry"] and today < row["original_expiry"]:
         return False
 
     extra = _anchor_extra_periods(row["anchor_expiry"], today)
