@@ -79,7 +79,7 @@ def active_subscriptions(conn, phone):
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT subscription_id, anchor_expiry, transition_amount_toman, status
+            SELECT subscription_id, original_expiry, anchor_expiry, transition_amount_toman, status
             FROM billing_anchor
             WHERE subscription_id = ANY(%s)
             """,
@@ -90,8 +90,11 @@ def active_subscriptions(conn, phone):
     today = date.today()
     for item in rows:
         a = anchors.get(int(item["id"]))
-        if a and a["status"] == "pending":
-            item["debt"] = _anchor_debt(a, item["monthly_fee"], today)
+        if a and a["status"] in ("pending", "scheduled"):
+            if a["status"] == "scheduled" and a["original_expiry"] and today < a["original_expiry"]:
+                item["debt"] = 0
+            else:
+                item["debt"] = _anchor_debt(a, item["monthly_fee"], today)
     return rows
 
 
@@ -118,7 +121,9 @@ def _allocation_plan(conn, selected):
         current_expiry = a["expiry_date"]
         anchor = anchors.get(sid)
 
-        if anchor and anchor["status"] == "pending":
+        if anchor and anchor["status"] in ("pending", "scheduled"):
+            if anchor["status"] == "scheduled" and anchor["original_expiry"] and today < anchor["original_expiry"]:
+                continue
             extra_periods = _periods_due_from(anchor["anchor_expiry"], today) if today >= anchor["anchor_expiry"] else 0
             amount = int(anchor["transition_amount_toman"] or 0) + extra_periods * fee
             new_expiry = add_jalali_months(anchor["anchor_expiry"], extra_periods) if extra_periods else anchor["anchor_expiry"]
