@@ -604,9 +604,23 @@ def sms_debt_send(
     except Exception:
         pass
 
+    # Sending the debt reminder is now the hand-off point from "وصول بدهی"
+    # to "در انتظار". Only the actionable overdue accounts represented by
+    # this phone group are moved; paid/future/cut/waiting siblings are untouched.
+    moved = 0
+    if "_followup_set" in globals():
+        for s in actionable:
+            _followup_set(
+                db,
+                s.id,
+                "waiting",
+                f"SMS reminder queued; phone={normalized}; job={row[0] if row else '?'}; source={source}",
+            )
+            moved += 1
+
     db.commit()
     return _SmsRedirectResponse(
-        f"/debts?sms_queued=1&job={row[0] if row else ''}",
+        f"/debts?sms_queued=1&tracked=1&moved={moved}&job={row[0] if row else ''}",
         303,
     )
 
