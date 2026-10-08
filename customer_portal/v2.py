@@ -335,9 +335,6 @@ def v2_logout():
 
 @app.post("/pay-all")
 def v2_pay_all(request: Request, csrf: str = Form(...)):
-    gate = _v2_safari_gate(request)
-    if gate:
-        return gate
     phone = _v2_session_phone(request)
     if not phone or not verify_csrf(phone, csrf):
         return RedirectResponse("/", status_code=303)
@@ -355,9 +352,6 @@ def v2_pay_all(request: Request, csrf: str = Form(...)):
 
 @app.post("/pay/{sid}")
 def v2_pay_one(sid: int, request: Request, csrf: str = Form(...)):
-    gate = _v2_safari_gate(request)
-    if gate:
-        return gate
     phone = _v2_session_phone(request)
     if not phone or not verify_csrf(phone, csrf):
         return RedirectResponse("/", status_code=303)
