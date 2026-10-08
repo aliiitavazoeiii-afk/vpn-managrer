@@ -74,6 +74,7 @@ function dismissEntryNotice(){
     </article>
   </section>
 
+  {% if accounts|length > 1 %}
   <section class="renew-all">
     <div class="renew-copy">
       <div class="renew-eyebrow">ONE PAYMENT · ALL ACCOUNTS</div>
@@ -92,6 +93,8 @@ function dismissEntryNotice(){
       {% endif %}
     </div>
   </section>
+
+  {% endif %}
 
   <div class="section-head">
     <div>
