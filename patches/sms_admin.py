@@ -381,19 +381,23 @@ _SMS_DEBT_DEFAULT_TEXT = "سلام، وقت بخیر. برای مشاهده وض
 
 _SMS_DEBT_STYLE = r'''
 <style>
-.debt-sms-form{margin:0}
-.debt-sms-btn{border:1px solid rgba(96,165,250,.36);background:rgba(59,130,246,.09);color:#b9d8ff;border-radius:8px;padding:5px 9px;font:inherit;font-size:10px;font-weight:850;cursor:pointer;white-space:nowrap;transition:.15s ease}
+.debt-sms-inline-form{margin:0;display:inline-flex}
+.debt-message-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.debt-sms-btn{border:1px solid rgba(96,165,250,.36);background:rgba(59,130,246,.09);color:#b9d8ff;border-radius:8px;padding:7px 10px;font:inherit;font-size:10px;font-weight:850;cursor:pointer;white-space:nowrap;transition:.15s ease}
 .debt-sms-btn:hover{background:rgba(59,130,246,.16);border-color:rgba(96,165,250,.58);color:#e4f0ff}
 .debt-sms-btn:disabled{cursor:default;opacity:1}
 .debt-sms-btn.sms-pending{border-color:rgba(250,204,21,.30);background:rgba(250,204,21,.07);color:#f8df82}
 .debt-sms-btn.sms-sent{border-color:rgba(34,197,94,.34);background:rgba(34,197,94,.09);color:#adf3c0}
 .debt-sms-btn.sms-failed{border-color:rgba(248,113,113,.34);background:rgba(239,68,68,.08);color:#ffc0c5}
 .debt-sms-btn.sms-no-phone{border-color:rgba(148,163,184,.14);background:rgba(148,163,184,.04);color:#697487}
+.ready-message textarea:not([readonly]){border-color:rgba(96,165,250,.25);background:rgba(8,13,22,.72);cursor:text}
+.ready-message textarea:not([readonly]):focus{outline:none;border-color:rgba(96,165,250,.58);box-shadow:0 0 0 3px rgba(59,130,246,.08)}
 </style>
 '''
 
 _SMS_DEBT_FORM = r'''
-      <form method="post" action="/sms/debt-send" data-preserve-position class="debt-sms-form"
+      <form method="post" action="/sms/debt-send" data-preserve-position class="debt-sms-inline-form"
+            id="debt-sms-form-{{ loop.index0 }}"
             data-debt-sms-form
             data-sms-phone="{{ g.phone or '' }}"
             data-sms-cycle="{{ g.first_expiry or '' }}">
@@ -406,7 +410,6 @@ _SMS_DEBT_FORM = r'''
         {% endif %}
       </form>
 '''
-
 _SMS_DEBT_SCRIPT = r'''
 <script>
 (function(){
@@ -482,16 +485,44 @@ if _sms_debt_tpl and "/sms/debt-send" not in _sms_debt_tpl:
         1,
     )
 
-    _sms_track_pattern = _sms_debt_re.compile(
-        r'(<form\s+method="post"\s+action="/followups/track-group".*?</form>)',
-        flags=_sms_debt_re.S,
+    _sms_ready_actions = r'''<div class="debt-message-actions">
+          <button type="button" data-copy-target="debt-message-{{ loop.index0 }}">کپی پیام</button>
+''' + _SMS_DEBT_FORM + r'''
+        </div>'''
+    _sms_debt_tpl = _sms_debt_tpl.replace(
+        '<button type="button" data-copy-target="debt-message-{{ loop.index0 }}">کپی پیام</button>',
+        _sms_ready_actions,
+        1,
     )
-    _sms_match = _sms_track_pattern.search(_sms_debt_tpl)
-    if _sms_match:
-        _sms_debt_tpl = (
-            _sms_debt_tpl[:_sms_match.start()]
-            + _SMS_DEBT_FORM
-            + _sms_debt_tpl[_sms_match.start():]
+
+    _sms_old_message = r'''<textarea id="debt-message-{{ loop.index0 }}" readonly>سلام ارادت
+{% for item in g.rows %}{% if loop.first %}اکانت شما {{ item.s.expiry_date|jdate }} تمام شده.
+{% else %}اکانت {{ item.s.display_name }} {{ item.s.expiry_date|jdate }} تمام شده.
+{% endif %}{% endfor %}
+در صورت تمایل به ادامه مصرف لینک پرداخت از سامانه آیریا خدمتتون ارسال شده.
+اگر لینک به دستتون نرسید حتما اطلاع بدید چون اکانت‌های پرداخت‌نشده امشب قطع خواهد شد.</textarea>'''
+
+    _sms_new_message = r'''<textarea id="debt-message-{{ loop.index0 }}"
+          name="message"
+          form="debt-sms-form-{{ loop.index0 }}"
+          maxlength="1000">سلام، ارادت
+{% for item in g.rows %}{% if loop.first %}اکانت شما {{ item.s.expiry_date|jdate }} تمام شده.
+{% else %}اکانت {{ item.s.display_name }} {{ item.s.expiry_date|jdate }} تمام شده.
+{% endif %}{% endfor %}
+برای تمدید وارد پنل کاربری خودتون بشید و پرداخت را انجام بدید.
+از این به بعد تمامی اکانت‌ها فقط از طریق پنل تمدید خواهد شد.
+برای ورود شماره همراه خودتون رو وارد بفرمایید:
+https://moshtarakin.filmjadiid.ir/</textarea>'''
+
+    if _sms_old_message in _sms_debt_tpl:
+        _sms_debt_tpl = _sms_debt_tpl.replace(_sms_old_message, _sms_new_message, 1)
+    else:
+        _sms_debt_tpl = _sms_debt_re.sub(
+            r'<textarea id="debt-message-\{\{ loop\.index0 \}\}"[^>]*>.*?</textarea>',
+            _sms_new_message,
+            _sms_debt_tpl,
+            count=1,
+            flags=_sms_debt_re.S,
         )
 
     _sms_last_endblock = _sms_debt_tpl.rfind("{% endblock %}")
@@ -515,12 +546,16 @@ def _sms_debt_source(cycle):
 def sms_debt_send(
     phone: str = _SmsForm(...),
     cycle: str = _SmsForm(""),
+    message: str = _SmsForm(...),
     db: _SmsSession = _SmsDepends(get_db),
 ):
     _sms_ensure_schema(db)
     normalized = _sms_normalize_phone(phone)
+    body = str(message or "").strip()
     if not normalized:
         return _SmsRedirectResponse("/debts?sms_error=phone", 303)
+    if not body or len(body) > 1000:
+        return _SmsRedirectResponse("/debts?sms_error=message", 303)
 
     states = _followup_states(db) if "_followup_states" in globals() else {}
     candidates = (
@@ -551,7 +586,7 @@ def sms_debt_send(
         ),
         {
             "phone": normalized,
-            "message": _SMS_DEBT_DEFAULT_TEXT,
+            "message": body,
             "source": source,
         },
     ).first()
