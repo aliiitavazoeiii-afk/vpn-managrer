@@ -180,3 +180,120 @@
   .add-user-page-form{grid-template-columns:1fr;padding:18px}.add-user-page-date{grid-column:auto}.add-user-page-date-grid{grid-template-columns:80px 1fr 100px}
   .users-page-toolbar{align-items:flex-start;flex-direction:column}.users-page-toolbar>a{width:100%;justify-content:center}
 }
+
+/* Active accounts KPI in hero (v1)
+   Deliberately scoped to the dashboard, preserving every other screen. */
+.focus-dashboard .focus-hero{
+  grid-template-columns:minmax(280px,1fr) minmax(470px,1.3fr) 175px!important;
+  gap:20px!important;
+}
+.focus-dashboard .focus-hero-metrics{
+  position:relative;z-index:2;display:grid;
+  grid-template-columns:minmax(0,1.22fr) minmax(0,.78fr);
+  gap:13px;min-width:0;align-items:stretch;
+}
+.focus-dashboard .focus-hero-metrics .focus-income-card,
+.focus-dashboard .focus-hero-metrics .focus-active-card{
+  box-sizing:border-box;min-width:0;min-height:164px;
+  padding:22px 22px 20px;border-radius:21px;
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;
+  position:relative;isolation:isolate;overflow:hidden;
+  text-align:right;text-decoration:none;
+}
+.focus-dashboard .focus-hero-metrics .focus-income-card{
+  background:radial-gradient(circle at 10% 0%,rgba(114,171,255,.18),transparent 45%),
+    linear-gradient(132deg,rgba(59,47,135,.75),rgba(25,23,71,.83));
+  border:1px solid rgba(157,144,255,.29);
+  box-shadow:inset 0 1px rgba(255,255,255,.08),0 15px 38px rgba(18,15,55,.20);
+}
+.focus-dashboard .focus-hero-metrics .focus-income-card:after{
+  pointer-events:none;z-index:-1;opacity:.08;
+}
+.focus-dashboard .focus-hero-metrics .focus-active-card{
+  color:#e6fff9;
+  background:radial-gradient(circle at 90% 0%,rgba(65,225,186,.19),transparent 64%),
+    linear-gradient(140deg,rgba(17,73,77,.90),rgba(12,43,66,.92));
+  border:1px solid rgba(98,224,191,.26);
+  box-shadow:inset 0 1px rgba(255,255,255,.055),0 16px 40px rgba(4,49,55,.18);
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.focus-dashboard .focus-hero-metrics .focus-active-card:hover{
+  transform:translateY(-3px);
+  border-color:rgba(112,248,206,.5);
+  box-shadow:inset 0 1px rgba(255,255,255,.055),0 19px 47px rgba(3,78,72,.26);
+}
+.focus-dashboard .focus-hero-metrics .focus-metric-top{
+  width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;
+  margin-bottom:12px;
+}
+.focus-dashboard .focus-hero-metrics .focus-metric-label{
+  font-size:13px;font-weight:800;line-height:1.45;color:#c3c5ee;white-space:nowrap;
+}
+.focus-dashboard .focus-hero-metrics .focus-active-card .focus-metric-label{color:#a3eadc}
+.focus-dashboard .focus-hero-metrics .focus-metric-symbol,
+.focus-dashboard .focus-hero-metrics .focus-active-icon{
+  flex:0 0 auto;width:36px;height:36px;
+  border-radius:12px;display:flex;align-items:center;justify-content:center;
+  background:rgba(167,149,255,.16);border:1px solid rgba(198,187,255,.15);
+  color:#cfc4ff;font-size:24px;line-height:1;
+}
+.focus-dashboard .focus-hero-metrics .focus-active-icon{
+  background:rgba(58,219,169,.12);border-color:rgba(100,232,187,.2);color:#88f0d0;
+}
+.focus-dashboard .focus-hero-metrics .focus-income-card strong,
+.focus-dashboard .focus-hero-metrics .focus-active-card strong{
+  display:block;max-width:100%;margin:0 0 9px;line-height:1.13;
+  font-size:clamp(29px,2.35vw,40px)!important;font-weight:900!important;
+  letter-spacing:-.8px;color:#fff!important;white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.focus-dashboard .focus-hero-metrics .focus-active-card strong{
+  font-size:clamp(42px,3.3vw,54px)!important;color:#d3ffed!important;
+}
+.focus-dashboard .focus-hero-metrics .focus-metric-footnote,
+.focus-dashboard .focus-hero-metrics .focus-active-footnote{
+  margin:0!important;font-size:10px!important;line-height:1.6!important;
+  color:#aaaad0!important;
+}
+.focus-dashboard .focus-hero-metrics .focus-active-footnote{
+  color:#8ccfbe!important;display:flex;align-items:center;gap:7px;
+}
+.focus-dashboard .focus-hero-metrics .focus-active-footnote i{
+  width:7px;height:7px;flex:0 0 7px;border-radius:50%;
+  background:#5ce1b3;box-shadow:0 0 10px rgba(83,220,163,.65);
+}
+.focus-dashboard .focus-hero .focus-orb{
+  max-width:185px;margin-left:0!important;transform:scale(.78);
+  transform-origin:center;
+}
+@media(max-width:1599px){
+  .focus-dashboard .focus-hero{grid-template-columns:minmax(280px,.85fr) minmax(450px,1.25fr)!important}
+  .focus-dashboard .focus-hero .focus-orb{display:none!important}
+}
+@media(max-width:1120px){
+  .focus-dashboard .focus-hero{grid-template-columns:1fr!important;gap:22px!important}
+  .focus-dashboard .focus-hero-metrics{max-width:770px}
+}
+@media(max-width:700px){
+  .focus-dashboard .focus-hero{padding:23px 20px!important}
+  .focus-dashboard .focus-hero-metrics{gap:9px}
+  .focus-dashboard .focus-hero-metrics .focus-income-card,
+  .focus-dashboard .focus-hero-metrics .focus-active-card{
+    min-height:140px;padding:16px 14px;border-radius:17px;
+  }
+  .focus-dashboard .focus-hero-metrics .focus-metric-label{font-size:11px}
+  .focus-dashboard .focus-hero-metrics .focus-metric-top{margin-bottom:8px}
+  .focus-dashboard .focus-hero-metrics .focus-income-card strong{font-size:clamp(21px,4vw,28px)!important}
+  .focus-dashboard .focus-hero-metrics .focus-active-card strong{font-size:clamp(36px,7vw,48px)!important}
+  .focus-dashboard .focus-hero-metrics .focus-metric-symbol,
+  .focus-dashboard .focus-hero-metrics .focus-active-icon{width:29px;height:29px;border-radius:10px}
+  .focus-dashboard .focus-hero-metrics .focus-metric-footnote,
+  .focus-dashboard .focus-hero-metrics .focus-active-footnote{font-size:9px!important}
+}
+@media(max-width:490px){
+  .focus-dashboard .focus-hero-metrics{grid-template-columns:1fr}
+  .focus-dashboard .focus-hero-metrics .focus-income-card,
+  .focus-dashboard .focus-hero-metrics .focus-active-card{min-height:128px}
+  .focus-dashboard .focus-hero-metrics .focus-income-card strong{font-size:34px!important}
+  .focus-dashboard .focus-hero-metrics .focus-active-card strong{font-size:46px!important}
+}
