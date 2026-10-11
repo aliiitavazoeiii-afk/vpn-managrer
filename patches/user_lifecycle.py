@@ -324,13 +324,13 @@ _lc_add = TEMPLATES.get("add_user_page.html", "")
 if _lc_add:
     _lc_add = _lc_add.replace(
         'name="display_name" type="text" required autofocus',
-        'name="display_name" type="text" value="{{ request.query_params.get('name', '') }}" required autofocus',
+        """name="display_name" type="text" value="{{ request.query_params.get('name', '') }}" required autofocus""",
     ).replace(
         'name="phone" type="text" inputmode="tel" autocomplete="off"',
-        'name="phone" type="text" value="{{ request.query_params.get('phone', '') }}" inputmode="tel" autocomplete="off"',
+        """name="phone" type="text" value="{{ request.query_params.get('phone', '') }}" inputmode="tel" autocomplete="off""",
     ).replace(
         'name="monthly_fee" type="text" inputmode="numeric" data-money-input value="200,000"',
-        'name="monthly_fee" type="text" inputmode="numeric" data-money-input value="{{ request.query_params.get('fee', '200000') }}"',
+        """name="monthly_fee" type="text" inputmode="numeric" data-money-input value="{{ request.query_params.get('fee', '200000') }}""",
     )
     TEMPLATES["add_user_page.html"] = _lc_add
 
