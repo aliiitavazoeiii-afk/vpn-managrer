@@ -10,10 +10,11 @@ COPY v2_polish.css .
 COPY login_v2.html .
 COPY dashboard_v2.html .
 COPY payment_success.html .
+COPY payment_return.html .
 COPY safari_required.html .
 COPY billing_sync.py .
 COPY billing_migration.py .
 RUN printf '\nexec(compile(open("/srv/v2.py", "r", encoding="utf-8").read(), "/srv/v2.py", "exec"))\nexec(compile(open("/srv/billing_sync.py", "r", encoding="utf-8").read(), "/srv/billing_sync.py", "exec"))\n' >> server.py \
- && python -m py_compile server.py billing_migration.py
+ && python -m py_compile server.py v2.py billing_sync.py billing_migration.py
 EXPOSE 8091
 CMD ["uvicorn","server:app","--host","0.0.0.0","--port","8091","--proxy-headers","--forwarded-allow-ips=*"]
