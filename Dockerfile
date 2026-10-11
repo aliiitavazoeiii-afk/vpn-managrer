@@ -65,8 +65,8 @@ RUN mkdir -p app/static \
  && cat patches/waiting_partial_pay.py >> app/main.py \
  && cat patches/debt_adjust_bidirectional.py >> app/main.py \
  && cat patches/workspace_refresh.py >> app/main.py \
- && cat patches/user_lifecycle.py >> app/main.py \
  && cat patches/waiting_prepay.py >> app/main.py \
+ && cat patches/user_lifecycle.py >> app/main.py \
  && cat patches/v3.css >> app/static/app.css \
  && cat patches/followup.css >> app/static/app.css \
  && cat patches/waiting_compact.css >> app/static/app.css \
