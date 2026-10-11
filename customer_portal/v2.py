@@ -84,7 +84,7 @@ def _v2_session_phone(request: Request):
     return phone or None
 
 
-def _v2_payment_redirect(conn, phone, selected, scope):
+def _v2_payment_redirect(conn, phone, selected, scope, origin_host=None):
     amount_toman = sum(int(a["debt"] or 0) for a in selected)
     if amount_toman <= 0:
         return RedirectResponse("/", status_code=303)
@@ -454,7 +454,7 @@ def v2_pay_all(request: Request, csrf: str = Form(...)):
         ]
         if not selected:
             return RedirectResponse("/", status_code=303)
-        return _v2_payment_redirect(conn, phone, selected, "all")
+        return _v2_payment_redirect(conn, phone, selected, "all", request.url.hostname)
 
 
 @app.post("/pay/{sid}")
@@ -471,7 +471,7 @@ def v2_pay_one(sid: int, request: Request, csrf: str = Form(...)):
         ]
         if not selected:
             return RedirectResponse("/", status_code=303)
-        return _v2_payment_redirect(conn, phone, selected, f"sid-{int(sid)}")
+        return _v2_payment_redirect(conn, phone, selected, f"sid-{int(sid)}", request.url.hostname)
 
 
 @app.post("/disable/{sid}")
