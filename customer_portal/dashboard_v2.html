@@ -115,7 +115,9 @@ function dismissEntryNotice(){
             <small>Account #{{ a.id }}</small>
           </div>
         </div>
-        {% if a.followup_state == 'waiting' %}
+        {% if a.verified_payment %}
+          <span class="badge active">پرداخت تأیید شد</span>
+        {% elif a.followup_state == 'waiting' %}
           <span class="badge waiting">در انتظار پرداخت</span>
         {% elif a.debt > 0 %}
           <span class="badge due">نیازمند تمدید</span>
@@ -146,7 +148,12 @@ function dismissEntryNotice(){
       </div>
 
       <div class="account-actions">
-        {% if a.debt > 0 %}
+        {% if a.verified_payment %}
+        <div class="verified-payment" role="status">
+          <strong>✓ پرداخت شما با موفقیت ثبت شد</strong>
+          <span>مبلغ تأییدشده: {{ a.verified_payment.amount_toman|money }} تومان</span>
+        </div>
+        {% elif a.debt > 0 %}
         <form method="post" action="/pay/{{ a.id }}">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <button class="pay-one" type="submit">پرداخت {{ a.debt|money }} تومان ←</button>
