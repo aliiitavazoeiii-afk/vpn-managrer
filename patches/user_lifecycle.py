@@ -282,6 +282,26 @@ if _lc_debts:
     )
     TEMPLATES["debts.html"] = _lc_debts
 
+# Give the status directory a visible navigation entry without replacing the legacy user list.
+_lc_nav = TEMPLATES.get("base.html", "")
+if _lc_nav and 'href="/user-status"' not in _lc_nav:
+    _lc_entry = '''  <a href="/user-status" class="{{ 'active' if request.url.path.startswith('/user-status') else '' }}"><i>◎</i><span>جستجوی کاربران</span></a>
+'''
+    _lc_nav = _lc_nav.replace("</nav>", _lc_entry + "</nav>", 1)
+    TEMPLATES["base.html"] = _lc_nav
+
+for _lc_list_name in ("users.html", "user_list.html", "users_list.html"):
+    _lc_tpl = TEMPLATES.get(_lc_list_name, "")
+    if _lc_tpl and 'href="/user-status"' not in _lc_tpl:
+        _lc_tpl = _lc_tpl.replace(
+            '<a href="/add-user">＋ افزودن کاربر جدید</a>',
+            '<a href="/user-status">جستجوی وضعیت همه کاربران</a> '
+            '<a href="/add-user">＋ افزودن کاربر جدید</a>',
+            1,
+        )
+        TEMPLATES[_lc_list_name] = _lc_tpl
+
+
 _lc_add = TEMPLATES.get("add_user_page.html", "")
 if _lc_add:
     _lc_add = _lc_add.replace(
