@@ -96,6 +96,10 @@ if _lc_removed:
         "{{ ((s.display_name or '') ~ ' ' ~ (s.phone or '') ~ ' ' ~ s.id)|lower }}",
     )
     _lc_removed = _lc_removed.replace(
+        '<div><small>انقضا</small><b>{{ s.expiry_date|jdate }}</b></div>',
+        '<div><small>انقضا</small><b>{{ s.expiry_date|jdate }}</b><small>انتقال به حذفی‌ها: {{ s.archived_at or "—" }}</small></div>',
+    )
+    _lc_removed = _lc_removed.replace(
         '<div class="removed-actions"><a href="/users/{{ s.id }}">پروفایل</a>',
         '<div class="removed-actions"><a href="/users/{{ s.id }}">پروفایل</a>'
         '<a href="/add-user?name={{ s.display_name|urlencode }}&phone={{ (s.phone or "")|urlencode }}&fee={{ s.monthly_fee_toman }}">افزودن مجدد</a>',
@@ -110,7 +114,7 @@ if _lc_removed:
     <div><small>نام سابق</small><b>{{ h.name }}</b></div>
     <div><small>شماره (اگر ثبت شده)</small><b class="ltr">{{ h.phone or '—' }}</b></div>
     <div><small>شناسه قبلی</small><b>{{ h.old_id }}</b></div>
-    <div><small>وضعیت</small><b class="lc-legacy-label">حذف دائمی قدیمی</b></div>
+    <div><small>وضعیت</small><b class="lc-legacy-label">حذف دائمی قدیمی</b><small>تاریخ حذف: {{ h.deleted_at or '—' }}</small></div>
     <div class="removed-actions"><a href="{{ h.add_url }}">افزودن مجدد</a></div>
   </section>
 {% endfor %}
@@ -145,6 +149,20 @@ def _lc_removed_page(request: Request, db: Session = Depends(get_db)):
         .order_by(Subscription.display_name.asc()).all()
         if removed_ids else []
     )
+    archive_dates = {}
+    if removed_ids:
+        cut_events = (
+            db.query(AuditEvent)
+            .filter(AuditEvent.kind == "followup_cut")
+            .order_by(AuditEvent.id.desc())
+            .all()
+        )
+        for ev in cut_events:
+            sid = _followup_event_sid(ev.message)
+            if sid in removed_ids and sid not in archive_dates:
+                archive_dates[sid] = ev.created_at
+    for s in rows:
+        s.archived_at = archive_dates.get(int(s.id))
     legacy = _lc_legacy_deleted(db)
     return render(
         "removed.html", request, rows=rows, legacy=legacy,
