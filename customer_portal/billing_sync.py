@@ -230,7 +230,7 @@ def _check_existing_ayria_request(conn, row, current_phone):
     return "pending"
 
 
-def _v2_payment_redirect(conn, phone, selected, scope):
+def _v2_payment_redirect(conn, phone, selected, scope, origin_host=None):
     _sync_ensure_schema(conn)
     plan = _allocation_plan(conn, selected)
     if not plan:
