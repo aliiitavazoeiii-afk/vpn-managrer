@@ -1,5 +1,8 @@
 # Hesab VPN
 
+> **Production maintenance warning (2026-10-11):** This README contains original-install notes only. **Do not run `install.sh` on a running server**: it deletes the existing Compose volume and application folder. For the current `sms-app` architecture, operations, safety and new-chat onboarding, read **[PROJECT_HANDOFF.md](PROJECT_HANDOFF.md)** first. The latest application code is on `sms-app`, not `main`.
+
+
 Private VPN subscription/accounting panel for `hesab.filmjadiid.ir`.
 
 ## Data invariants
