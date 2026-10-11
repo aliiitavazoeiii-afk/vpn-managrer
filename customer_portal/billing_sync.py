@@ -171,13 +171,13 @@ def _open_allocation_conflict(conn, sid):
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT r.id, r.reference_code
+            SELECT r.id, r.reference_code, r.payment_url, r.phone
             FROM ayria_payment_allocations a
             JOIN ayria_payment_requests r ON r.id=a.request_id
             WHERE a.subscription_id=%s
               AND a.applied_at IS NULL
               AND r.paid_at IS NULL
-              AND COALESCE(r.status,'') NOT IN ('failed','canceled')
+              AND COALESCE(r.status,'') NOT IN ('failed','canceled','paid')
             ORDER BY r.id DESC
             LIMIT 1
             """,
@@ -186,25 +186,79 @@ def _open_allocation_conflict(conn, sid):
         return cur.fetchone()
 
 
+def _check_existing_ayria_request(conn, row, current_phone):
+    """Never reuse a cancelled link or generate a second charge while status is uncertain."""
+    reference = str(row["reference_code"] or "").strip()
+    if not reference:
+        return "unknown"
+    try:
+        remote = _ayria_get(reference)
+    except Exception:
+        logging.getLogger("uvicorn.error").exception(
+            "Ayria status lookup failed while retrying payment request=%s", row["id"]
+        )
+        return "unknown"
+
+    if remote.get("paid") and not remote.get("canceled"):
+        # Reconcile the actual successful payment before offering any new checkout.
+        result = _sync_paid_reference(reference)
+        if result.get("ok") and result.get("paid"):
+            return "paid"
+        logging.getLogger("uvicorn.error").warning(
+            "Confirmed Ayria payment could not be applied: request=%s reason=%s",
+            row["id"], result.get("reason"),
+        )
+        return "unknown"
+
+    if remote.get("canceled") and not remote.get("paid"):
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE ayria_payment_requests
+                SET status='canceled', sync_status='canceled',
+                    sync_error=NULL, updated_at=NOW()
+                WHERE id=%s AND paid_at IS NULL
+                """,
+                (row["id"],),
+            )
+        conn.commit()
+        return "canceled"
+
+    # An old URL may still be payable. Do not expose someone else's payment link.
+    if row["phone"] != current_phone:
+        return "unknown"
+    return "pending"
+
+
 def _v2_payment_redirect(conn, phone, selected, scope):
     _sync_ensure_schema(conn)
     plan = _allocation_plan(conn, selected)
     if not plan:
         return RedirectResponse("/", status_code=303)
 
-    # Avoid overlapping "all accounts" and "single account" payment requests.
+    # Serialise checkout attempts for the same phone across web requests.
+    # Session advisory locks survive the commits below and release when the
+    # caller's database connection closes.
+    with conn.cursor() as cur:
+        cur.execute("SELECT pg_advisory_lock(hashtextextended(%s, 0))", (phone,))
+
+    # Avoid overlapping "all accounts" and "single account" payments, including
+    # abandoned links. Check Ayria before returning an existing checkout URL.
     for item in plan:
-        conflict = _open_allocation_conflict(conn, item["sid"])
-        if conflict:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT payment_url FROM ayria_payment_requests WHERE id=%s",
-                    (int(conflict["id"]),),
-                )
-                row = cur.fetchone()
-            if row and row["payment_url"]:
-                return RedirectResponse(str(row["payment_url"]), status_code=303)
-            return RedirectResponse("/?payment_error=1", status_code=303)
+        for _ in range(25):
+            conflict = _open_allocation_conflict(conn, item["sid"])
+            if not conflict:
+                break
+            state = _check_existing_ayria_request(conn, conflict, phone)
+            if state == "canceled":
+                continue
+            if state == "paid":
+                return RedirectResponse("/", status_code=303)
+            if state == "pending" and conflict["payment_url"]:
+                return RedirectResponse(str(conflict["payment_url"]), status_code=303)
+            return RedirectResponse("/?payment_pending=1", status_code=303)
+        else:
+            return RedirectResponse("/?payment_pending=1", status_code=303)
 
     amount_toman = sum(x["amount_toman"] for x in plan)
     amount_rial = amount_toman * 10
@@ -212,48 +266,22 @@ def _v2_payment_redirect(conn, phone, selected, scope):
     fingerprint = _v2_hashlib.sha256(
         (ids + "|" + "|".join(f"{x['sid']}:{x['amount_toman']}:{x['new_expiry']}" for x in plan)).encode()
     ).hexdigest()[:18]
-    cycle_key = f"sync-{scope}:{fingerprint}"[:96]
+    # One payment attempt per reference. Old cancelled requests remain in the
+    # database for audit; unique (phone, cycle_key) cannot block new attempts.
+    cycle_key = f"sync-{scope}:{fingerprint}:{secrets.token_hex(8)}"[:96]
 
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT id, payment_url, reference_code
-            FROM ayria_payment_requests
-            WHERE phone=%s AND cycle_key=%s
-            LIMIT 1
+            INSERT INTO ayria_payment_requests(
+                phone, cycle_key, amount_toman, amount_rial, status, sync_status
+            )
+            VALUES (%s,%s,%s,%s,'creating','pending')
+            RETURNING id
             """,
-            (phone, cycle_key),
+            (phone, cycle_key, amount_toman, amount_rial),
         )
-        existing = cur.fetchone()
-
-    if existing and existing["payment_url"] and existing["reference_code"]:
-        return RedirectResponse(str(existing["payment_url"]), status_code=303)
-
-    if existing:
-        request_id = int(existing["id"])
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                DELETE FROM ayria_payment_allocations WHERE request_id=%s;
-                UPDATE ayria_payment_requests
-                SET status='creating', error=NULL, sync_error=NULL, updated_at=NOW()
-                WHERE id=%s
-                """,
-                (request_id, request_id),
-            )
-    else:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO ayria_payment_requests(
-                    phone, cycle_key, amount_toman, amount_rial, status, sync_status
-                )
-                VALUES (%s,%s,%s,%s,'creating','pending')
-                RETURNING id
-                """,
-                (phone, cycle_key, amount_toman, amount_rial),
-            )
-            request_id = int(cur.fetchone()["id"])
+        request_id = int(cur.fetchone()["id"])
 
     with conn.cursor() as cur:
         for item in plan:
@@ -370,6 +398,21 @@ def _sync_paid_reference(reference):
     except Exception as exc:
         return {"ok": False, "reason": "ayria_get_failed", "error": str(exc)[:300]}
 
+    if remote.get("canceled") and not remote.get("paid"):
+        with db_conn() as conn:
+            _sync_ensure_schema(conn)
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE ayria_payment_requests
+                    SET status='canceled', sync_status='canceled',
+                        sync_error=NULL, updated_at=NOW()
+                    WHERE reference_code=%s AND paid_at IS NULL
+                    """,
+                    (reference,),
+                )
+            conn.commit()
+        return {"ok": True, "paid": False, "canceled": True}
     if not remote.get("paid") or remote.get("canceled"):
         return {"ok": True, "paid": False}
 
