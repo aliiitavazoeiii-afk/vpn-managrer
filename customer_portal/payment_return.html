@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#081b26"><title>بررسی نتیجه پرداخت | User Manager</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap');
+*{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;padding:20px;background:radial-gradient(ellipse at 50% 15%,#154a4b,#081b27 60%,#07121a);color:#effff9;font-family:Vazirmatn,Tahoma,sans-serif}
+.card{width:min(100%,440px);border:1px solid #ffffff24;border-radius:28px;background:#102832ee;box-shadow:0 24px 70px #0007;padding:43px 25px 30px;text-align:center}
+.spinner{position:relative;width:100px;height:100px;border-radius:50%;border:4px solid #ffffff17;border-top-color:#6bf2bc;margin:0 auto 25px;animation:spin 1s linear infinite}
+.spinner:after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:#6bf2bc;font-size:34px;animation:spin 1s linear infinite reverse}
+h1{font-size:24px;margin:0 0 12px}p{font-size:14px;line-height:2.1;color:#afc9cc;margin:0 0 18px}a{display:block;border-radius:14px;padding:14px;margin-top:20px;background:linear-gradient(110deg,#68eeb8,#30cf9a);color:#073a2b;text-decoration:none;font-weight:800}.sub{font-size:12px;color:#89abb2;margin-top:12px}.warning .spinner{border-color:#ffbc6633;border-top-color:#f5b15b}.warning .spinner:after{content:"!" ;color:#f5b15b}@keyframes spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.spinner,.spinner:after{animation:none}}
+</style>
+</head>
+<body>
+<main class="card" id="card">
+<div class="spinner" aria-hidden="true"></div>
+<h1 id="title">در حال تأیید پرداخت شما...</h1>
+<p id="message" role="status" aria-live="polite">در حال بررسی نتیجه در آیریا و ثبت تمدید اکانت‌ها هستیم. تا تأیید نهایی، پرداخت را موفق اعلام نمی‌کنیم.</p>
+<a href="/payment/dismiss">بازگشت به داشبورد</a>
+<div class="sub" id="hint">ممکن است ثبت نهایی چند لحظه زمان ببرد.</div>
+</main>
+<script>
+(function(){
+ const title=document.getElementById('title'),msg=document.getElementById('message'),hint=document.getElementById('hint'),card=document.getElementById('card');
+ let attempts=0;
+ async function check(){
+   attempts++;
+   try{
+     const response=await fetch('/payment/status',{credentials:'same-origin',cache:'no-store'});
+     if(response.ok){
+       const result=await response.json();
+       if(result.state==='paid'&&result.url){window.location.replace(result.url);return}
+       if(result.state==='canceled'||result.state==='failed'||result.state==='missing'){
+         card.classList.add('warning');title.textContent='پرداخت نهایی نشده است';
+         msg.textContent='برای این تلاش، پرداخت تأییدشده‌ای ثبت نشده است. اگر مبلغ از حسابتان کم شده، قبل از پرداخت دوباره وضعیت را از پنل بررسی کنید.';
+         hint.textContent='پرداخت دوباره تنها پس از بررسی وضعیت تراکنش مجاز است.';return
+       }
+     }
+   }catch(e){}
+   if(attempts<30){setTimeout(check,2000)}
+   else{title.textContent='بررسی پرداخت همچنان ادامه دارد';msg.textContent='هنوز تأیید قطعی دریافت نشده است. وضعیت اکانت‌ها را از داشبورد بررسی کنید؛ سیستم در پس‌زمینه نتیجه را پیگیری می‌کند.';hint.textContent='برای جلوگیری از برداشت دوباره، پیش از شروع پرداخت جدید وضعیت پرداخت قبلی را بررسی کنید.'}
+ }
+ check();
+})();
+</script>
+</body></html>
