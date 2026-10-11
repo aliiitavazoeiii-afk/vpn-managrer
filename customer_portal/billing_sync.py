@@ -328,7 +328,7 @@ def _v2_payment_redirect(conn, phone, selected, scope, origin_host=None):
             separators=(",", ":"),
         ),
         "issuerMustVerifyPayment": False,
-        "callbackUrl": "https://moshtarakin.filmjadiid.ir/api/ayria/callback",
+        "callbackUrl": "https://" + (origin_host if origin_host in ("usersmanager.ir", "moshtarakin.filmjadiid.ir") else "moshtarakin.filmjadiid.ir") + "/api/ayria/callback",
     }
 
     try:
