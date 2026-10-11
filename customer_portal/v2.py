@@ -267,6 +267,23 @@ def v2_home(request: Request):
     if not phone:
         return _v2_render(_V2_LOGIN, error=None)
 
+    # Celebrate only after verified Ayria payment AND per-account application.
+    checkout_id = request.cookies.get("moshtarakin_checkout", "")
+    if checkout_id.isascii() and checkout_id.isdecimal():
+        with db_conn() as receipt_conn:
+            with receipt_conn.cursor() as receipt_cur:
+                receipt_cur.execute(
+                    """SELECT id FROM ayria_payment_requests
+                       WHERE id=%s AND phone=%s AND status='paid'
+                         AND paid_at IS NOT NULL AND sync_status='applied'""",
+                    (int(checkout_id), phone),
+                )
+                confirmed = receipt_cur.fetchone()
+        if confirmed:
+            response = RedirectResponse(f"/payment/success/{int(checkout_id)}", status_code=303)
+            response.delete_cookie("moshtarakin_checkout", path="/")
+            return response
+
     with db_conn() as conn:
         accounts = active_subscriptions(conn, phone)
         account_ids = [int(a["id"]) for a in accounts]
