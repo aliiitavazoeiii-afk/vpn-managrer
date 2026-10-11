@@ -655,6 +655,8 @@ def verified_payment_receipt(payment_id: int, request: Request):
     ))
     response.headers["Cache-Control"] = "no-store, private"
     response.headers["Referrer-Policy"] = "no-referrer"
+    # Showing the receipt is the one-time celebration; dashboard must not loop.
+    response.delete_cookie("moshtarakin_checkout", path="/")
     return response
 
 @app.post("/api/ayria/callback")
