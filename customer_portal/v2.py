@@ -269,9 +269,40 @@ def v2_home(request: Request):
 
     with db_conn() as conn:
         accounts = active_subscriptions(conn, phone)
-        anchors = _v2_load_anchor_targets(conn, [int(a["id"]) for a in accounts])
+        account_ids = [int(a["id"]) for a in accounts]
+        anchors = _v2_load_anchor_targets(conn, account_ids)
+        # A successful Ayria allocation, not merely a zero balance, is proof of payment.
+        confirmed_payments = {}
+        if account_ids:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT DISTINCT ON (a.subscription_id)
+                           a.subscription_id, a.amount_toman, a.applied_at
+                    FROM ayria_payment_allocations a
+                    JOIN ayria_payment_requests r ON r.id=a.request_id
+                    WHERE a.subscription_id = ANY(%s)
+                      AND a.applied_at IS NOT NULL
+                      AND r.paid_at IS NOT NULL
+                      AND r.status = 'paid'
+                    ORDER BY a.subscription_id, a.applied_at DESC, a.id DESC
+                    """,
+                    (account_ids,),
+                )
+                confirmed_payments = {
+                    int(row["subscription_id"]): {
+                        "amount_toman": int(row["amount_toman"]),
+                    }
+                    for row in cur.fetchall()
+                }
 
     for item in accounts:
+        currently_due = int(item.get("portal_payable_amount", item.get("debt", 0)) or 0)
+        item["verified_payment"] = (
+            confirmed_payments.get(int(item["id"]))
+            if currently_due == 0 and int(item.get("debt") or 0) == 0
+            else None
+        )
         name = str(item.get("display_name") or "?").strip()
         item["initial"] = name[:1].upper() if name else "?"
         anchor = anchors.get(int(item["id"]))
