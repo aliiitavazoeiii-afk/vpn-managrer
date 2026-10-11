@@ -605,6 +605,51 @@ def _sync_paid_reference(reference):
     return {"ok": True, "paid": True, "applied": True}
 
 
+
+# Read-only receipt: never infer success from a browser query string.
+@app.get("/payment/success/{payment_id}")
+def verified_payment_receipt(payment_id: int, request: Request):
+    from fastapi.responses import HTMLResponse
+    from pathlib import Path
+
+    phone = _v2_session_phone(request)
+    if not phone:
+        return RedirectResponse("/", status_code=303)
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, phone, amount_toman, reference_code, tracking_number,
+                          status, paid_at, sync_status
+                   FROM ayria_payment_requests WHERE id=%s AND phone=%s""",
+                (payment_id, phone),
+            )
+            payment = cur.fetchone()
+            if not payment:
+                return RedirectResponse("/", status_code=303)
+            if not (payment["status"] == "paid" and payment["paid_at"]
+                    and payment["sync_status"] == "applied"):
+                return RedirectResponse("/?payment_pending=1", status_code=303)
+            cur.execute(
+                """SELECT s.display_name, a.new_expiry
+                   FROM ayria_payment_allocations a
+                   JOIN subscriptions s ON s.id=a.subscription_id
+                   WHERE a.request_id=%s AND a.applied_at IS NOT NULL
+                   ORDER BY a.id""",
+                (payment_id,),
+            )
+            rows = cur.fetchall()
+    if not rows:
+        return RedirectResponse("/?payment_pending=1", status_code=303)
+    source = (Path(__file__).resolve().parent / "payment_success.html").read_text(encoding="utf-8")
+    response = HTMLResponse(jinja.from_string(source).render(
+        accounts=[{"name": row["display_name"], "expiry": jalali_text(row["new_expiry"])} for row in rows],
+        amount=f'{int(payment["amount_toman"]):,}',
+        tracking=str(payment["tracking_number"] or payment["reference_code"] or "—"),
+    ))
+    response.headers["Cache-Control"] = "no-store, private"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
 @app.post("/api/ayria/callback")
 async def ayria_callback(request: Request):
     try:
