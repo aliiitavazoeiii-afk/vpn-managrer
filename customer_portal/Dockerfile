@@ -9,6 +9,7 @@ COPY v2.css .
 COPY v2_polish.css .
 COPY login_v2.html .
 COPY dashboard_v2.html .
+COPY payment_success.html .
 COPY safari_required.html .
 COPY billing_sync.py .
 COPY billing_migration.py .
