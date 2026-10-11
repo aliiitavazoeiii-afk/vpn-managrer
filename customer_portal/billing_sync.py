@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from datetime import date, datetime, timezone
 import urllib.error
 import urllib.request
@@ -508,9 +509,9 @@ def _sync_paid_reference(reference):
                     """
                     INSERT INTO payments(
                         subscription_id, amount_toman, periods,
-                        previous_expiry, new_expiry, note
+                        previous_expiry, new_expiry, paid_at, note
                     )
-                    VALUES (%s,%s,%s,%s,%s,%s)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s)
                     """,
                     (
                         alloc["subscription_id"],
@@ -518,6 +519,7 @@ def _sync_paid_reference(reference):
                         alloc["periods"],
                         alloc["previous_expiry"],
                         alloc["new_expiry"],
+                        now,
                         f"Ayria auto sync; reference={reference}; allocation={alloc['id']}",
                     ),
                 )
@@ -597,9 +599,19 @@ async def _ayria_sync_loop():
                     refs = [str(r["reference_code"]) for r in cur.fetchall()]
 
             for ref in refs:
-                await asyncio.to_thread(_sync_paid_reference, ref)
+                try:
+                    result = await asyncio.to_thread(_sync_paid_reference, ref)
+                    if not result.get("ok"):
+                        logging.getLogger("uvicorn.error").warning(
+                            "Ayria payment reconciliation failed: reference=%s reason=%s",
+                            ref, result.get("reason"),
+                        )
+                except Exception:
+                    logging.getLogger("uvicorn.error").exception(
+                        "Ayria payment reconciliation crashed: reference=%s", ref
+                    )
         except Exception:
-            pass
+            logging.getLogger("uvicorn.error").exception("Ayria reconciliation loop failed")
         await asyncio.sleep(30)
 
 
