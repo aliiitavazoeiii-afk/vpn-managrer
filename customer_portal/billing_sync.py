@@ -255,7 +255,12 @@ def _v2_payment_redirect(conn, phone, selected, scope, origin_host=None):
             if state == "paid":
                 return RedirectResponse("/", status_code=303)
             if state == "pending" and conflict["payment_url"]:
-                return RedirectResponse(str(conflict["payment_url"]), status_code=303)
+                existing = RedirectResponse(str(conflict["payment_url"]), status_code=303)
+                existing.set_cookie(
+                    "moshtarakin_checkout", str(conflict["id"]), max_age=3600,
+                    httponly=True, secure=True, samesite="lax", path="/",
+                )
+                return existing
             return RedirectResponse("/?payment_pending=1", status_code=303)
         else:
             return RedirectResponse("/?payment_pending=1", status_code=303)
