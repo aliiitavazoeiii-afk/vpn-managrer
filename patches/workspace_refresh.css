@@ -181,119 +181,118 @@
   .users-page-toolbar{align-items:flex-start;flex-direction:column}.users-page-toolbar>a{width:100%;justify-content:center}
 }
 
-/* Active accounts KPI in hero (v1)
-   Deliberately scoped to the dashboard, preserving every other screen. */
+
+/* Dashboard hero v2: restrained premium header, typography reset. */
 .focus-dashboard .focus-hero{
-  grid-template-columns:minmax(280px,1fr) minmax(470px,1.3fr) 175px!important;
-  gap:20px!important;
+  display:grid!important;grid-template-columns:minmax(340px,.92fr) minmax(460px,1.1fr) 135px!important;
+  align-items:center!important;gap:18px!important;min-height:225px!important;
+  padding:32px 38px!important;overflow:hidden!important;
 }
+.focus-dashboard .focus-hero-copy{min-width:0;z-index:2}
+.focus-dashboard .focus-command-title{
+  font-family:Inter,"Segoe UI",Arial,sans-serif!important;font-weight:850!important;
+  font-size:clamp(29px,2.6vw,41px)!important;line-height:1.2!important;
+  letter-spacing:-1.4px!important;white-space:nowrap!important;
+}
+.focus-dashboard .focus-hero-copy p{
+  font-family:Vazirmatn,Estedad,Tahoma,sans-serif!important;
+  font-size:13px!important;line-height:1.8!important;margin-top:12px!important;
+}
+.focus-dashboard .focus-kicker{font-size:11px!important;padding:7px 12px!important;margin-bottom:15px!important}
 .focus-dashboard .focus-hero-metrics{
-  position:relative;z-index:2;display:grid;
-  grid-template-columns:minmax(0,1.22fr) minmax(0,.78fr);
-  gap:13px;min-width:0;align-items:stretch;
+  display:grid!important;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr)!important;
+  gap:11px!important;min-width:0;position:relative;z-index:2;
+  font-family:Vazirmatn,Estedad,Tahoma,sans-serif!important;
 }
 .focus-dashboard .focus-hero-metrics .focus-income-card,
 .focus-dashboard .focus-hero-metrics .focus-active-card{
-  box-sizing:border-box;min-width:0;min-height:164px;
-  padding:22px 22px 20px;border-radius:21px;
-  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;
-  position:relative;isolation:isolate;overflow:hidden;
-  text-align:right;text-decoration:none;
-}
-.focus-dashboard .focus-hero-metrics .focus-income-card{
-  background:radial-gradient(circle at 10% 0%,rgba(114,171,255,.18),transparent 45%),
-    linear-gradient(132deg,rgba(59,47,135,.75),rgba(25,23,71,.83));
-  border:1px solid rgba(157,144,255,.29);
-  box-shadow:inset 0 1px rgba(255,255,255,.08),0 15px 38px rgba(18,15,55,.20);
-}
-.focus-dashboard .focus-hero-metrics .focus-income-card:after{
-  pointer-events:none;z-index:-1;opacity:.08;
+  display:flex!important;flex-direction:column!important;align-items:stretch!important;
+  min-height:145px!important;min-width:0!important;width:auto!important;
+  box-sizing:border-box!important;padding:20px 21px!important;
+  border-radius:19px!important;overflow:hidden!important;
+  background:linear-gradient(145deg,rgba(70,57,129,.30),rgba(19,25,65,.44))!important;
+  border:1px solid rgba(173,158,244,.20)!important;
+  box-shadow:inset 0 1px rgba(255,255,255,.035)!important;
+  color:#f7f6ff!important;text-decoration:none!important;
 }
 .focus-dashboard .focus-hero-metrics .focus-active-card{
-  color:#e6fff9;
-  background:radial-gradient(circle at 90% 0%,rgba(65,225,186,.19),transparent 64%),
-    linear-gradient(140deg,rgba(17,73,77,.90),rgba(12,43,66,.92));
-  border:1px solid rgba(98,224,191,.26);
-  box-shadow:inset 0 1px rgba(255,255,255,.055),0 16px 40px rgba(4,49,55,.18);
-  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+  background:linear-gradient(145deg,rgba(38,71,93,.32),rgba(23,35,74,.48))!important;
+  border-color:rgba(117,183,207,.20)!important;
 }
-.focus-dashboard .focus-hero-metrics .focus-active-card:hover{
-  transform:translateY(-3px);
-  border-color:rgba(112,248,206,.5);
-  box-shadow:inset 0 1px rgba(255,255,255,.055),0 19px 47px rgba(3,78,72,.26);
-}
+.focus-dashboard .focus-hero-metrics .focus-income-card:after{display:none!important}
 .focus-dashboard .focus-hero-metrics .focus-metric-top{
-  width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;
-  margin-bottom:12px;
+  display:flex!important;align-items:center!important;justify-content:space-between!important;
+  gap:8px!important;width:100%;margin:0 0 10px!important;
 }
 .focus-dashboard .focus-hero-metrics .focus-metric-label{
-  font-size:13px;font-weight:800;line-height:1.45;color:#c3c5ee;white-space:nowrap;
+  color:#cac7df!important;font:700 12px/1.5 Vazirmatn,Estedad,Tahoma,sans-serif!important;
+  white-space:nowrap!important;
 }
-.focus-dashboard .focus-hero-metrics .focus-active-card .focus-metric-label{color:#a3eadc}
+.focus-dashboard .focus-hero-metrics .focus-active-card .focus-metric-label{color:#b7d7dc!important}
 .focus-dashboard .focus-hero-metrics .focus-metric-symbol,
 .focus-dashboard .focus-hero-metrics .focus-active-icon{
-  flex:0 0 auto;width:36px;height:36px;
-  border-radius:12px;display:flex;align-items:center;justify-content:center;
-  background:rgba(167,149,255,.16);border:1px solid rgba(198,187,255,.15);
-  color:#cfc4ff;font-size:24px;line-height:1;
+  flex:0 0 29px!important;width:29px!important;height:29px!important;
+  display:grid!important;place-items:center!important;border-radius:10px!important;
+  background:rgba(165,152,245,.10)!important;border:1px solid rgba(165,152,245,.12)!important;
+  color:#bab2e9!important;font-size:15px!important;
 }
 .focus-dashboard .focus-hero-metrics .focus-active-icon{
-  background:rgba(58,219,169,.12);border-color:rgba(100,232,187,.2);color:#88f0d0;
+  background:rgba(112,169,191,.10)!important;border-color:rgba(110,184,202,.12)!important;
+  color:#a1d0d5!important;
 }
+.focus-dashboard .focus-hero-metrics .focus-active-icon svg{width:17px!important;height:17px!important}
 .focus-dashboard .focus-hero-metrics .focus-income-card strong,
 .focus-dashboard .focus-hero-metrics .focus-active-card strong{
-  display:block;max-width:100%;margin:0 0 9px;line-height:1.13;
-  font-size:clamp(29px,2.35vw,40px)!important;font-weight:900!important;
-  letter-spacing:-.8px;color:#fff!important;white-space:nowrap;
-  font-variant-numeric:tabular-nums;
+  font-family:Vazirmatn,Estedad,Tahoma,sans-serif!important;
+  display:block!important;white-space:nowrap!important;
+  font-size:clamp(23px,2.18vw,32px)!important;line-height:1.5!important;
+  font-weight:800!important;letter-spacing:0!important;
+  font-variant-numeric:tabular-nums!important;
+  direction:ltr!important;text-align:right!important;color:#f8f7ff!important;
+  margin:0 0 4px!important;max-width:100%!important;
 }
 .focus-dashboard .focus-hero-metrics .focus-active-card strong{
-  font-size:clamp(42px,3.3vw,54px)!important;color:#d3ffed!important;
+  font-size:clamp(30px,2.65vw,42px)!important;color:#d9f5f3!important;
 }
 .focus-dashboard .focus-hero-metrics .focus-metric-footnote,
 .focus-dashboard .focus-hero-metrics .focus-active-footnote{
-  margin:0!important;font-size:10px!important;line-height:1.6!important;
-  color:#aaaad0!important;
+  display:block!important;color:#aaa9c7!important;
+  font:400 10px/1.6 Vazirmatn,Estedad,Tahoma,sans-serif!important;
+  margin:0!important;white-space:nowrap!important;
 }
-.focus-dashboard .focus-hero-metrics .focus-active-footnote{
-  color:#8ccfbe!important;display:flex;align-items:center;gap:7px;
-}
-.focus-dashboard .focus-hero-metrics .focus-active-footnote i{
-  width:7px;height:7px;flex:0 0 7px;border-radius:50%;
-  background:#5ce1b3;box-shadow:0 0 10px rgba(83,220,163,.65);
+.focus-dashboard .focus-hero-metrics .focus-active-footnote{color:#96c0c8!important}
+.focus-dashboard .focus-hero-metrics .focus-active-footnote i{display:none!important}
+.focus-dashboard .focus-hero-metrics .focus-active-card:hover{
+  transform:translateY(-2px)!important;border-color:rgba(125,192,209,.36)!important;
 }
 .focus-dashboard .focus-hero .focus-orb{
-  max-width:185px;margin-left:0!important;transform:scale(.78);
-  transform-origin:center;
+  display:block!important;width:130px!important;height:174px!important;
+  max-width:130px!important;margin:0!important;transform:scale(.66)!important;
+  transform-origin:center!important;justify-self:center!important;
 }
-@media(max-width:1599px){
-  .focus-dashboard .focus-hero{grid-template-columns:minmax(280px,.85fr) minmax(450px,1.25fr)!important}
+@media(max-width:1450px){
+  .focus-dashboard .focus-hero{grid-template-columns:minmax(300px,.8fr) minmax(440px,1.2fr)!important}
   .focus-dashboard .focus-hero .focus-orb{display:none!important}
+  .focus-dashboard .focus-command-title{font-size:34px!important}
 }
-@media(max-width:1120px){
-  .focus-dashboard .focus-hero{grid-template-columns:1fr!important;gap:22px!important}
-  .focus-dashboard .focus-hero-metrics{max-width:770px}
+@media(max-width:1090px){
+  .focus-dashboard .focus-hero{grid-template-columns:1fr!important;gap:18px!important}
+  .focus-dashboard .focus-hero-metrics{max-width:660px!important;width:100%!important}
 }
-@media(max-width:700px){
-  .focus-dashboard .focus-hero{padding:23px 20px!important}
-  .focus-dashboard .focus-hero-metrics{gap:9px}
+@media(max-width:640px){
+  .focus-dashboard .focus-hero{padding:22px 17px!important}
+  .focus-dashboard .focus-command-title{font-size:clamp(24px,6vw,32px)!important;white-space:normal!important}
+  .focus-dashboard .focus-hero-metrics{gap:8px!important}
   .focus-dashboard .focus-hero-metrics .focus-income-card,
-  .focus-dashboard .focus-hero-metrics .focus-active-card{
-    min-height:140px;padding:16px 14px;border-radius:17px;
-  }
-  .focus-dashboard .focus-hero-metrics .focus-metric-label{font-size:11px}
-  .focus-dashboard .focus-hero-metrics .focus-metric-top{margin-bottom:8px}
-  .focus-dashboard .focus-hero-metrics .focus-income-card strong{font-size:clamp(21px,4vw,28px)!important}
-  .focus-dashboard .focus-hero-metrics .focus-active-card strong{font-size:clamp(36px,7vw,48px)!important}
-  .focus-dashboard .focus-hero-metrics .focus-metric-symbol,
-  .focus-dashboard .focus-hero-metrics .focus-active-icon{width:29px;height:29px;border-radius:10px}
+  .focus-dashboard .focus-hero-metrics .focus-active-card{padding:15px 13px!important;min-height:129px!important}
+  .focus-dashboard .focus-hero-metrics .focus-income-card strong{font-size:clamp(18px,4vw,26px)!important}
+  .focus-dashboard .focus-hero-metrics .focus-active-card strong{font-size:32px!important}
+  .focus-dashboard .focus-hero-metrics .focus-metric-label{font-size:10px!important}
   .focus-dashboard .focus-hero-metrics .focus-metric-footnote,
-  .focus-dashboard .focus-hero-metrics .focus-active-footnote{font-size:9px!important}
+  .focus-dashboard .focus-hero-metrics .focus-active-footnote{font-size:9px!important;white-space:normal!important}
 }
-@media(max-width:490px){
-  .focus-dashboard .focus-hero-metrics{grid-template-columns:1fr}
+@media(max-width:420px){
+  .focus-dashboard .focus-hero-metrics{grid-template-columns:1fr!important}
   .focus-dashboard .focus-hero-metrics .focus-income-card,
-  .focus-dashboard .focus-hero-metrics .focus-active-card{min-height:128px}
-  .focus-dashboard .focus-hero-metrics .focus-income-card strong{font-size:34px!important}
-  .focus-dashboard .focus-hero-metrics .focus-active-card strong{font-size:46px!important}
+  .focus-dashboard .focus-hero-metrics .focus-active-card{min-height:114px!important}
 }
