@@ -372,7 +372,9 @@ def _v2_payment_redirect(conn, phone, selected, scope):
                 ),
             )
     conn.commit()
-    return RedirectResponse(payment_url, status_code=303)
+    checkout = RedirectResponse(payment_url, status_code=303)
+    checkout.set_cookie("moshtarakin_checkout", str(request_id), max_age=3600, httponly=True, secure=True, samesite="lax", path="/")
+    return checkout
 
 
 def _ayria_get(reference):
