@@ -317,6 +317,9 @@ def v2_home(request: Request):
     if request.query_params.get("payment_error"):
         message = "ساخت درگاه انجام نشد. لطفاً چند لحظه بعد دوباره تلاش کنید."
         message_is_error = True
+    elif request.query_params.get("payment_pending"):
+        message = "وضعیت پرداخت قبلی در آیریا هنوز قطعی نیست. برای جلوگیری از پرداخت تکراری، لینک تازه صادر نشد. چند لحظه بعد دوباره تلاش کنید."
+        message_is_error = True
     elif request.query_params.get("disabled"):
         message = "اکانت انتخاب‌شده غیرفعال شد و از لیست فعال شما خارج شد."
 
