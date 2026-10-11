@@ -26,7 +26,7 @@ if _dash:
         <strong>{{ stats.monthly_income|money }}</strong>
         <span class="focus-metric-footnote">تومان · مجموع تعرفه ماهانه اکانت‌های غیرحذفی</span>
       </div>
-      <a href="/user-status" class="focus-active-card" aria-label="مشاهده فهرست کاربران و وضعیت آن‌ها">
+      <a href="/users" class="focus-active-card" aria-label="مشاهده فهرست کاربران">
         <div class="focus-metric-top">
           <span class="focus-metric-label">کاربران فعال</span>
           <span class="focus-active-icon" aria-hidden="true">
