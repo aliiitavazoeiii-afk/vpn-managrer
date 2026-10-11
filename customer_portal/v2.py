@@ -11,6 +11,7 @@ _V2_CSS = (_V2_DIR / "v2.css").read_text(encoding="utf-8")
 _V2_POLISH = (_V2_DIR / "v2_polish.css").read_text(encoding="utf-8")
 _V2_LOGIN = (_V2_DIR / "login_v2.html").read_text(encoding="utf-8")
 _V2_DASH = (_V2_DIR / "dashboard_v2.html").read_text(encoding="utf-8")
+_V2_PAYMENT_RETURN = (_V2_DIR / "payment_return.html").read_text(encoding="utf-8")
 _V2_SAFARI = (_V2_DIR / "safari_required.html").read_text(encoding="utf-8")
 _V2_LOGO = (_V2_DIR / "logo.png").read_bytes()
 
@@ -261,6 +262,59 @@ def v2_logo():
     )
 
 
+@app.get("/api/ayria/callback")
+def v2_browser_payment_return():
+    # Browser callback only. Payment truth is verified by the Ayria API and ledger.
+    return RedirectResponse("/payment/return", status_code=303)
+
+
+@app.get("/payment/return", response_class=HTMLResponse)
+def v2_payment_return(request: Request):
+    phone = _v2_session_phone(request)
+    checkout_id = request.cookies.get("moshtarakin_checkout", "")
+    if not phone or not checkout_id.isascii() or not checkout_id.isdecimal() or len(checkout_id) > 20:
+        return RedirectResponse("/", status_code=303)
+    response = _v2_render(_V2_PAYMENT_RETURN)
+    response.headers["Cache-Control"] = "no-store, private"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@app.get("/payment/status")
+def v2_payment_status(request: Request):
+    from fastapi.responses import JSONResponse
+    phone = _v2_session_phone(request)
+    checkout_id = request.cookies.get("moshtarakin_checkout", "")
+    if not phone or not checkout_id.isascii() or not checkout_id.isdecimal() or len(checkout_id) > 20:
+        return JSONResponse({"state": "missing"}, status_code=401, headers={"Cache-Control": "no-store"})
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT id, status, paid_at, sync_status FROM ayria_payment_requests
+                   WHERE id=%s AND phone=%s""",
+                (int(checkout_id), phone),
+            )
+            row = cur.fetchone()
+    state = "pending"
+    if not row:
+        state = "missing"
+    elif row["status"] == "paid" and row["paid_at"] and row["sync_status"] == "applied":
+        state = "paid"
+    elif row["status"] in ("failed", "canceled"):
+        state = row["status"]
+    return JSONResponse(
+        {"state": state, "url": f"/payment/success/{int(checkout_id)}" if state == "paid" else None},
+        headers={"Cache-Control": "no-store, private", "Referrer-Policy": "no-referrer"},
+    )
+
+
+@app.get("/payment/dismiss")
+def v2_payment_dismiss():
+    response = RedirectResponse("/", status_code=303)
+    response.delete_cookie("moshtarakin_checkout", path="/")
+    return response
+
+
 @app.get("/", response_class=HTMLResponse)
 def v2_home(request: Request):
     phone = _v2_session_phone(request)
@@ -283,6 +337,7 @@ def v2_home(request: Request):
             response = RedirectResponse(f"/payment/success/{int(checkout_id)}", status_code=303)
             response.delete_cookie("moshtarakin_checkout", path="/")
             return response
+        return RedirectResponse("/payment/return", status_code=303)
 
     with db_conn() as conn:
         accounts = active_subscriptions(conn, phone)
@@ -381,6 +436,7 @@ def v2_login(phone: str = Form(...)):
 def v2_logout():
     response = RedirectResponse("/", status_code=303)
     response.delete_cookie("moshtarakin_customer", path="/")
+    response.delete_cookie("moshtarakin_checkout", path="/")
     return response
 
 
