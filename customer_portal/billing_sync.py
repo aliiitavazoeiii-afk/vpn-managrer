@@ -656,10 +656,19 @@ def verified_payment_receipt(payment_id: int, request: Request):
 async def ayria_callback(request: Request):
     try:
         body = await request.json()
+        if not isinstance(body, dict):
+            body = {}
     except Exception:
-        body = {}
+        try:
+            body = dict(await request.form())
+        except Exception:
+            body = {}
     reference = str(body.get("referenceCode") or request.query_params.get("referenceCode") or "").strip()
     result = await asyncio.to_thread(_sync_paid_reference, reference)
+    # Ayria may POST the browser to this URL as well as sending a server callback.
+    # Browser receives a 303 page redirect; server webhook receives the JSON result.
+    if "text/html" in (request.headers.get("accept") or "").lower():
+        return RedirectResponse("/payment/return", status_code=303)
     return JSONResponse(result, status_code=200 if result.get("ok") else 400)
 
 
