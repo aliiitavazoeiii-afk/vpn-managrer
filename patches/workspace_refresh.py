@@ -38,7 +38,7 @@ if _dash:
     # Add-user is now a standalone workspace.
     # The large hero caption and duplicate kicker add clutter.
     _dash = _ws_re.sub(r'<div class="focus-kicker">.*?</div>', '', _dash, count=1, flags=_ws_re.S)
-    _dash = _ws_re.sub(r'(<div class="focus-hero-copy">\\s*<h1[^>]*>.*?</h1>)\\s*<p>.*?</p>', r'\\1', _dash, count=1, flags=_ws_re.S)
+    _dash = _ws_re.sub(r'(<div class="focus-hero-copy">\s*<h1[^>]*>.*?</h1>)\s*<p>.*?</p>', r'\1', _dash, count=1, flags=_ws_re.S)
     _dash = _dash.replace('href="/debts#add-user-box"', 'href="/add-user"')
     TEMPLATES["ref_dashboard.html"] = _dash
 
