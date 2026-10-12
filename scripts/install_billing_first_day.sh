@@ -31,6 +31,10 @@ echo "Unresolved created/waiting checkouts: $OPEN"
 "${C[@]}" exec -T db sh -lc \
   'PGPASSWORD="$POSTGRES_PASSWORD" psql -X -v ON_ERROR_STOP=1 -P pager=off -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT status, COALESCE(sync_status, '"'NONE'"') AS sync_status, COUNT(*) FROM ayria_payment_requests WHERE paid_at IS NULL AND status IN ('"'"'created'"'"','"'"'waiting'"'"') GROUP BY status, sync_status ORDER BY status;"'
 
+echo "=== 2b. Open payment request details (no customer PII) ==="
+"${C[@]}" exec -T db sh -lc \
+  'PGPASSWORD="$POSTGRES_PASSWORD" psql -X -v ON_ERROR_STOP=1 -P pager=off -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT r.id, r.status, COALESCE(r.sync_status, '\''NONE'\'') AS sync_status, r.amount_toman, r.created_at, COUNT(a.id) AS allocated_accounts FROM ayria_payment_requests r LEFT JOIN ayria_payment_allocations a ON a.request_id=r.id WHERE r.paid_at IS NULL AND r.status IN ('\''created'\'','\''waiting'\'') GROUP BY r.id, r.status, r.sync_status, r.amount_toman, r.created_at ORDER BY r.created_at;"'
+
 if [[ "$MODE" == "--check" ]]; then
   echo "CHECK COMPLETE: no files, billing data or services were changed."
   exit 0
