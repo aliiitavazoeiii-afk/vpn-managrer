@@ -376,7 +376,7 @@ if hasattr(env.loader, "mapping"):
 # Sending an SMS never changes billing/follow-up state by itself.
 import re as _sms_debt_re
 
-_SMS_DEBT_DEFAULT_TEXT = "سلام، وقت بخیر. برای مشاهده وضعیت اشتراک و تمدید آنلاین وارد پنل خود شوید:\\nhttps://moshtarakin.filmjadiid.ir/"
+_SMS_DEBT_DEFAULT_TEXT = "⏳اکانت شما {expiry} تمام شده\n\nبرای تمدید وارد پنل کاربری خودتون بشید به نشانی زیر\n\nusersmanager.ir\n\nازین پس پرداخت فقط از طریق پنل کاربری انجام میشه و نیاز به ارسال لینک پرداخت نیست\n\n📱با شماره همراه خودتون وارد بشید.\n\n🗓️تمامی اکانت ها تا تاریخ ۱ آبان محاسبه شدن لذا سر رسید جدید تمامی اکانت ها یکم هر ماه هست"
 
 
 _SMS_DEBT_STYLE = r'''
@@ -505,14 +505,17 @@ if _sms_debt_tpl and "/sms/debt-send" not in _sms_debt_tpl:
     _sms_new_message = r'''<textarea id="debt-message-{{ loop.index0 }}"
           name="message"
           form="debt-sms-form-{{ loop.index0 }}"
-          maxlength="1000">سلام، ارادت
-{% for item in g.rows %}{% if loop.first %}اکانت شما {{ item.s.expiry_date|jdate }} تمام شده.
-{% else %}اکانت {{ item.s.display_name }} {{ item.s.expiry_date|jdate }} تمام شده.
-{% endif %}{% endfor %}
-برای تمدید وارد پنل کاربری خودتون بشید و پرداخت را انجام بدید.
-از این به بعد تمامی اکانت‌ها فقط از طریق پنل تمدید خواهد شد.
-برای ورود شماره همراه خودتون رو وارد بفرمایید:
-https://moshtarakin.filmjadiid.ir/</textarea>'''
+          maxlength="1000">⏳اکانت شما {{ g.rows[0].s.expiry_date|jdate }} تمام شده
+
+برای تمدید وارد پنل کاربری خودتون بشید به نشانی زیر
+
+usersmanager.ir
+
+ازین پس پرداخت فقط از طریق پنل کاربری انجام میشه و نیاز به ارسال لینک پرداخت نیست
+
+📱با شماره همراه خودتون وارد بشید.
+
+🗓️تمامی اکانت ها تا تاریخ ۱ آبان محاسبه شدن لذا سر رسید جدید تمامی اکانت ها یکم هر ماه هست</textarea>'''
 
     if _sms_old_message in _sms_debt_tpl:
         _sms_debt_tpl = _sms_debt_tpl.replace(_sms_old_message, _sms_new_message, 1)
@@ -574,6 +577,13 @@ def sms_debt_send(
     ]
     if not actionable:
         return _SmsRedirectResponse("/debts?sms_error=not_actionable", 303)
+
+    # One canonical reminder per phone: earliest genuinely overdue account.
+    # Do not reveal a list of linked account names in the SMS.
+    expiry = min(s.expiry_date for s in actionable if s.expiry_date)
+    body = _SMS_DEBT_DEFAULT_TEXT.format(expiry=jdate(expiry))
+    if len(body) > 1000:
+        return _SmsRedirectResponse("/debts?sms_error=message", 303)
 
     source = _sms_debt_source(cycle)
     row = db.execute(
