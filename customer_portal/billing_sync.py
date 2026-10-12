@@ -653,11 +653,23 @@ def verified_payment_receipt(payment_id: int, request: Request):
     is_all = str(payment.get("cycle_key") or "").startswith("sync-all:")
     account_label = "all" if is_all else (str(rows[0]["display_name"]) if len(rows) == 1 else "، ".join(str(r["display_name"]) for r in rows))
     tracking = str(payment["tracking_number"] or payment["reference_code"] or "—")
-    # International digits only, configured on the server; never expose any API credentials.
-    whatsapp_number = "".join(ch for ch in os.environ.get("RECEIPT_WHATSAPP_NUMBER", "") if ch.isdigit()).lstrip("0")
+    expiry_dates = {row["new_expiry"] for row in rows}
+    next_due = (
+        jalali_text(next(iter(expiry_dates)))
+        if len(expiry_dates) == 1
+        else "برای اکانت‌ها متفاوت است"
+    )
+    # Customer-provided WhatsApp business contact; override in production if needed.
+    whatsapp_number = "".join(
+        ch for ch in os.environ.get("RECEIPT_WHATSAPP_NUMBER", "989197118017")
+        if ch.isdigit()
+    ).lstrip("0")
     whatsapp_text = (
-        f"رسید پرداخت VPN\nاکانت: {account_label}\\n"
-        f"مبلغ: {int(payment['amount_toman']):,} تومان\nشماره پیگیری: {tracking}"
+        f"رسید پرداخت VPN\n"
+        f"نام اکانت: {account_label}\n"
+        f"سررسید بعدی: {next_due}\n"
+        f"شماره پیگیری آیریا: {tracking}\n"
+        "وضعیت: پرداخت تأیید شد"
     )
     whatsapp_url = (
         f"https://wa.me/{whatsapp_number}?text={_receipt_quote(whatsapp_text)}"
@@ -665,6 +677,7 @@ def verified_payment_receipt(payment_id: int, request: Request):
     )
     response = HTMLResponse(jinja.from_string(source).render(
         account_label=account_label,
+        next_due=next_due,
         amount=f'{int(payment["amount_toman"]):,}',
         amount_plain=f'{int(payment["amount_toman"]):,}',
         tracking=tracking,
