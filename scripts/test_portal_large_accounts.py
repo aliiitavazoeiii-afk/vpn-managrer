@@ -4,13 +4,16 @@ Uses synthetic names/IDs. No DB calls, login, real PII or billing mutations.
 Run with: python scripts/test_portal_large_accounts.py
 """
 from pathlib import Path
+import os
 from jinja2 import Environment
 from html import unescape
 from datetime import date
 
-ROOT = Path(__file__).resolve().parent.parent
-template = (ROOT / "customer_portal/dashboard_v2.html").read_text(encoding="utf-8")
-style = (ROOT / "customer_portal/v2_performance.css").read_text(encoding="utf-8")
+ROOT = Path(os.environ.get("PORTAL_TEST_BASE") or Path(__file__).resolve().parent.parent)
+PORTAL = ROOT / "customer_portal" if (ROOT / "customer_portal").is_dir() else ROOT
+template = (PORTAL / "dashboard_v2.html").read_text(encoding="utf-8")
+overlay = PORTAL / "v2_performance.css"
+style = (overlay if overlay.is_file() else PORTAL / "v2_polish.css").read_text(encoding="utf-8")
 env = Environment(autoescape=True)
 env.filters["fa"] = str
 env.filters["money"] = lambda value: f"{int(value or 0):,}"
