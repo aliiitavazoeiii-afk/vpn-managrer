@@ -264,9 +264,9 @@
   flex:0 1 auto!important;
   min-width:0!important;
   font-family:var(--site-font),Tahoma,sans-serif!important;
-  font-size:16px!important;
-  line-height:1.65!important;
-  font-weight:650!important;
+  font-size:26px!important;
+  line-height:1.35!important;
+  font-weight:750!important;
   color:#fff!important;
   letter-spacing:0!important;
   white-space:nowrap!important;
@@ -322,10 +322,10 @@
     max-width:100%!important;
   }
   .focus-dashboard .focus-hero-metrics .focus-income-card{min-height:150px!important;padding:10px 18px!important}
-  .focus-dashboard .focus-hero-metrics .focus-summary-row > strong{font-size:15px!important}
+  .focus-dashboard .focus-hero-metrics .focus-summary-row > strong{font-size:22px!important}
 }
 @media(max-width:370px){
   .focus-dashboard .focus-hero-metrics .focus-summary-row{gap:7px!important}
   .focus-dashboard .focus-hero-metrics .focus-summary-row > span{font-size:11px!important}
-  .focus-dashboard .focus-hero-metrics .focus-summary-row > strong{font-size:13px!important}
+  .focus-dashboard .focus-hero-metrics .focus-summary-row > strong{font-size:18px!important}
 }
