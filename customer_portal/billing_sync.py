@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 from datetime import date, datetime, timezone
 import urllib.error
 import urllib.request
@@ -655,8 +656,8 @@ def verified_payment_receipt(payment_id: int, request: Request):
     # International digits only, configured on the server; never expose any API credentials.
     whatsapp_number = "".join(ch for ch in os.environ.get("RECEIPT_WHATSAPP_NUMBER", "") if ch.isdigit()).lstrip("0")
     whatsapp_text = (
-        f"رسید پرداخت VPN\\nاکانت: {account_label}\\n"
-        f"مبلغ: {int(payment['amount_toman']):,} تومان\\nشماره پیگیری: {tracking}"
+        f"رسید پرداخت VPN\nاکانت: {account_label}\\n"
+        f"مبلغ: {int(payment['amount_toman']):,} تومان\nشماره پیگیری: {tracking}"
     )
     whatsapp_url = (
         f"https://wa.me/{whatsapp_number}?text={_receipt_quote(whatsapp_text)}"
