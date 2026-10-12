@@ -626,7 +626,7 @@ def verified_payment_receipt(payment_id: int, request: Request):
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT id, phone, amount_toman, reference_code, tracking_number,
-                          status, paid_at, sync_status
+                          cycle_key, status, paid_at, sync_status
                    FROM ayria_payment_requests WHERE id=%s AND phone=%s""",
                 (payment_id, phone),
             )
@@ -647,11 +647,27 @@ def verified_payment_receipt(payment_id: int, request: Request):
             rows = cur.fetchall()
     if not rows:
         return RedirectResponse("/?payment_pending=1", status_code=303)
+    from urllib.parse import quote as _receipt_quote
     source = (Path(__file__).resolve().parent / "payment_success.html").read_text(encoding="utf-8")
+    is_all = str(payment.get("cycle_key") or "").startswith("sync-all:")
+    account_label = "all" if is_all else (str(rows[0]["display_name"]) if len(rows) == 1 else "، ".join(str(r["display_name"]) for r in rows))
+    tracking = str(payment["tracking_number"] or payment["reference_code"] or "—")
+    # International digits only, configured on the server; never expose any API credentials.
+    whatsapp_number = "".join(ch for ch in os.environ.get("RECEIPT_WHATSAPP_NUMBER", "") if ch.isdigit()).lstrip("0")
+    whatsapp_text = (
+        f"رسید پرداخت VPN\\nاکانت: {account_label}\\n"
+        f"مبلغ: {int(payment['amount_toman']):,} تومان\\nشماره پیگیری: {tracking}"
+    )
+    whatsapp_url = (
+        f"https://wa.me/{whatsapp_number}?text={_receipt_quote(whatsapp_text)}"
+        if 8 <= len(whatsapp_number) <= 15 else ""
+    )
     response = HTMLResponse(jinja.from_string(source).render(
-        accounts=[{"name": row["display_name"], "expiry": jalali_text(row["new_expiry"])} for row in rows],
+        account_label=account_label,
         amount=f'{int(payment["amount_toman"]):,}',
-        tracking=str(payment["tracking_number"] or payment["reference_code"] or "—"),
+        amount_plain=f'{int(payment["amount_toman"]):,}',
+        tracking=tracking,
+        whatsapp_url=whatsapp_url,
     ))
     response.headers["Cache-Control"] = "no-store, private"
     response.headers["Referrer-Policy"] = "no-referrer"
