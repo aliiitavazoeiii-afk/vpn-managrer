@@ -300,6 +300,14 @@ _DEBT_TRACK_LIVE_SCRIPT = r"""
     if(searchCount)searchCount.textContent=fa(visible)+' نتیجه';
     if(empty)empty.hidden=visible!==0;
   }
+  // app.js captures the original groups in a static array. After an async
+  // removal, use fresh DOM queries for search so removed rows never reappear.
+  if(search){
+    search.addEventListener('input',event=>{
+      event.stopImmediatePropagation();
+      updateSearch();
+    },true);
+  }
   function flash(message,isError){
     let toast=document.getElementById('debt-live-feedback');
     if(!toast){
