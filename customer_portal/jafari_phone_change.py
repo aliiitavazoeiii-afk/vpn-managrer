@@ -35,6 +35,10 @@ def _jp_change_phone(
             if not item or item["phone"] != _JP_OWNER:
                 return _jp_Redirect("/?jafari_phone=not_owned", status_code=303)
 
+            # Disallow archived/disabled accounts; match the current visible list.
+            if sid not in {int(a["id"]) for a in active_subscriptions(conn, _JP_OWNER)}:
+                return _jp_Redirect("/?jafari_phone=not_owned", status_code=303)
+
             # Never join a different customer's account group accidentally.
             cur.execute(
                 "SELECT 1 FROM subscriptions WHERE phone=%s AND id<>%s LIMIT 1",
