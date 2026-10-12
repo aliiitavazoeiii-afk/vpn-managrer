@@ -182,6 +182,14 @@ _WAITING_LIVE_SCRIPT = r"""
       if(!response.ok)throw new Error('POST status '+response.status);
       if(new URL(response.url).origin!==location.origin)throw new Error('unexpected origin');
 
+      // A rejected financial input must stay editable; never clear the form.
+      const redirect=new URL(response.url);
+      if(redirect.searchParams.has('amount_error') ||
+         redirect.searchParams.has('manage_error') ||
+         redirect.searchParams.has('phone_error')){
+        toast('عملیات انجام نشد؛ مقادیر یا تاریخ را بررسی کن.',true);
+        return;
+      }
       // Keep the actual database-driven GET authoritative: no optimistic payment state.
       const latest=await fetch('/followups',{credentials:'same-origin',cache:'no-store'});
       if(!latest.ok)throw new Error('GET status '+latest.status);
@@ -204,17 +212,14 @@ _WAITING_LIVE_SCRIPT = r"""
         }
       }
       applySearch();
-      window.scrollTo({top:scrollY,behavior:'instant'});
+      window.scrollTo(0,scrollY);
       let message='تغییرات ثبت شد و لیست به‌روز شد.';
       const path=new URL(form.action).pathname;
       if(path.endsWith('/restore')||path.endsWith('/restore-group'))message='به وصول بدهی برگردانده شد.';
       else if(path.endsWith('/cut'))message='اکانت به حذفی‌ها منتقل شد.';
       else if(path.endsWith('/pay')||path.endsWith('/pay-group'))message='پرداخت ثبت شد.';
       else if(path.endsWith('/pay-amount'))message='مبلغ واقعی ثبت شد.';
-      const redirect=new URL(response.url);
-      if(redirect.searchParams.has('amount_error')||redirect.searchParams.has('manage_error')){
-        toast('عملیات انجام نشد؛ لطفاً مقادیر را بررسی کن.',true);
-      }else{toast(message)}
+      toast(message);
     }catch(err){
       toast('وضعیت عملیات قطعی نیست. پیش از تلاش دوباره، لیست و سابقه پرداخت را بررسی کن.',true);
       // Never auto-retry a financial POST.
