@@ -135,43 +135,46 @@ try:
                 raise RuntimeError("Cannot verify subsequent payments: time column missing")
 
             move_ids = set()
-            examined = set()
             excluded = []
+            # Choose each account's latest job when multiple reminders were queued.
+            latest_job_for_account = {}
             for job in jobs:
                 for sid in accounts_for_job[job["id"]]:
-                    if sid in examined:
-                        continue
-                    examined.add(sid)
-                    account = accounts[sid]
-                    if account["phone"] != job["phone"]:
-                        excluded.append((sid, "phone_changed"))
-                        continue
-                    if account["is_free"] or int(account["monthly_fee_toman"] or 0) <= 0:
-                        excluded.append((sid, "free"))
-                        continue
-                    expiry = account["expiry_date"]
-                    if not expiry or expiry > today:
-                        excluded.append((sid, "future_or_missing_expiry"))
-                        continue
-                    latest = last_state.get(sid)
-                    if latest and latest["kind"] == "followup_cut":
-                        excluded.append((sid, "cut"))
-                        continue
-                    if latest and latest["kind"] == "followup_waiting":
-                        excluded.append((sid, "already_waiting"))
-                        continue
-                    if latest and latest["kind"] == "followup_clear" and latest["created_at"] >= job["created_at"]:
-                        excluded.append((sid, "cleared_after_sms"))
-                        continue
-                    cur.execute(
-                        f"SELECT EXISTS(SELECT 1 FROM payments WHERE subscription_id=%s "
-                        f"AND {payment_timestamp} >= %s) AS has_payment",
-                        (sid, job["created_at"]),
-                    )
-                    if cur.fetchone()["has_payment"]:
-                        excluded.append((sid, "payment_after_sms"))
-                        continue
-                    move_ids.add(sid)
+                    latest_job_for_account[sid] = job
+
+            for sid, job in sorted(latest_job_for_account.items()):
+                account = accounts[sid]
+                if account["phone"] != job["phone"]:
+                    excluded.append((sid, "phone_changed"))
+                    continue
+                if account["is_free"] or int(account["monthly_fee_toman"] or 0) <= 0:
+                    excluded.append((sid, "free"))
+                    continue
+                expiry = account["expiry_date"]
+                if not expiry or expiry > today:
+                    excluded.append((sid, "future_or_missing_expiry"))
+                    continue
+                latest = last_state.get(sid)
+                if latest and latest["kind"] == "followup_cut":
+                    excluded.append((sid, "cut"))
+                    continue
+                if latest and latest["kind"] == "followup_waiting":
+                    excluded.append((sid, "already_waiting"))
+                    continue
+                # Audit IDs are monotonic, avoiding naive/aware timestamp ambiguity.
+                if (latest and latest["kind"] == "followup_clear"
+                        and int(latest["id"]) >= int(queue_audits[job["id"]]["id"])):
+                    excluded.append((sid, "cleared_after_sms"))
+                    continue
+                cur.execute(
+                    f"SELECT EXISTS(SELECT 1 FROM payments WHERE subscription_id=%s "
+                    f"AND {payment_timestamp} >= %s) AS has_payment",
+                    (sid, job["created_at"]),
+                )
+                if cur.fetchone()["has_payment"]:
+                    excluded.append((sid, "payment_after_sms"))
+                    continue
+                move_ids.add(sid)
 
             print(f"Target jobs: {','.join(str(x) for x in JOBS)}")
             print(f"Accounts mapped from original SMS audit events: {len(all_ids)}")
