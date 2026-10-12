@@ -3,6 +3,16 @@
 # reminder template and its send route; other SMS and payment routes unchanged.
 import re as _aban_re
 
+# Operator-authorized, one-time SMS exception for three historic cases
+# where Ayria payment links were canceled but the subscriptions remain due.
+# Never sends automatically; never alters an Ayria payment or billing record.
+_ABAN_MANUAL_ONCE_PHONES = frozenset({
+    "09120758984",
+    "09126260485",
+    "09129743094",
+})
+_ABAN_MANUAL_ONCE_SUFFIX = ":manual-exception-aban1"
+
 _ABAN_SMS_PATTERN = (
     "⏳اکانت شما {expiry} تمام شده\n\n"
     "برای تمدید وارد پنل کاربری خودتون بشید به نشانی زیر\n\n"
@@ -127,9 +137,28 @@ def _aban_debt_send(
         },
     ).mappings().first()
     if previous:
-        # A failed Android result can still correspond to a received SMS.
-        # Never offer a second message automatically or by repeated button.
-        return _SmsRedirectResponse("/debts?sms_existing=1", 303)
+        # One explicit operator-authorized follow-up for these three phones.
+        # Prior canceled AYRIA payment requests and prior SMS delivery results
+        # are unrelated; we do NOT treat canceled checkout as failed SMS.
+        # We also never restart a failed old job: only a fresh manual click
+        # may queue one new canonical reminder for an actually due account.
+        if normalized not in _ABAN_MANUAL_ONCE_PHONES:
+            return _SmsRedirectResponse("/debts?sms_existing=1", 303)
+
+        exception_source = source + _ABAN_MANUAL_ONCE_SUFFIX
+        already_used = db.execute(
+            _sms_text(
+                """
+                SELECT id FROM sms_jobs
+                WHERE phone=:phone AND source=:exception_source
+                LIMIT 1
+                """
+            ),
+            {"phone": normalized, "exception_source": exception_source},
+        ).first()
+        if already_used:
+            return _SmsRedirectResponse("/debts?sms_existing=1", 303)
+        source = exception_source
 
     body = _ABAN_SMS_PATTERN.format(expiry=jdate(earliest))
     if not body or len(body) > 1000:
