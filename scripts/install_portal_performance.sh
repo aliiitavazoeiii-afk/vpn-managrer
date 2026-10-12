@@ -100,6 +100,12 @@ echo "=== VERIFYING CSS AND LARGE-ACCOUNT RENDER ==="
   'PORTAL_TEST_BASE=/srv python -' \
   < "$REPO/scripts/test_portal_large_accounts.py"
 
+echo "=== DATA QUALITY CHECK (AGGREGATE ONLY, READ-ONLY) ==="
+"${C[@]}" exec -T db sh -lc \
+  'PGPASSWORD="$POSTGRES_PASSWORD" psql -X -v ON_ERROR_STOP=1 -P pager=off -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT COUNT(*) AS subscriptions, COUNT(*) FILTER (WHERE display_name IS NULL OR LENGTH(BTRIM(display_name)) = 0) AS blank_names FROM subscriptions;"' || true
+"${C[@]}" exec -T db sh -lc \
+  'PGPASSWORD="$POSTGRES_PASSWORD" psql -X -v ON_ERROR_STOP=1 -P pager=off -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT COALESCE(MAX(n),0) AS max_accounts_per_phone, COUNT(*) FILTER (WHERE n >= 10) AS groups_with_10_plus FROM (SELECT COUNT(*) AS n FROM subscriptions GROUP BY phone) grouped;"' || true
+
 echo "=== APP, DB, PORTAL HEALTH ==="
 "${C[@]}" ps app db customer-portal
 
