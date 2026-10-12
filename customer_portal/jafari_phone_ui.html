@@ -1,0 +1,14 @@
+{% if phone == '09357001107' %}
+<details class="jafari-phone-panel">
+  <summary>تغییر شماره همراه این اکانت</summary>
+  <p>با ثبت شماره جدید، این اکانت از شماره فعلی جدا می‌شود و تمدیدهای بعدی مستقل انجام می‌شود.</p>
+  <form action="/jafari/change-phone/{{ a.id }}" method="post"
+        onsubmit="return confirm('شماره همین اکانت تغییر کند و از پنل فعلی جدا شود؟')">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input name="new_phone" type="tel" inputmode="tel" autocomplete="off"
+           placeholder="شماره جدید 09xxxxxxxxx" pattern="09[0-9]{9}"
+           maxlength="11" required>
+    <button type="submit">ذخیره شماره جدید</button>
+  </form>
+</details>
+{% endif %}
