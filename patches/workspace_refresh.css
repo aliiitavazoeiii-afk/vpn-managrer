@@ -182,20 +182,19 @@
 }
 
 
-/* Compact command-center header: no oversized heading or second statistics card. */
+/* Screenshot-aligned command-center header: title right, metric in center, orb left. */
 .focus-dashboard .focus-hero{
-  display:flex!important;
-  flex-direction:row!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1.12fr) minmax(340px,380px) minmax(0,.96fr)!important;
   align-items:center!important;
-  justify-content:space-between!important;
-  gap:24px!important;
+  gap:18px!important;
   min-height:170px!important;
   padding:20px 28px!important;
   overflow:hidden!important;
 }
 .focus-dashboard .focus-hero-copy{
   min-width:0!important;
-  flex:1 1 0!important;
+  grid-column:1!important;
   position:relative!important;
   z-index:2!important;
 }
@@ -209,9 +208,9 @@
   white-space:normal!important;
 }
 .focus-dashboard .focus-hero-metrics{
-  flex:0 1 355px!important;
-  width:355px!important;
-  max-width:355px!important;
+  grid-column:2!important;
+  width:100%!important;
+  max-width:380px!important;
   min-width:0!important;
   display:block!important;
   z-index:2!important;
@@ -265,14 +264,14 @@
   font-family:var(--site-font),Tahoma,sans-serif!important;
   font-size:16px!important;
   line-height:1.65!important;
-  font-weight:750!important;
+  font-weight:650!important;
   color:#fff!important;
   letter-spacing:0!important;
   white-space:nowrap!important;
   margin:0!important;
   direction:rtl!important;
   text-align:left!important;
-  font-variant-numeric:tabular-nums!important;
+  font-variant-numeric:normal!important;
 }
 .focus-dashboard .focus-hero-metrics .focus-summary-row strong small{
   font:500 10px/1.5 var(--site-font),Tahoma,sans-serif!important;
@@ -289,7 +288,8 @@
 }
 .focus-dashboard .focus-hero .focus-orb{
   display:block!important;
-  flex:0 0 225px!important;
+  grid-column:3!important;
+  justify-self:start!important;
   width:225px!important;
   height:205px!important;
   max-width:225px!important;
@@ -299,23 +299,25 @@
   position:relative!important;
   z-index:1!important;
 }
-@media(max-width:1200px){
+@media(max-width:1320px){
+  .focus-dashboard .focus-hero{
+    grid-template-columns:minmax(0,1fr) minmax(300px,380px)!important;
+  }
   .focus-dashboard .focus-hero .focus-orb{display:none!important}
 }
 @media(max-width:740px){
   .focus-dashboard .focus-hero{
-    flex-direction:column!important;
-    align-items:stretch!important;
+    grid-template-columns:minmax(0,1fr)!important;
     gap:12px!important;
     min-height:0!important;
     padding:18px!important;
   }
-  .focus-dashboard .focus-hero-copy{flex:0 0 auto!important}
+  .focus-dashboard .focus-hero-copy{grid-column:1!important}
   .focus-dashboard .focus-hero h1.focus-command-title{font-size:24px!important}
   .focus-dashboard .focus-hero-metrics{
+    grid-column:1!important;
     width:100%!important;
     max-width:100%!important;
-    flex:0 0 auto!important;
   }
   .focus-dashboard .focus-hero-metrics .focus-income-card{padding:7px 14px!important}
   .focus-dashboard .focus-hero-metrics .focus-summary-row > strong{font-size:15px!important}
