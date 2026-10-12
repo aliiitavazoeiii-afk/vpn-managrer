@@ -33,7 +33,9 @@ def _pla_prepare_schema():
     # should fail, rather than displaying a false empty report.
     with db_conn() as conn:
         with conn.cursor() as cursor:
-            cursor.execute(_PLA_SQL)
+            for statement in _PLA_SQL.split(";"):
+                if statement.strip():
+                    cursor.execute(statement)
         conn.commit()
 
 
