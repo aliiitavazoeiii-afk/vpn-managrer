@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS customer_portal_login_events (
   result VARCHAR(16) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT customer_portal_login_result_check
-      CHECK (result IN ('success', 'not_found', 'invalid'))
+      CHECK (result IN ('success', 'visit', 'not_found', 'invalid'))
 );
 CREATE INDEX IF NOT EXISTS idx_customer_portal_login_time
   ON customer_portal_login_events (created_at DESC);
@@ -52,12 +52,49 @@ def _pla_safe_ip(request):
 _pla_original_login = v2_login
 
 
+
+def _pla_record(phone, display_name, ip, result, once_per_day=False):
+    # For an existing signed session, keep only one observation per Tehran day.
+    # A successful form login that day already counts as a visit.
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            if once_per_day:
+                from datetime import datetime as _dt, timezone as _utc
+                from zoneinfo import ZoneInfo as _tz
+                local = _dt.now(_tz("Asia/Tehran"))
+                midnight = local.replace(hour=0, minute=0, second=0, microsecond=0)
+                cur.execute(
+                    """SELECT 1 FROM customer_portal_login_events
+                       WHERE phone=%s AND result IN ('success','visit')
+                       AND created_at >= %s LIMIT 1""",
+                    (phone, midnight),
+                )
+                if cur.fetchone():
+                    return
+            if display_name is None and result in ("success", "visit"):
+                cur.execute(
+                    """SELECT display_name FROM subscriptions
+                       WHERE phone=%s ORDER BY id ASC LIMIT 1""",
+                    (phone,),
+                )
+                first = cur.fetchone()
+                display_name = (
+                    str(first["display_name"] or "")[:200] if first else None
+                )
+            cur.execute(
+                """INSERT INTO customer_portal_login_events
+                   (phone, display_name, ip_address, result)
+                   VALUES (%s,%s,%s,%s)""",
+                (phone, display_name, ip, result),
+            )
+        conn.commit()
+
+
 def _pla_login_with_activity(
     request: _pla_Request,
     phone: str = _pla_Form(...),
 ):
-    # Preserve the original login response and cookie behavior, including
-    # failure responses. Activity logging must not grant or deny a login.
+    # Retain original login authorization and cookie behavior.
     response = _pla_original_login(phone=phone)
     normalized = normalize_phone(phone)
     success = (
@@ -66,31 +103,11 @@ def _pla_login_with_activity(
     )
     result = "success" if success else ("not_found" if normalized else "invalid")
     stored_phone = str(normalized or "").strip()[:32]
-    ip = _pla_safe_ip(request)
-
     try:
-        with db_conn() as conn:
-            with conn.cursor() as cur:
-                name = None
-                if success:
-                    cur.execute(
-                        """SELECT display_name FROM subscriptions
-                           WHERE phone=%s
-                           ORDER BY id ASC LIMIT 1""",
-                        (normalized,),
-                    )
-                    first = cur.fetchone()
-                    name = str(first["display_name"] or "")[:200] if first else None
-                cur.execute(
-                    """INSERT INTO customer_portal_login_events
-                       (phone, display_name, ip_address, result)
-                       VALUES (%s,%s,%s,%s)""",
-                    (stored_phone, name, ip, result),
-                )
-            conn.commit()
+        _pla_record(stored_phone, None, _pla_safe_ip(request), result)
     except Exception:
-        # Logging failure does not interrupt a paying customer's session.
-        _PLA_log.exception("Unable to record portal login activity")
+        # An audit outage must not disrupt payments or customer sessions.
+        _PLA_log.exception("Unable to record portal form login")
     return response
 
 
@@ -104,3 +121,31 @@ if len(_pla_matches) != 1:
 
 app.router.routes[:] = [route for route in app.router.routes if route not in _pla_matches]
 app.add_api_route("/login", _pla_login_with_activity, methods=["POST"])
+
+# Capture returning customers who already hold a valid, 30-day portal cookie.
+# Only record an actual successful dashboard GET, at most once per Tehran day.
+_pla_home_routes = [
+    route for route in app.router.routes
+    if getattr(route, "path", None) == "/"
+    and "GET" in (getattr(route, "methods", set()) or set())
+]
+if len(_pla_home_routes) != 1:
+    raise RuntimeError("Portal dashboard route changed; refusing activity recorder")
+_pla_previous_home = v2_home
+
+
+def _pla_home_with_activity(request: _pla_Request):
+    phone = _v2_session_phone(request)
+    response = _pla_previous_home(request)
+    if phone and response.status_code == 200:
+        try:
+            _pla_record(phone[:32], None, _pla_safe_ip(request), "visit", once_per_day=True)
+        except Exception:
+            _PLA_log.exception("Unable to record return customer visit")
+    return response
+
+
+app.router.routes[:] = [
+    route for route in app.router.routes if route not in _pla_home_routes
+]
+app.add_api_route("/", _pla_home_with_activity, methods=["GET"])
