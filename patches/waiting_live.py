@@ -262,7 +262,132 @@ if _tpl:
         raise RuntimeError("Unexpected waiting dashboard script; refuse live patch")
 
     _tpl = _tpl.replace('{% block content %}', '{% block content %}' + _WAITING_LIVE_STYLE, 1)
-    # The template contains title, heading, subheading and content blocks.\n    # Inject at the LAST endblock (content), never into the page title.\n    _before, _ending = _tpl.rsplit('{% endblock %}', 1)\n    _tpl = _before + _WAITING_LIVE_SCRIPT + '\n{% endblock %}' + _ending
+    # The template contains title, heading, subheading and content blocks.
+    # Inject at the LAST endblock (content), never into the page title.
+    _before, _ending = _tpl.rsplit('{% endblock %}', 1)
+    _tpl = _before + _WAITING_LIVE_SCRIPT + '\n{% endblock %}' + _ending
     TEMPLATES["followups.html"] = _tpl
+    if hasattr(env.loader, "mapping"):
+        env.loader.mapping.update(TEMPLATES)
+
+
+# Targeted live follow-up from the DEBT inbox.
+# Keep the original loaded debt cards/listeners intact: only remove a group that
+# the authoritative server GET confirms was moved to "waiting".
+_DEBT_TRACK_LIVE_SCRIPT = r"""
+<script>
+(function(){
+  'use strict';
+  const desk=document.querySelector('.debt-desk');
+  if(!desk) return;
+  const summary=document.querySelector('.debt-summary-clean');
+  const search=document.getElementById('debt-search');
+  const searchCount=document.getElementById('debt-search-count');
+  const empty=document.getElementById('debt-no-results');
+  let processing=false;
+  let toastTimer=null;
+  const fa=n=>String(n).replace(/\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]);
+
+  function keyOf(group){return group && group.getAttribute('data-group-key')}
+  function updateSearch(){
+    const term=(search && search.value || '').trim().toLowerCase();
+    let visible=0;
+    desk.querySelectorAll('[data-debt-group]').forEach(g=>{
+      const found=!term||(g.getAttribute('data-search')||'').toLowerCase().includes(term);
+      g.hidden=!found;
+      if(found)visible++;
+    });
+    if(searchCount)searchCount.textContent=fa(visible)+' نتیجه';
+    if(empty)empty.hidden=visible!==0;
+  }
+  function flash(message,isError){
+    let toast=document.getElementById('debt-live-feedback');
+    if(!toast){
+      toast=document.createElement('div');
+      toast.id='debt-live-feedback';
+      toast.style.cssText='position:fixed;bottom:22px;right:22px;z-index:3000;max-width:min(430px,calc(100vw - 44px));background:#172d23;color:#e2ffe9;border:1px solid #4b926c;border-radius:12px;padding:12px 17px;box-shadow:0 18px 45px #0007;font-size:13px;line-height:1.8';
+      toast.setAttribute('role','status');
+      document.body.appendChild(toast);
+    }
+    toast.textContent=message;
+    toast.style.background=isError?'#401d28':'#172d23';
+    toast.style.borderColor=isError?'#b55468':'#4b926c';
+    toast.style.color=isError?'#ffe0e8':'#e2ffe9';
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>toast.remove(),4800);
+  }
+
+  // Existing app.js owns expand, copy and search for the original cards.
+  // Do not replace unrelated cards or their event listeners.
+  document.addEventListener('submit',async event=>{
+    const form=event.target;
+    if(!(form instanceof HTMLFormElement))return;
+    if(!form.matches('.debt-desk form.followup-track-form'))return;
+    if(event.defaultPrevented)return; // An existing confirmation rejected the action.
+    event.preventDefault();
+    if(processing)return;
+    processing=true;
+    const button=event.submitter||form.querySelector('button[type=submit],button:not([type])');
+    if(button)button.disabled=true;
+    const group=form.closest('[data-debt-group]');
+    const key=keyOf(group);
+    const originalScroll=window.scrollY;
+    try{
+      if(!group||!key)throw new Error('missing group identifier');
+      const res=await fetch(form.action,{
+        method:'POST',body:new FormData(form),redirect:'follow',
+        credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}
+      });
+      if(!res.ok)throw new Error('POST failed: '+res.status);
+      const redirected=new URL(res.url);
+      if(redirected.origin!==location.origin||redirected.pathname!=='/debts'||!redirected.searchParams.has('tracked')){
+        throw new Error('unexpected follow-up response');
+      }
+      const latest=await fetch('/debts',{
+        credentials:'same-origin',cache:'no-store',headers:{'X-Requested-With':'XMLHttpRequest'}
+      });
+      if(!latest.ok)throw new Error('GET failed: '+latest.status);
+      const doc=new DOMParser().parseFromString(await latest.text(),'text/html');
+      const incoming=doc.querySelector('.debt-desk');
+      const incomingSummary=doc.querySelector('.debt-summary-clean');
+      if(!incoming||!incomingSummary||!summary)throw new Error('unexpected debtor page');
+      const stillThere=[...incoming.querySelectorAll('[data-debt-group]')]
+        .some(item=>keyOf(item)===key);
+      if(stillThere){
+        flash('این گروه هنوز در وصول بدهی ثبت است؛ صفحه را بررسی کن.',true);
+        return;
+      }
+      // The move is confirmed by the database-backed GET. Remove only this group.
+      group.remove();
+      if(!desk.querySelector('[data-debt-group]'))desk.innerHTML=incoming.innerHTML;
+      summary.innerHTML=incomingSummary.innerHTML;
+      updateSearch();
+      // Legacy savePosition runs on form submit. Clear it after this AJAX action.
+      ['open','group','groupTop','scrollY','search'].forEach(part=>{
+        try{sessionStorage.removeItem('hesab.debts.'+part)}catch(_){}
+      });
+      window.scrollTo(0,originalScroll);
+      flash('این سرگروه به «در انتظار» منتقل شد.',false);
+    }catch(_){
+      // A financial/state-changing POST must never be automatically retried.
+      flash('نتیجه عملیات قطعی نیست؛ قبل از کلیک مجدد، فهرست در انتظار را بررسی کن.',true);
+    }finally{
+      processing=false;
+      if(button&&button.isConnected)button.disabled=false;
+    }
+  });
+
+  // New cards aren't inserted on this page, so existing app.js search handlers remain valid.
+})();
+</script>
+"""
+
+_debt_live_tpl=TEMPLATES.get("debts.html", "")
+if _debt_live_tpl and 'id="debt-live-feedback"' not in _debt_live_tpl and 'followup-track-form' in _debt_live_tpl:
+    if _debt_live_tpl.count("{% endblock %}") < 4 or 'class="debt-desk"' not in _debt_live_tpl:
+        raise RuntimeError("Unexpected debt template; refuse to inject live action")
+    _body, _tail = _debt_live_tpl.rsplit("{% endblock %}", 1)
+    _debt_live_tpl = _body + _DEBT_TRACK_LIVE_SCRIPT + "\n{% endblock %}" + _tail
+    TEMPLATES["debts.html"] = _debt_live_tpl
     if hasattr(env.loader, "mapping"):
         env.loader.mapping.update(TEMPLATES)
