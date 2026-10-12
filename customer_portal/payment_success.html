@@ -109,13 +109,18 @@ h1{margin:29px 0 8px;font-weight:900;font-size:clamp(23px,5.3vw,30px);letter-spa
 
   button.addEventListener('click',async function(){
     if(!whatsappUrl){status.textContent='لینک واتساپ پشتیبانی تنظیم نشده است.';return}
+    const canShareFile = !!(navigator.share && navigator.canShare &&
+      navigator.canShare({files:[new File(['receipt'],'receipt.png',{type:'image/png'})]}));
+    // Open the requested WhatsApp chat directly from the click on browsers
+    // without native file sharing; opening after an await can be popup-blocked.
+    if(!canShareFile) window.open(whatsappUrl,'_blank');
     button.disabled=true;
     status.textContent='در حال آماده‌سازی تصویر رسید…';
     try{
       const blob=await createReceiptImage();
       if(!blob)throw new Error('blob_unavailable');
       const file=new File([blob],'payment-receipt.png',{type:'image/png'});
-      if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      if(canShareFile){
         try{
           await navigator.share({files:[file],title:'رسید پرداخت',text:shareText});
           status.textContent='در صورت انتخاب واتساپ، گفت‌وگوی مقصد را انتخاب و ارسال را تأیید کن.';
@@ -128,11 +133,17 @@ h1{margin:29px 0 8px;font-weight:900;font-size:clamp(23px,5.3vw,30px);letter-spa
       const a=document.createElement('a');a.href=url;a.download='payment-receipt.png';
       document.body.appendChild(a);a.click();a.remove();
       setTimeout(function(){URL.revokeObjectURL(url)},30000);
-      window.open(whatsappUrl,'_blank');
-      status.textContent='عکس رسید ذخیره شد. در چت بازشده آن را پیوست کن و ارسال را تأیید کن.';
+      if(canShareFile){
+        const link=document.createElement('a');link.href=whatsappUrl;link.target='_blank';link.rel='noopener noreferrer';
+        link.textContent='باز کردن چت واتساپ';status.textContent='عکس رسید ذخیره شد. ';
+        status.appendChild(link);
+      }else{
+        status.textContent='عکس رسید ذخیره شد. در چت بازشده آن را پیوست کن و ارسال را تأیید کن.';
+      }
     }catch(e){
-      window.open(whatsappUrl,'_blank');
-      status.textContent='ارسال تصویر در این مرورگر امکان‌پذیر نبود؛ متن رسید در واتساپ آماده است.';
+      status.textContent='ساخت تصویر امکان‌پذیر نبود. ';
+      const link=document.createElement('a');link.href=whatsappUrl;link.target='_blank';link.rel='noopener noreferrer';
+      link.textContent='ارسال متن رسید در واتساپ';status.appendChild(link);
     }finally{button.disabled=false}
   });
 
