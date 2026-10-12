@@ -22,7 +22,7 @@ if _dash:
       <div class="focus-income-card">
         <div class="focus-summary-row">
           <span>درآمد ماهانه</span>
-          <strong>{{ stats.monthly_income|money }} <small>تومان</small></strong>
+          <strong>{{ stats.monthly_income|money|fa }} <small>تومان</small></strong>
         </div>
         <a class="focus-summary-row focus-users-row" href="/users">
           <span>کاربران فعال</span>
@@ -259,7 +259,7 @@ _base = TEMPLATES.get("base.html", "")
 if _base:
     _base = _ws_re.sub(
         r'/static/app\.css(?:\?v=[^"\']*)?',
-        '/static/app.css?v=workspace-compact-4',
+        '/static/app.css?v=workspace-compact-5',
         _base,
     )
     TEMPLATES["base.html"] = _base
