@@ -151,10 +151,10 @@ done
 test "$ok" -eq 1
 "${C[@]}" exec -T customer-portal grep -q PORTAL_LOGIN_ACTIVITY_V1 /srv/server.py
 
-# The portal startup creates the table without touching any existing row.
+# Portal startup creates a new table without touching existing account rows.
 "${C[@]}" exec -T db sh -lc \
-  'PGPASSWORD="$POSTGRES_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='''public''' AND table_name='''customer_portal_login_events'''"' \
-  | grep -qx 1
+  'PGPASSWORD="$POSTGRES_PASSWORD" psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM customer_portal_login_events"' \
+  >/dev/null
 
 "${C[@]}" up -d --no-deps --no-build --force-recreate app
 ok=0
