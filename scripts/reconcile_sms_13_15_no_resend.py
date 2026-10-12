@@ -25,9 +25,10 @@ MATCH_PHONE = re.compile(r"\bphone=(\d+);")
 MATCH_ACCOUNTS = re.compile(r"\baccounts=([0-9,]+)(?:\s|$)")
 MATCH_SID = re.compile(r"\bsid=(\d+)\b")
 
-if sys.argv[1:] != ["--apply"]:
-    print("STOP: Requires --apply; no changes performed")
+if sys.argv[1:] not in (["--apply"], ["--check"]):
+    print("Usage: python - --check (read only) OR --apply (reconcile)")
     raise SystemExit(2)
+APPLY = sys.argv[1:] == ["--apply"]
 
 today = datetime.now(ZoneInfo("Asia/Tehran")).date()
 try:
@@ -180,6 +181,11 @@ try:
                 for _, reason in excluded:
                     counts[reason] = counts.get(reason, 0) + 1
                 print("Protected/skipped:", ", ".join(f"{k}={v}" for k,v in sorted(counts.items())))
+
+            if not APPLY:
+                conn.rollback()
+                print("CHECK PASSED: database unchanged, ready to reconcile.")
+                raise SystemExit(0)
 
             # No new sms_jobs are inserted and nothing is requeued.
             for job in jobs:
