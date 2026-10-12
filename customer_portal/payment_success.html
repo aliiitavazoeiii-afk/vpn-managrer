@@ -1,4 +1,141 @@
-<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#081b26"><title>نتیجه پرداخت | User Manager</title><style>
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>پرداخت با موفقیت انجام شد | User Manager</title>
+<style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap');
-:root{color-scheme:dark;font-family:Vazirmatn,Tahoma,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100svh;background:radial-gradient(ellipse at 50% 0%,#164c50 0%,#0b2630 40%,#07151f 100%);color:#f2fcfa;display:grid;place-items:center;padding:22px;overflow-x:hidden}.glow{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 30%,#42e5ad15,transparent 55%)}main{position:relative;width:min(100%,480px);text-align:center;background:linear-gradient(145deg,#12333dcc,#0c202de8);border:1px solid #ffffff20;border-radius:32px;padding:42px 25px 28px;box-shadow:0 24px 85px #0008;animation:enter .75s cubic-bezier(.18,.85,.3,1) both}.symbol{margin:auto;width:108px;height:108px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(140deg,#a3ffd4,#28ca93);color:#08382c;box-shadow:0 0 0 14px #42e6a111,0 0 55px #40e5a744;animation:pop .9s .1s both}.symbol svg{width:56px}h1{font-size:clamp(25px,6vw,33px);margin:29px 0 8px;font-weight:900;letter-spacing:-.6px}p{color:#b6d0d1;line-height:2;margin:0 0 22px}.detail{background:#ffffff0b;border:1px solid #ffffff14;border-radius:18px;padding:15px 17px;text-align:right;margin:20px 0}.detail div{display:flex;justify-content:space-between;gap:15px;padding:9px 0;border-bottom:1px solid #ffffff12}.detail div:last-child{border:0}.detail span{color:#a9c3c8;font-size:13px}.detail strong{font-size:14px;overflow-wrap:anywhere}.accounts{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin:14px 0}.accounts span{padding:7px 11px;background:#48e3ac19;border:1px solid #48e3ac38;border-radius:999px;font-size:12px}.action{display:block;text-decoration:none;background:linear-gradient(110deg,#64eeb8,#2fd69d);color:#063b2d;border-radius:16px;padding:15px;font-weight:900;margin-top:22px;transition:transform .2s,box-shadow .2s}.action:hover{transform:translateY(-2px);box-shadow:0 12px 28px #3ed9a333}.note{font-size:12px;color:#83a6ae;margin-top:15px}.confetti{position:fixed;top:-25px;width:9px;height:17px;border-radius:2px;pointer-events:none;animation:fall var(--duration) linear forwards;left:var(--left);background:var(--color);transform:rotate(var(--rot))}@keyframes fall{to{transform:translate(var(--drift),110vh) rotate(920deg);opacity:.15}}@keyframes pop{from{transform:scale(.25);opacity:0}65%{transform:scale(1.13)}to{transform:scale(1);opacity:1}}@keyframes enter{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
-</style></head><body><div class="glow"></div><main><div class="symbol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg></div><h1>پرداختت با موفقیت انجام شد! 🎉</h1><p>تمدید اشتراکت ثبت شد. از همراهی‌ات ممنونیم!</p><div class="accounts">{% for a in accounts %}<span>{{ a.name }} · تا {{ a.expiry }}</span>{% endfor %}</div><div class="detail"><div><span>مبلغ پرداخت</span><strong>{{ amount }} تومان</strong></div><div><span>شماره پیگیری آیریا</span><strong id="tracking">{{ tracking }}</strong></div><div><span>وضعیت</span><strong style="color:#72f2b8">تأیید و ثبت نهایی شده</strong></div></div><a class="action" href="/">ورود به داشبورد ←</a><div class="note">شماره پیگیری را برای مراجعات بعدی نگه دار.</div></main><script>if(!matchMedia('(prefers-reduced-motion: reduce)').matches){const colors=['#5ce3af','#ffe38b','#8fd9ff','#fc90c4','#f4f9ff'];for(let i=0;i<95;i++){const p=document.createElement('i');p.className='confetti';p.style.setProperty('--left',Math.random()*100+'vw');p.style.setProperty('--duration',2.7+Math.random()*3+'s');p.style.setProperty('--color',colors[i%colors.length]);p.style.setProperty('--rot',Math.random()*360+'deg');p.style.setProperty('--drift',(Math.random()*220-110)+'px');p.style.animationDelay=Math.random()*1.1+'s';document.body.appendChild(p);p.addEventListener('animationend',()=>p.remove())}}</script></body></html>
+:root{color-scheme:light;font-family:Vazirmatn,Tahoma,Arial,sans-serif;color:#111;background:#fff}
+*{box-sizing:border-box}
+body{margin:0;min-height:100svh;background:#fff;display:grid;place-items:center;padding:24px 14px}
+main{width:min(100%,470px);padding:39px 24px 28px;background:#fff;text-align:center;border:1px solid #e7e7e7;border-radius:27px;box-shadow:0 19px 60px #0000000a;animation:enter .65s cubic-bezier(.18,.84,.28,1) both}
+.symbol{width:92px;height:92px;border-radius:50%;margin:auto;display:grid;place-items:center;background:#111;color:#fff;box-shadow:0 0 0 11px #f4f4f4;animation:pop .8s .1s both}
+.symbol svg{width:45px;height:45px}
+h1{margin:29px 0 8px;color:#111;font-size:clamp(23px,5.4vw,29px);letter-spacing:-.65px;font-weight:900}
+p.subtitle{margin:0 0 22px;font-size:14px;color:#747474}
+.receipt{background:#fafafa;border:1px solid #ebebeb;border-radius:17px;padding:8px 18px;text-align:right;margin:18px 0 20px}
+.receipt .line{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 1px;border-bottom:1px solid #e9e9e9}
+.receipt .line:last-child{border-bottom:0}
+.receipt .label{font-size:13px;color:#777;white-space:nowrap}
+.receipt strong{font-size:14px;color:#171717;font-weight:800;max-width:64%;overflow-wrap:anywhere;text-align:left;direction:auto}
+#tracking{direction:ltr;unicode-bidi:plaintext;font-variant-numeric:tabular-nums}
+.actions{display:grid;grid-template-columns:1fr;gap:9px}
+.action{appearance:none;font-family:inherit;width:100%;min-height:49px;border-radius:13px;padding:12px 14px;text-decoration:none;display:flex;justify-content:center;align-items:center;gap:9px;font-size:14px;font-weight:850;cursor:pointer;transition:transform .18s,background .18s,box-shadow .18s;border:1px solid #111}
+.action:hover{transform:translateY(-2px)}
+.action.primary{background:#111;color:#fff}
+.action.primary:hover{background:#333}
+.action.secondary{background:#fff;color:#111}
+.action.secondary:hover{background:#f5f5f5}
+.action:disabled{opacity:.5;cursor:not-allowed}
+.action svg{width:18px;height:18px;flex-shrink:0}
+.note{font-size:11px;color:#858585;margin-top:11px;line-height:1.9}
+#share-hint{min-height:18px}
+.confetti{position:fixed;top:-25px;width:7px;height:14px;border-radius:1px;pointer-events:none;animation:fall var(--duration) linear forwards;left:var(--left);background:var(--color);transform:rotate(var(--rot))}
+@keyframes fall{to{transform:translate(var(--drift),110vh) rotate(920deg);opacity:0}}
+@keyframes pop{from{transform:scale(.3);opacity:0}68%{transform:scale(1.09)}to{transform:scale(1);opacity:1}}
+@keyframes enter{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:420px){main{padding:34px 16px 22px}.receipt{padding:5px 12px}.receipt .label{font-size:12px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+@media print{body{padding:0}main{border:0;box-shadow:none}.actions,#share-hint,.confetti{display:none!important}}
+</style></head>
+<body>
+<main>
+  <div id="receipt-image">
+    <div class="symbol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.9" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg></div>
+    <h1>پرداخت با موفقیت انجام شد</h1>
+    <p class="subtitle">از همراهیت ممنونیم.</p>
+    <section class="receipt" aria-label="اطلاعات رسید پرداخت">
+      <div class="line"><span class="label">اسم اکانت</span><strong id="account-name">{{ account_label }}</strong></div>
+      <div class="line"><span class="label">مبلغ پرداخت</span><strong>{{ amount }} تومان</strong></div>
+      <div class="line"><span class="label">شماره پیگیری آیریا</span><strong id="tracking">{{ tracking }}</strong></div>
+    </section>
+  </div>
+  <div class="actions">
+    <a class="action primary" href="/">ورود به داشبورد ←</a>
+    <button type="button" class="action secondary" id="share-receipt">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+      اشتراک‌گذاری عکس رسید در واتس‌اپ
+    </button>
+    {% if whatsapp_url %}
+    <a class="action secondary" id="whatsapp-chat" href="{{ whatsapp_url }}" target="_blank" rel="noopener noreferrer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19.2 4.8a9 9 0 0 0-14.3 10.6L4 20l4.7-1a9 9 0 1 0 10.5-14.2Z"/><path d="M9 9.3c.9 2.4 2.6 4.1 5.1 5.1l1.5-1.2 2 1a2.4 2.4 0 0 1-2.6 2.2c-3.7-.5-7-3.7-7.5-7.4A2.4 2.4 0 0 1 9.7 6.5l1 2Z"/></svg>
+      باز کردن چت پشتیبانی در واتس‌اپ
+    </a>
+    {% endif %}
+  </div>
+  <p class="note" id="share-hint" role="status" aria-live="polite"></p>
+</main>
+<script>
+(function(){
+  const account = document.getElementById('account-name').textContent.trim();
+  const amount = {{ amount_plain|tojson }};
+  const tracking = document.getElementById('tracking').textContent.trim();
+  const hint = document.getElementById('share-hint');
+  const button = document.getElementById('share-receipt');
+  const msg = 'رسید پرداخت اشتراک VPN\\nاکانت: '+account+'\\nمبلغ: '+amount+' تومان\\nشماره پیگیری: '+tracking;
+  const whatsappUrl = {{ whatsapp_url|tojson }};
+
+  function textEscape(ctx, value, x, y, font, color){
+    ctx.font=font;ctx.fillStyle=color;ctx.textAlign='right';ctx.direction='rtl';ctx.fillText(value,x,y);
+  }
+  async function imageBlob(){
+    try{if(document.fonts){await document.fonts.ready}}catch(e){}
+    const canvas=document.createElement('canvas'),scale=2;
+    canvas.width=900*scale;canvas.height=610*scale;
+    const ctx=canvas.getContext('2d');ctx.scale(scale,scale);
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,900,610);
+    ctx.fillStyle='#111';ctx.beginPath();ctx.arc(450,92,50,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=8;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(425,92);ctx.lineTo(444,109);ctx.lineTo(477,77);ctx.stroke();
+    ctx.fillStyle='#111';ctx.direction='rtl';ctx.textAlign='center';
+    ctx.font='900 32px Vazirmatn, Tahoma, sans-serif';ctx.fillText('پرداخت با موفقیت انجام شد',450,184);
+    ctx.fillStyle='#777';ctx.font='500 20px Vazirmatn, Tahoma, sans-serif';ctx.fillText('از همراهیت ممنونیم.',450,220);
+    ctx.fillStyle='#fafafa';ctx.beginPath();ctx.roundRect(95,260,710,285,19);ctx.fill();
+    ctx.strokeStyle='#e9e9e9';ctx.lineWidth=1;ctx.stroke();
+    const rows=[['اسم اکانت',account],['مبلغ پرداخت',amount+' تومان'],['شماره پیگیری آیریا',tracking]];
+    rows.forEach(([label,val],i)=>{
+      const y=320+i*88;
+      if(i>0){ctx.strokeStyle='#e6e6e6';ctx.beginPath();ctx.moveTo(120,y-46);ctx.lineTo(780,y-46);ctx.stroke()}
+      textEscape(ctx,label,764,y,'500 19px Vazirmatn, Tahoma, sans-serif','#747474');
+      ctx.fillStyle='#121212';ctx.font='800 21px Vazirmatn, Tahoma, sans-serif';ctx.textAlign='left';ctx.direction='ltr';
+      ctx.fillText(val,124,y,370);
+    });
+    return await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+  }
+  button.addEventListener('click', async()=>{
+    button.disabled=true;hint.textContent='در حال آماده‌کردن عکس رسید…';
+    try{
+      const blob=await imageBlob();
+      if(!blob)throw new Error('image');
+      const file=new File([blob],'vpn-payment-receipt.png',{type:'image/png'});
+      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+        try{
+          await navigator.share({files:[file],title:'رسید پرداخت',text:msg});
+          hint.textContent='ارسال رسید از طریق گزینهٔ واتس‌اپ در منوی اشتراک‌گذاری انجام می‌شود.';
+          return;
+        }catch(err){if(err&&err.name==='AbortError'){hint.textContent='اشتراک‌گذاری لغو شد.';return}}
+      }
+      const objectUrl=URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=objectUrl;a.download='vpn-payment-receipt.png';document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(objectUrl),30000);
+      hint.textContent=whatsappUrl?'عکس رسید ذخیره شد. چت واتس‌اپ را باز کن و عکس را پیوست کن.':'عکس رسید ذخیره شد؛ آن را از واتس‌اپ ارسال کن.';
+    }catch(e){hint.textContent='آماده‌کردن عکس ممکن نشد؛ از صفحه اسکرین‌شات بگیر و ارسال کن.'}
+    finally{button.disabled=false}
+  });
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
+    const colors=['#191919','#5c5c5c','#969696','#c9c9c9','#f0f0f0'];
+    for(let i=0;i<42;i++){
+      const p=document.createElement('i');p.className='confetti';
+      p.style.setProperty('--left',Math.random()*100+'vw');
+      p.style.setProperty('--duration',(2.6+Math.random()*2)+'s');
+      p.style.setProperty('--color',colors[i%colors.length]);
+      p.style.setProperty('--rot',Math.random()*360+'deg');
+      p.style.setProperty('--drift',(Math.random()*150-75)+'px');
+      p.style.animationDelay=Math.random()*.8+'s';
+      document.body.appendChild(p);p.addEventListener('animationend',()=>p.remove());
+    }
+  }
+})();
+</script>
+</body></html>
