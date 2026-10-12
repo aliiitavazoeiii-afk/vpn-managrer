@@ -32,7 +32,35 @@ TEMPLATES["debts.html"] = _aban_tpl
 if hasattr(env.loader, "mapping"):
     env.loader.mapping.update(TEMPLATES)
 
-_aban_previous_sms_sender = sms_debt_send
+# Distinguish gateway acknowledgement from an operator-confirmed recipient report.
+# This status is terminal for the retry button; it is NOT a gateway delivery receipt.
+_SMS_STATUS_LABELS["operator_confirmed"] = "ارسال طبق تأیید شما (بدون تکرار)"
+
+_ab_sms_history = TEMPLATES.get("sms.html", "")
+if _ab_sms_history:
+    _ab_sms_history = _ab_sms_history.replace(
+        "{% if j.error %}<small class=\"sms-error\">{{ j.error }}</small>{% endif %}",
+        "{% if j.error and j.status != 'operator_confirmed' %}<small class=\"sms-error\">{{ j.error }}</small>{% endif %}",
+    )
+    TEMPLATES["sms.html"] = _ab_sms_history
+
+_ab_sms_debt_template = TEMPLATES["debts.html"]
+_ab_sms_debt_template = _ab_sms_debt_template.replace(
+    "status==='sent' || status==='delivered'",
+    "status==='sent' || status==='delivered' || status==='operator_confirmed'",
+)
+_ab_sms_debt_template = _ab_sms_debt_template.replace(
+    "{% block content %}",
+    "{% block content %}"
+    "{% if request.query_params.get('sms_existing') %}"
+    '<div class="manage-banner">برای این شماره و سررسید قبلاً پیامک ثبت شده است؛ '
+    'برای جلوگیری از ارسال تکراری، پیامک جدیدی ساخته نشد.</div>'
+    "{% endif %}",
+    1,
+)
+TEMPLATES["debts.html"] = _ab_sms_debt_template
+if hasattr(env.loader, "mapping"):
+    env.loader.mapping.update(TEMPLATES)
 
 
 def _aban_debt_send(
@@ -41,37 +69,86 @@ def _aban_debt_send(
     message: str = _SmsForm(""),
     db: _SmsSession = _SmsDepends(get_db),
 ):
+    """One canonical SMS per phone and actual due cycle; transfer due accounts atomically."""
     normalized = _sms_normalize_phone(phone)
     if not normalized:
         return _SmsRedirectResponse("/debts?sms_error=phone", 303)
+    if not callable(globals().get("_followup_set")):
+        raise RuntimeError("Followup state writer unavailable; refusing to queue SMS")
 
-    _aban_states = _followup_states(db)
-    _aban_items = (
+    # Serialize concurrent submit clicks for the same phone. Prevent double queue
+    # even when both POSTs arrive within the same millisecond.
+    db.execute(
+        _sms_text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": "debt-sms|" + normalized},
+    )
+    now = today_local()
+    states = _followup_states(db)
+    candidates = (
         db.query(Subscription)
         .filter(
             Subscription.phone == normalized,
             Subscription.is_free.is_(False),
-        )
-        .all()
+        ).order_by(Subscription.id.asc()).all()
     )
-    _aban_eligible = [
-        s for s in _aban_items
-        if s.expiry_date
-        and s.expiry_date <= today_local()
-        and current_debt_for(s, today_local()) > 0
-        and _aban_states.get(s.id) not in ("waiting", "cut")
+    eligible = [
+        s for s in candidates
+        if s.expiry_date is not None
+        and s.expiry_date <= now
+        and current_debt_for(s, now) > 0
+        and states.get(s.id) not in ("waiting", "cut")
     ]
-    if not _aban_eligible:
+    if not eligible:
         return _SmsRedirectResponse("/debts?sms_error=not_actionable", 303)
 
-    earliest = min(s.expiry_date for s in _aban_eligible)
-    canonical_message = _ABAN_SMS_PATTERN.format(expiry=jdate(earliest))
-    if len(canonical_message) > 1000:
-        raise RuntimeError("Canonical debt reminder too long")
+    earliest = min(s.expiry_date for s in eligible)
+    source = _sms_debt_source(earliest.isoformat())  # never trust submitted cycle
+    previous = db.execute(
+        _sms_text(
+            """
+            SELECT id, status FROM sms_jobs
+            WHERE phone=:phone AND source=:source AND status <> 'cancelled'
+            ORDER BY id DESC LIMIT 1
+            """
+        ),
+        {"phone": normalized, "source": source},
+    ).mappings().first()
+    if previous:
+        # A failed Android result can still correspond to a received SMS.
+        # Never offer a second message automatically or by repeated button.
+        return _SmsRedirectResponse("/debts?sms_existing=1", 303)
 
-    # Reuse the existing SMS job creation and followup transition logic.
-    return _aban_previous_sms_sender(
-        phone=normalized, cycle=cycle, message=canonical_message, db=db
+    body = _ABAN_SMS_PATTERN.format(expiry=jdate(earliest))
+    if not body or len(body) > 1000:
+        raise RuntimeError("Canonical reminder length invalid")
+
+    inserted = db.execute(
+        _sms_text(
+            """
+            INSERT INTO sms_jobs(phone,message,status,source)
+            VALUES(:phone,:message,'queued',:source)
+            RETURNING id
+            """
+        ),
+        {"phone": normalized, "message": body, "source": source},
+    ).scalar_one()
+
+    db.add(AuditEvent(
+        kind="sms_queue",
+        message=(
+            f"Debt SMS queued; job={int(inserted)}; phone={normalized}; "
+            f"source={source}; accounts={','.join(str(s.id) for s in eligible)}"
+        ),
+    ))
+    for account in eligible:
+        _followup_set(
+            db, account.id, "waiting",
+            f"SMS reminder queued; phone={normalized}; job={int(inserted)}; source={source}",
+        )
+    db.commit()
+    return _SmsRedirectResponse(
+        f"/debts?sms_queued=1&tracked=1&moved={len(eligible)}&job={int(inserted)}",
+        303,
     )
 
 
