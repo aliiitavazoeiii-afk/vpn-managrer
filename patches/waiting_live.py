@@ -262,7 +262,7 @@ if _tpl:
         raise RuntimeError("Unexpected waiting dashboard script; refuse live patch")
 
     _tpl = _tpl.replace('{% block content %}', '{% block content %}' + _WAITING_LIVE_STYLE, 1)
-    _tpl = _tpl.replace('{% endblock %}', _WAITING_LIVE_SCRIPT + '\n{% endblock %}', 1)
+    # The template contains title, heading, subheading and content blocks.\n    # Inject at the LAST endblock (content), never into the page title.\n    _before, _ending = _tpl.rsplit('{% endblock %}', 1)\n    _tpl = _before + _WAITING_LIVE_SCRIPT + '\n{% endblock %}' + _ending
     TEMPLATES["followups.html"] = _tpl
     if hasattr(env.loader, "mapping"):
         env.loader.mapping.update(TEMPLATES)
