@@ -4,6 +4,7 @@
 # Historical paused anchor rows are not rewritten or re-applied.
 from importlib.util import spec_from_file_location as _b_spec_file, module_from_spec as _b_from_spec
 from sqlalchemy import text as _b_text
+from datetime import date as _b_date
 
 _b_invoice_spec = _b_spec_file("_hesab_billing_policy", "/sms-patch/billing_policy.py")
 if not _b_invoice_spec or not _b_invoice_spec.loader:
@@ -14,7 +15,7 @@ _b_invoice_spec.loader.exec_module(_b_invoice_module)
 
 def _b_month_start(d):
     jy, jm, _ = _date_guard_jparts(d)
-    return date(*_date_guard_j2g(jy, jm, 1))
+    return _b_date(*_date_guard_j2g(jy, jm, 1))
 
 
 def _b_next_start(d):
@@ -205,15 +206,25 @@ _b_override_route("/followups/pay-group", _b_waiting_group_pay)
 _b_override_route("/followups/pay-amount", _b_incompatible_partial)
 _b_override_route("/debts/{sid}/adjust", _b_incompatible_adjust)
 
+# Legacy debt-desk Ayria payment links have no per-account allocations.
+# They cannot safely auto-apply day-prorated renewals. Customer portal uses
+# verified allocation-based checkouts instead; fail closed for the legacy flow.
+def _b_block_legacy_ayria(phone: str = Form(""), db: Session = Depends(get_db)):
+    return RedirectResponse("/debts?ayria_error=prorated", 303)
+
+
+_b_override_route("/ayria/debt-create", _b_block_legacy_ayria)
+
 # Make temporary restrictions explicit; preserve the rest of the existing UI.
 for _b_template in ("debts.html", "followups.html"):
     _b_markup = TEMPLATES.get(_b_template, "")
     if _b_markup:
         _notice = (
-            '<style>.debt-adjust,.waiting-actual-pay{display:none!important}</style>'
+            '<style>.debt-adjust,.waiting-actual-pay,.ayria-pay-form{display:none!important}</style>'
             '<div class="manage-banner">محاسبه بدهی از روز سررسید واقعی تا یکم ماه بعد انجام می‌شود. '
             'تا تکمیل سیستم اعتبار پرداخت ناقص، اصلاح مبلغ و پرداخت ناقص غیرفعال‌اند؛ '
-            'برای اصلاح حساب از ویرایش تاریخ انقضا استفاده کنید.</div>'
+            'برای اصلاح حساب از ویرایش تاریخ انقضا استفاده کنید. '
+            'برای پرداخت آنلاین از پنل مشترکین استفاده کنید.</div>'
         )
         _b_markup = _b_markup.replace("{% block content %}", "{% block content %}" + _notice, 1)
         TEMPLATES[_b_template] = _b_markup
