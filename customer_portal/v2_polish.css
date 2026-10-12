@@ -206,3 +206,85 @@ body:before,body:after{display:none!important}
 }
 .verified-payment strong{font-weight:900;font-size:13px}
 .verified-payment span{font-size:11px;font-weight:700;color:#34845b}
+
+
+/* Moving perimeter halo for accounts with/without a due payment.
+   Single composited decorative layer; never blocks any card controls. */
+@property --account-halo-angle {
+  syntax:"<angle>";
+  inherits:false;
+  initial-value:0deg;
+}
+.account-card{
+  --account-glow-rgb:22,163,74;
+  isolation:isolate;
+  position:relative;
+  overflow:hidden;
+}
+.account-card.is-overdue{
+  --account-glow-rgb:220,38,38;
+}
+.account-card.is-active{
+  --account-glow-rgb:22,163,74;
+}
+.account-card.is-overdue,
+.account-card.is-overdue:hover{
+  border-color:rgba(220,38,38,.30)!important;
+  box-shadow:0 18px 55px rgba(17,17,17,.07),0 0 27px rgba(220,38,38,.12)!important;
+}
+.account-card.is-active,
+.account-card.is-active:hover{
+  border-color:rgba(22,163,74,.26)!important;
+  box-shadow:0 18px 55px rgba(17,17,17,.07),0 0 27px rgba(22,163,74,.10)!important;
+}
+.account-card::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  opacity:1;
+  background:linear-gradient(105deg,transparent 17%,rgba(var(--account-glow-rgb),.105) 43%,transparent 66%);
+  background-size:230% 100%;
+  animation:account-glow-wash 7s ease-in-out infinite;
+}
+.account-card::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:2;
+  border-radius:inherit;
+  padding:2.5px;
+  pointer-events:none;
+  background:conic-gradient(
+    from var(--account-halo-angle),
+    transparent 0deg,
+    rgba(var(--account-glow-rgb),.08) 27deg,
+    rgba(var(--account-glow-rgb),.92) 61deg,
+    rgba(var(--account-glow-rgb),1) 78deg,
+    rgba(var(--account-glow-rgb),.22) 104deg,
+    transparent 153deg,
+    transparent 286deg,
+    rgba(var(--account-glow-rgb),.40) 325deg,
+    transparent 358deg
+  );
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  mask-composite:exclude;
+  animation:account-halo-orbit 5.5s linear infinite;
+}
+.account-card > *{position:relative;z-index:1}
+@keyframes account-halo-orbit{
+  to{--account-halo-angle:360deg}
+}
+@keyframes account-glow-wash{
+  0%,100%{background-position:110% center;opacity:.62}
+  50%{background-position:-110% center;opacity:.96}
+}
+@media(prefers-reduced-motion:reduce){
+  .account-card::before,.account-card::after{animation:none!important}
+  .account-card::after{
+    background:linear-gradient(135deg,rgba(var(--account-glow-rgb),.70),rgba(var(--account-glow-rgb),.22));
+  }
+}
