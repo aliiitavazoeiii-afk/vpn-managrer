@@ -23,22 +23,14 @@ if _dash:
           <span class="focus-metric-label">درآمد ماهانه فعلی</span>
           <span class="focus-metric-symbol" aria-hidden="true">↗</span>
         </div>
-        <strong>{{ stats.monthly_income|money }}</strong>
+        <strong class="focus-income-amount">{{ stats.monthly_income|money }}</strong>
         <span class="focus-metric-footnote">تومان · مجموع تعرفه ماهانه اکانت‌های غیرحذفی</span>
+        <a href="/users" class="focus-income-users" aria-label="مشاهده فهرست کاربران فعال">
+          <span class="focus-income-users-label">کاربران فعال</span>
+          <strong class="focus-income-users-count">{{ stats.active_users|fa }}</strong>
+          <span class="focus-income-users-arrow" aria-hidden="true">←</span>
+        </a>
       </div>
-      <a href="/users" class="focus-active-card" aria-label="مشاهده فهرست کاربران">
-        <div class="focus-metric-top">
-          <span class="focus-metric-label">کاربران فعال</span>
-          <span class="focus-active-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="9" cy="8" r="3"/><path d="M3.5 19v-2a5.5 5.5 0 0 1 11 0v2"/>
-              <path d="M17 5.5a3 3 0 0 1 0 5.6M18 13.5a4.5 4.5 0 0 1 2.5 4V19"/>
-            </svg>
-          </span>
-        </div>
-        <strong>{{ stats.active_users|fa }}</strong>
-        <span class="focus-active-footnote"><i aria-hidden="true"></i> بدون کاربران حذفی</span>
-      </a>
     </div>
 '''
     _orb_anchor = '    <div class="focus-orb" aria-hidden="true">'
