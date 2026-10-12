@@ -289,7 +289,7 @@
 .focus-dashboard .focus-hero .focus-orb{
   display:block!important;
   grid-column:3!important;
-  justify-self:start!important;
+  justify-self:end!important; /* RTL end = far left, keeping the planet clear of the center metric */
   width:225px!important;
   height:205px!important;
   max-width:225px!important;
