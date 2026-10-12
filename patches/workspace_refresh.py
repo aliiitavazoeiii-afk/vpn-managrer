@@ -16,19 +16,17 @@ if _dash:
         '<h1 class="focus-command-title">VPN COMMAND CENTER</h1>',
         1,
     )
+    # Compact two-line metric, without duplicate cards or auxiliary copy.
     _income = r'''
     <div class="focus-hero-metrics">
       <div class="focus-income-card">
-        <div class="focus-metric-top">
-          <span class="focus-metric-label">درآمد ماهانه فعلی</span>
-          <span class="focus-metric-symbol" aria-hidden="true">↗</span>
+        <div class="focus-summary-row">
+          <span>درآمد ماهانه</span>
+          <strong>{{ stats.monthly_income|money }} <small>تومان</small></strong>
         </div>
-        <strong class="focus-income-amount">{{ stats.monthly_income|money }}</strong>
-        <span class="focus-metric-footnote">تومان · مجموع تعرفه ماهانه اکانت‌های غیرحذفی</span>
-        <a href="/users" class="focus-income-users" aria-label="مشاهده فهرست کاربران فعال">
-          <span class="focus-income-users-label">کاربران فعال</span>
-          <strong class="focus-income-users-count">{{ stats.active_users|fa }}</strong>
-          <span class="focus-income-users-arrow" aria-hidden="true">←</span>
+        <a class="focus-summary-row focus-users-row" href="/users">
+          <span>کاربران فعال</span>
+          <strong>{{ stats.active_users|fa }}</strong>
         </a>
       </div>
     </div>
@@ -38,6 +36,9 @@ if _dash:
         _dash = _dash.replace(_orb_anchor, _income + _orb_anchor, 1)
 
     # Add-user is now a standalone workspace.
+    # The large hero caption and duplicate kicker add clutter.
+    _dash = _ws_re.sub(r'<div class="focus-kicker">.*?</div>', '', _dash, count=1, flags=_ws_re.S)
+    _dash = _ws_re.sub(r'(<div class="focus-hero-copy">\\s*<h1[^>]*>.*?</h1>)\\s*<p>.*?</p>', r'\\1', _dash, count=1, flags=_ws_re.S)
     _dash = _dash.replace('href="/debts#add-user-box"', 'href="/add-user"')
     TEMPLATES["ref_dashboard.html"] = _dash
 
@@ -258,7 +259,7 @@ _base = TEMPLATES.get("base.html", "")
 if _base:
     _base = _ws_re.sub(
         r'/static/app\.css(?:\?v=[^"\']*)?',
-        '/static/app.css?v=workspace-refresh-1',
+        '/static/app.css?v=workspace-compact-4',
         _base,
     )
     TEMPLATES["base.html"] = _base
