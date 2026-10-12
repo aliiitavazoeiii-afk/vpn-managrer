@@ -9,133 +9,147 @@
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap');
 :root{color-scheme:light;font-family:Vazirmatn,Tahoma,Arial,sans-serif;color:#111;background:#fff}
 *{box-sizing:border-box}
-body{margin:0;min-height:100svh;background:#fff;display:grid;place-items:center;padding:24px 14px}
-main{width:min(100%,470px);padding:39px 24px 28px;background:#fff;text-align:center;border:1px solid #e7e7e7;border-radius:27px;box-shadow:0 19px 60px #0000000a;animation:enter .65s cubic-bezier(.18,.84,.28,1) both}
-.symbol{width:92px;height:92px;border-radius:50%;margin:auto;display:grid;place-items:center;background:#111;color:#fff;box-shadow:0 0 0 11px #f4f4f4;animation:pop .8s .1s both}
-.symbol svg{width:45px;height:45px}
-h1{margin:29px 0 8px;color:#111;font-size:clamp(23px,5.4vw,29px);letter-spacing:-.65px;font-weight:900}
-p.subtitle{margin:0 0 22px;font-size:14px;color:#747474}
-.receipt{background:#fafafa;border:1px solid #ebebeb;border-radius:17px;padding:8px 18px;text-align:right;margin:18px 0 20px}
-.receipt .line{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 1px;border-bottom:1px solid #e9e9e9}
-.receipt .line:last-child{border-bottom:0}
-.receipt .label{font-size:13px;color:#777;white-space:nowrap}
-.receipt strong{font-size:14px;color:#171717;font-weight:800;max-width:64%;overflow-wrap:anywhere;text-align:left;direction:auto}
+body{margin:0;min-height:100svh;display:grid;place-items:center;background:#fff;padding:25px 14px}
+main{width:min(100%,476px);background:#fff;padding:40px 28px 28px;border:1px solid #e8e8e8;border-radius:26px;text-align:center;box-shadow:0 19px 60px #0000000a;animation:enter .65s cubic-bezier(.18,.84,.28,1) both}
+.symbol{height:92px;width:92px;display:grid;place-items:center;margin:0 auto;background:#111;color:#fff;border-radius:50%;box-shadow:0 0 0 11px #f4f4f4;animation:pop .8s .1s both}
+.symbol svg{height:48px;width:48px}
+h1{margin:29px 0 8px;font-weight:900;font-size:clamp(23px,5.3vw,30px);letter-spacing:-.6px}
+.subtitle{margin:0 0 25px;color:#717171;font-size:15px}
+.receipt{background:#fafafa;border:1px solid #ebebeb;border-radius:17px;padding:6px 17px;margin:0 0 19px;text-align:right}
+.line{display:flex;align-items:center;justify-content:space-between;gap:13px;padding:17px 2px;border-bottom:1px solid #e7e7e7}
+.line:last-child{border-bottom:0}
+.label{font-size:13px;color:#777;white-space:nowrap}
+.line strong{font-size:14px;color:#151515;font-weight:800;max-width:62%;text-align:left;overflow-wrap:anywhere}
 #tracking{direction:ltr;unicode-bidi:plaintext;font-variant-numeric:tabular-nums}
-.actions{display:grid;grid-template-columns:1fr;gap:9px}
-.action{appearance:none;font-family:inherit;width:100%;min-height:49px;border-radius:13px;padding:12px 14px;text-decoration:none;display:flex;justify-content:center;align-items:center;gap:9px;font-size:14px;font-weight:850;cursor:pointer;transition:transform .18s,background .18s,box-shadow .18s;border:1px solid #111}
+.actions{display:grid;gap:10px}
+.action{min-height:51px;padding:12px;border-radius:13px;display:flex;align-items:center;justify-content:center;gap:9px;width:100%;font:800 14px Vazirmatn,Tahoma,Arial,sans-serif;text-decoration:none;cursor:pointer;border:1px solid #111;transition:transform .2s,background .2s}
 .action:hover{transform:translateY(-2px)}
-.action.primary{background:#111;color:#fff}
-.action.primary:hover{background:#333}
-.action.secondary{background:#fff;color:#111}
+.action:focus-visible{outline:3px solid #888;outline-offset:3px}
+.action.primary{color:#fff;background:#111}
+.action.primary:hover{background:#292929}
+.action.secondary{color:#111;background:#fff}
 .action.secondary:hover{background:#f5f5f5}
-.action:disabled{opacity:.5;cursor:not-allowed}
-.action svg{width:18px;height:18px;flex-shrink:0}
-.note{font-size:11px;color:#858585;margin-top:11px;line-height:1.9}
-#share-hint{min-height:18px}
-.confetti{position:fixed;top:-25px;width:7px;height:14px;border-radius:1px;pointer-events:none;animation:fall var(--duration) linear forwards;left:var(--left);background:var(--color);transform:rotate(var(--rot))}
-@keyframes fall{to{transform:translate(var(--drift),110vh) rotate(920deg);opacity:0}}
-@keyframes pop{from{transform:scale(.3);opacity:0}68%{transform:scale(1.09)}to{transform:scale(1);opacity:1}}
-@keyframes enter{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:420px){main{padding:34px 16px 22px}.receipt{padding:5px 12px}.receipt .label{font-size:12px}}
+.action:disabled{opacity:.5;cursor:wait}
+.action svg{height:19px;width:19px;flex-shrink:0}
+#share-status{font-size:12px;line-height:1.9;color:#5c5c5c;margin:10px 0 0}
+#share-status:empty{display:none}
+.confetti{position:fixed;top:-25px;width:6px;height:12px;pointer-events:none;background:var(--color);left:var(--left);animation:fall var(--duration) linear forwards;transform:rotate(var(--rot))}
+@keyframes fall{to{transform:translate(var(--drift),110vh) rotate(880deg);opacity:0}}
+@keyframes pop{from{transform:scale(.3);opacity:0}65%{transform:scale(1.08)}to{transform:scale(1);opacity:1}}
+@keyframes enter{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:420px){main{padding:34px 17px 22px}.receipt{padding:4px 12px}.line{padding:15px 1px}.label{font-size:12px}.line strong{font-size:13px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
-@media print{body{padding:0}main{border:0;box-shadow:none}.actions,#share-hint,.confetti{display:none!important}}
-</style></head>
+@media print{body{padding:0}main{border:0;box-shadow:none}.actions,#share-status,.confetti{display:none!important}}
+</style>
+</head>
 <body>
 <main>
-  <div id="receipt-image">
-    <div class="symbol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.9" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg></div>
-    <h1>پرداخت با موفقیت انجام شد</h1>
-    <p class="subtitle">از همراهیت ممنونیم.</p>
-    <section class="receipt" aria-label="اطلاعات رسید پرداخت">
-      <div class="line"><span class="label">اسم اکانت</span><strong id="account-name">{{ account_label }}</strong></div>
-      <div class="line"><span class="label">مبلغ پرداخت</span><strong>{{ amount }} تومان</strong></div>
-      <div class="line"><span class="label">شماره پیگیری آیریا</span><strong id="tracking">{{ tracking }}</strong></div>
-    </section>
+  <div class="symbol" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>
   </div>
+  <h1>پرداخت با موفقیت انجام شد</h1>
+  <p class="subtitle">از همراهیت ممنونیم</p>
+  <section class="receipt" aria-label="اطلاعات رسید پرداخت">
+    <div class="line"><span class="label">نام اکانت پرداخت‌شده</span><strong id="account-name">{{ account_label }}</strong></div>
+    <div class="line"><span class="label">سررسید بعدی</span><strong id="next-due">{{ next_due }}</strong></div>
+    <div class="line"><span class="label">شماره پیگیری آیریا</span><strong id="tracking">{{ tracking }}</strong></div>
+    <div class="line"><span class="label">وضعیت</span><strong>پرداخت تأیید شد</strong></div>
+  </section>
   <div class="actions">
     <a class="action primary" href="/">ورود به داشبورد ←</a>
-    <button type="button" class="action secondary" id="share-receipt">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
-      اشتراک‌گذاری عکس رسید در واتس‌اپ
+    <button type="button" class="action secondary" id="share-whatsapp">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M19.2 4.8a9 9 0 0 0-14.3 10.6L4 20l4.7-1a9 9 0 1 0 10.5-14.2Z"/><path d="M9 9.3c.9 2.4 2.6 4.1 5.1 5.1l1.5-1.2 2 1a2.4 2.4 0 0 1-2.6 2.2c-3.7-.5-7-3.7-7.5-7.4A2.4 2.4 0 0 1 9.7 6.5l1 2Z"/>
+      </svg>
+      اشتراک‌گذاری رسید در واتساپ
     </button>
-    {% if whatsapp_url %}
-    <a class="action secondary" id="whatsapp-chat" href="{{ whatsapp_url }}" target="_blank" rel="noopener noreferrer">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19.2 4.8a9 9 0 0 0-14.3 10.6L4 20l4.7-1a9 9 0 1 0 10.5-14.2Z"/><path d="M9 9.3c.9 2.4 2.6 4.1 5.1 5.1l1.5-1.2 2 1a2.4 2.4 0 0 1-2.6 2.2c-3.7-.5-7-3.7-7.5-7.4A2.4 2.4 0 0 1 9.7 6.5l1 2Z"/></svg>
-      باز کردن چت پشتیبانی در واتس‌اپ
-    </a>
-    {% endif %}
   </div>
-  <p class="note" id="share-hint" role="status" aria-live="polite"></p>
+  <p id="share-status" role="status" aria-live="polite"></p>
 </main>
 <script>
 (function(){
-  const account = document.getElementById('account-name').textContent.trim();
-  const amount = {{ amount_plain|tojson }};
-  const tracking = document.getElementById('tracking').textContent.trim();
-  const hint = document.getElementById('share-hint');
-  const button = document.getElementById('share-receipt');
-  const msg = 'رسید پرداخت اشتراک VPN\nاکانت: '+account+'\nمبلغ: '+amount+' تومان\nشماره پیگیری: '+tracking;
-  const whatsappUrl = {{ whatsapp_url|tojson }};
+  const account={{ account_label|tojson }};
+  const expiry={{ next_due|tojson }};
+  const tracking={{ tracking|tojson }};
+  const whatsappUrl={{ whatsapp_url|tojson }};
+  const button=document.getElementById('share-whatsapp');
+  const status=document.getElementById('share-status');
+  const shareText='رسید پرداخت VPN\nنام اکانت: '+account+'\nسررسید بعدی: '+expiry+'\nشماره پیگیری آیریا: '+tracking+'\nوضعیت: پرداخت تأیید شد';
 
-  function textEscape(ctx, value, x, y, font, color){
-    ctx.font=font;ctx.fillStyle=color;ctx.textAlign='right';ctx.direction='rtl';ctx.fillText(value,x,y);
-  }
-  async function imageBlob(){
-    try{if(document.fonts){await document.fonts.ready}}catch(e){}
+  async function createReceiptImage(){
+    if(document.fonts){try{await document.fonts.ready}catch(e){}}
     const canvas=document.createElement('canvas'),scale=2;
-    canvas.width=900*scale;canvas.height=610*scale;
-    const ctx=canvas.getContext('2d');ctx.scale(scale,scale);
-    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,900,610);
-    ctx.fillStyle='#111';ctx.beginPath();ctx.arc(450,92,50,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='#fff';ctx.lineWidth=8;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(425,92);ctx.lineTo(444,109);ctx.lineTo(477,77);ctx.stroke();
-    ctx.fillStyle='#111';ctx.direction='rtl';ctx.textAlign='center';
-    ctx.font='900 32px Vazirmatn, Tahoma, sans-serif';ctx.fillText('پرداخت با موفقیت انجام شد',450,184);
-    ctx.fillStyle='#777';ctx.font='500 20px Vazirmatn, Tahoma, sans-serif';ctx.fillText('از همراهیت ممنونیم.',450,220);
-    ctx.fillStyle='#fafafa';ctx.beginPath();ctx.roundRect(95,260,710,285,19);ctx.fill();
-    ctx.strokeStyle='#e9e9e9';ctx.lineWidth=1;ctx.stroke();
-    const rows=[['اسم اکانت',account],['مبلغ پرداخت',amount+' تومان'],['شماره پیگیری آیریا',tracking]];
-    rows.forEach(([label,val],i)=>{
-      const y=320+i*88;
-      if(i>0){ctx.strokeStyle='#e6e6e6';ctx.beginPath();ctx.moveTo(120,y-46);ctx.lineTo(780,y-46);ctx.stroke()}
-      textEscape(ctx,label,764,y,'500 19px Vazirmatn, Tahoma, sans-serif','#747474');
-      ctx.fillStyle='#121212';ctx.font='800 21px Vazirmatn, Tahoma, sans-serif';ctx.textAlign='left';ctx.direction='ltr';
-      ctx.fillText(val,124,y,370);
+    canvas.width=900*scale;canvas.height=650*scale;
+    const ctx=canvas.getContext('2d');
+    if(!ctx)throw new Error('canvas_unavailable');
+    ctx.scale(scale,scale);
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,900,650);
+    ctx.beginPath();ctx.arc(450,93,48,0,Math.PI*2);ctx.fillStyle='#111';ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=8;ctx.lineJoin='round';ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(425,91);ctx.lineTo(444,108);ctx.lineTo(479,75);ctx.stroke();
+    ctx.textAlign='center';ctx.direction='rtl';
+    ctx.fillStyle='#111';ctx.font='900 32px Vazirmatn, Tahoma, sans-serif';
+    ctx.fillText('پرداخت با موفقیت انجام شد',450,189);
+    ctx.fillStyle='#666';ctx.font='500 21px Vazirmatn, Tahoma, sans-serif';
+    ctx.fillText('از همراهیت ممنونیم',450,229);
+    ctx.fillStyle='#fafafa';ctx.fillRect(90,276,720,330);
+    ctx.strokeStyle='#e5e5e5';ctx.lineWidth=1;ctx.strokeRect(90,276,720,330);
+    const rows=[['نام اکانت پرداخت‌شده',account],['سررسید بعدی',expiry],['شماره پیگیری آیریا',tracking],['وضعیت','پرداخت تأیید شد']];
+    rows.forEach(function(row,i){
+      const y=329+i*81;
+      if(i){ctx.strokeStyle='#e5e5e5';ctx.beginPath();ctx.moveTo(112,y-50);ctx.lineTo(788,y-50);ctx.stroke()}
+      ctx.fillStyle='#777';ctx.font='500 19px Vazirmatn, Tahoma, sans-serif';ctx.direction='rtl';ctx.textAlign='right';
+      ctx.fillText(row[0],775,y,300);
+      ctx.fillStyle='#111';ctx.font='800 20px Vazirmatn, Tahoma, sans-serif';
+      ctx.textAlign='left';ctx.direction='ltr';
+      ctx.fillText(row[1],125,y,360);
     });
     return await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
   }
-  button.addEventListener('click', async()=>{
-    button.disabled=true;hint.textContent='در حال آماده‌کردن عکس رسید…';
+
+  button.addEventListener('click',async function(){
+    if(!whatsappUrl){status.textContent='لینک واتساپ پشتیبانی تنظیم نشده است.';return}
+    button.disabled=true;
+    status.textContent='در حال آماده‌سازی تصویر رسید…';
     try{
-      const blob=await imageBlob();
-      if(!blob)throw new Error('image');
-      const file=new File([blob],'vpn-payment-receipt.png',{type:'image/png'});
-      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      const blob=await createReceiptImage();
+      if(!blob)throw new Error('blob_unavailable');
+      const file=new File([blob],'payment-receipt.png',{type:'image/png'});
+      if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
         try{
-          await navigator.share({files:[file],title:'رسید پرداخت',text:msg});
-          hint.textContent='ارسال رسید از طریق گزینهٔ واتس‌اپ در منوی اشتراک‌گذاری انجام می‌شود.';
+          await navigator.share({files:[file],title:'رسید پرداخت',text:shareText});
+          status.textContent='در صورت انتخاب واتساپ، گفت‌وگوی مقصد را انتخاب و ارسال را تأیید کن.';
           return;
-        }catch(err){if(err&&err.name==='AbortError'){hint.textContent='اشتراک‌گذاری لغو شد.';return}}
+        }catch(e){
+          if(e && e.name==='AbortError'){status.textContent='اشتراک‌گذاری لغو شد.';return}
+        }
       }
-      const objectUrl=URL.createObjectURL(blob);
-      const a=document.createElement('a');a.href=objectUrl;a.download='vpn-payment-receipt.png';document.body.appendChild(a);a.click();a.remove();
-      setTimeout(()=>URL.revokeObjectURL(objectUrl),30000);
-      hint.textContent=whatsappUrl?'عکس رسید ذخیره شد. چت واتس‌اپ را باز کن و عکس را پیوست کن.':'عکس رسید ذخیره شد؛ آن را از واتس‌اپ ارسال کن.';
-    }catch(e){hint.textContent='آماده‌کردن عکس ممکن نشد؛ از صفحه اسکرین‌شات بگیر و ارسال کن.'}
-    finally{button.disabled=false}
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=url;a.download='payment-receipt.png';
+      document.body.appendChild(a);a.click();a.remove();
+      setTimeout(function(){URL.revokeObjectURL(url)},30000);
+      window.open(whatsappUrl,'_blank');
+      status.textContent='عکس رسید ذخیره شد. در چت بازشده آن را پیوست کن و ارسال را تأیید کن.';
+    }catch(e){
+      window.open(whatsappUrl,'_blank');
+      status.textContent='ارسال تصویر در این مرورگر امکان‌پذیر نبود؛ متن رسید در واتساپ آماده است.';
+    }finally{button.disabled=false}
   });
+
   if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
-    const colors=['#191919','#5c5c5c','#969696','#c9c9c9','#f0f0f0'];
-    for(let i=0;i<42;i++){
-      const p=document.createElement('i');p.className='confetti';
-      p.style.setProperty('--left',Math.random()*100+'vw');
-      p.style.setProperty('--duration',(2.6+Math.random()*2)+'s');
-      p.style.setProperty('--color',colors[i%colors.length]);
-      p.style.setProperty('--rot',Math.random()*360+'deg');
-      p.style.setProperty('--drift',(Math.random()*150-75)+'px');
-      p.style.animationDelay=Math.random()*.8+'s';
-      document.body.appendChild(p);p.addEventListener('animationend',()=>p.remove());
+    const shades=['#181818','#555','#999','#c6c6c6'];
+    for(let i=0;i<34;i++){
+      const el=document.createElement('i');el.className='confetti';
+      el.style.setProperty('--left',Math.random()*100+'vw');
+      el.style.setProperty('--duration',(2.8+Math.random()*2.3)+'s');
+      el.style.setProperty('--color',shades[i%shades.length]);
+      el.style.setProperty('--rot',Math.random()*360+'deg');
+      el.style.setProperty('--drift',(Math.random()*150-75)+'px');
+      el.style.animationDelay=Math.random()*.8+'s';
+      document.body.appendChild(el);el.addEventListener('animationend',function(){el.remove()});
     }
   }
 })();
 </script>
-</body></html>
+</body>
+</html>
