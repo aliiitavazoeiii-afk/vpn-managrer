@@ -42,6 +42,13 @@ if _ab_sms_history:
         "{% if j.error %}<small class=\"sms-error\">{{ j.error }}</small>{% endif %}",
         "{% if j.error and j.status != 'operator_confirmed' %}<small class=\"sms-error\">{{ j.error }}</small>{% endif %}",
     )
+    # Debt reminders can have a false-negative Android result=0 while the
+    # recipient still receives the SMS. Never offer one-click retry for these.
+    _ab_sms_history = _ab_sms_history.replace(
+        "{% if j.status == 'failed' %}",
+        "{% if j.status == 'failed' and 'usersmanager.ir' not in j.message and 'moshtarakin.filmjadiid.ir' not in j.message %}",
+        1,
+    )
     TEMPLATES["sms.html"] = _ab_sms_history
 
 _ab_sms_debt_template = TEMPLATES["debts.html"]
@@ -164,3 +171,27 @@ app.router.routes[:] = [
             and "POST" in (getattr(r, "methods", set()) or set()))
 ]
 app.add_api_route("/sms/debt-send", _aban_debt_send, methods=["POST"])
+
+
+# Fail closed for ALL legacy/new debt reminders, even if the generic SMS
+# dashboard is used to click "Retry". The operator must verify the handset and
+# recipient first; debt reminders are not safe to automatically resend.
+_aban_original_retry = sms_retry
+
+
+def _aban_guarded_retry(job_id: int, db: _SmsSession = _SmsDepends(get_db)):
+    row = db.execute(
+        _sms_text("SELECT source FROM sms_jobs WHERE id=:id"),
+        {"id": int(job_id)},
+    ).mappings().first()
+    if row and str(row["source"] or "").startswith("debt:"):
+        return _SmsRedirectResponse("/sms?error=debt_retry_blocked", 303)
+    return _aban_original_retry(job_id, db)
+
+
+app.router.routes[:] = [
+    r for r in app.router.routes
+    if not (getattr(r, "path", None) == "/sms/{job_id}/retry"
+            and "POST" in (getattr(r, "methods", set()) or set()))
+]
+app.add_api_route("/sms/{job_id}/retry", _aban_guarded_retry, methods=["POST"])
