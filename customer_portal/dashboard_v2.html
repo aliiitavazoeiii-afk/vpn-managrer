@@ -16,8 +16,8 @@
   <div class="entry-modal-card">
     <div class="entry-modal-icon">!</div>
     <div class="entry-modal-kicker">اطلاعیه مهم</div>
-    <h2>لطفاً توجه داشته باشید تمامی اکانت‌ها تا یک آبان محاسبه می‌شود.</h2>
-    <p>از این پس سررسید تمامی اکانت‌ها یکم هر ماه خواهد بود.</p>
+    <h2>مبلغ تمدید هر اکانت فقط از روز سررسید واقعی آن تا یکم ماه بعد محاسبه می‌شود.</h2>
+    <p>اکانت‌هایی که هنوز به سررسید نرسیده‌اند، فعلاً بدهی ندارند. بعد از پرداخت، تاریخ تمدید به یکم ماه بعد منتقل می‌شود.</p>
     <button type="button" class="entry-modal-btn" onclick="dismissEntryNotice()">متوجه شدم، نمایش پنل</button>
   </div>
 </div>
@@ -76,7 +76,7 @@ function dismissEntryNotice(){
   <section class="renew-all">
     <div class="renew-copy">
       <div class="renew-eyebrow">ONE PAYMENT · ALL ACCOUNTS</div>
-      <h2>تمدید همه اکانت‌ها تا یکم آبان ماه</h2>
+      <h2>تسویه اکانت‌های سررسیدشده تا یکم ماه بعد</h2>
     </div>
     <div class="renew-total">
       <div class="renew-price"><small>مبلغ قابل پرداخت</small><strong>{{ total_payable|money }}</strong><span> تومان</span></div>
@@ -133,14 +133,14 @@ function dismissEntryNotice(){
         </div>
         <div class="expiry-point target">
           <span>انقضای جدید</span>
-          <strong>{{ a.transition_target_jalali or '۱۴۰۵/۰۸/۰۱' }}</strong>
+          <strong>{{ a.transition_target_jalali or a.expiry_jalali }}</strong>
           {% if a.transition_status %}<small>مبنای مبلغ این دوره</small>{% endif %}
         </div>
       </div>
 
       <div class="account-meta">
         <div class="meta"><span>مبلغ ماهانه</span><strong>{{ a.monthly_fee|money }} تومان</strong></div>
-        <div class="meta debt"><span>مبلغ این دوره</span><strong>{{ a.debt|money }} تومان</strong></div>
+        <div class="meta debt"><span>بدهی تا یکم ماه بعد</span><strong>{{ a.debt|money }} تومان</strong></div>
       </div>
 
       <div class="account-actions">
