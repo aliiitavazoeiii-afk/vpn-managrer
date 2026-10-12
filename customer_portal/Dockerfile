@@ -14,7 +14,9 @@ COPY payment_return.html .
 COPY safari_required.html .
 COPY billing_sync.py .
 COPY billing_migration.py .
-RUN printf '\nexec(compile(open("/srv/v2.py", "r", encoding="utf-8").read(), "/srv/v2.py", "exec"))\nexec(compile(open("/srv/billing_sync.py", "r", encoding="utf-8").read(), "/srv/billing_sync.py", "exec"))\n' >> server.py \
- && python -m py_compile server.py v2.py billing_sync.py billing_migration.py
+COPY billing_policy.py .
+COPY billing_cycle_live.py .
+RUN printf '\nexec(compile(open("/srv/v2.py", "r", encoding="utf-8").read(), "/srv/v2.py", "exec"))\nexec(compile(open("/srv/billing_sync.py", "r", encoding="utf-8").read(), "/srv/billing_sync.py", "exec"))\nexec(compile(open("/srv/billing_cycle_live.py", "r", encoding="utf-8").read(), "/srv/billing_cycle_live.py", "exec"))\n' >> server.py \
+ && python -m py_compile server.py v2.py billing_sync.py billing_migration.py billing_policy.py billing_cycle_live.py
 EXPOSE 8091
 CMD ["uvicorn","server:app","--host","0.0.0.0","--port","8091","--proxy-headers","--forwarded-allow-ips=*"]
