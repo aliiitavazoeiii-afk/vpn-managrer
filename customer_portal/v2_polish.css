@@ -288,3 +288,29 @@ body:before,body:after{display:none!important}
     background:linear-gradient(135deg,rgba(var(--account-glow-rgb),.70),rgba(var(--account-glow-rgb),.22));
   }
 }
+
+
+/* PORTAL_NOTICE_RENEW_TYPOGRAPHY_V2 */
+.entry-modal-card h2{
+  font-size:clamp(28px,5vw,34px)!important;
+  font-weight:900!important;
+  line-height:1.55!important;
+  margin:0 0 18px!important;
+  letter-spacing:-.04em;
+}
+.entry-modal-card p{
+  font-size:clamp(15px,3.4vw,17px)!important;
+  line-height:2!important;
+  font-weight:600!important;
+  margin:0 0 8px!important;
+  color:#30343b!important;
+}
+.renew-copy h2{
+  font-family:"Estedad",Vazirmatn,Tahoma,sans-serif!important;
+  font-size:clamp(21px,3vw,26px)!important;
+  font-weight:750!important;
+  letter-spacing:normal!important;
+  line-height:1.9!important;
+  text-wrap:pretty;
+}
+.renew-copy .renew-eyebrow{font-family:Vazirmatn,Tahoma,sans-serif!important}
