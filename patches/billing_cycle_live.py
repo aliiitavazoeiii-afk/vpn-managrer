@@ -210,19 +210,12 @@ for _b_template in ("debts.html", "followups.html"):
     _b_markup = TEMPLATES.get(_b_template, "")
     if _b_markup:
         _notice = (
-            '<div class="manage-banner">محاسبه بدهی‌ها تا یکم ماه بعد انجام می‌شود. '
-            'در این مرحله اصلاح دستی مبلغ و پرداخت ناقص غیرفعال است؛ '
+            '<style>.debt-adjust,.waiting-actual-pay{display:none!important}</style>'
+            '<div class="manage-banner">محاسبه بدهی از روز سررسید واقعی تا یکم ماه بعد انجام می‌شود. '
+            'تا تکمیل سیستم اعتبار پرداخت ناقص، اصلاح مبلغ و پرداخت ناقص غیرفعال‌اند؛ '
             'برای اصلاح حساب از ویرایش تاریخ انقضا استفاده کنید.</div>'
         )
         _b_markup = _b_markup.replace("{% block content %}", "{% block content %}" + _notice, 1)
-        if _b_template == "followups.html":
-            _b_markup = _b_markup.replace(
-                '<summary>ثبت مبلغ واقعی</summary>',
-                '<summary>ثبت مبلغ واقعی (موقتاً غیرفعال)</summary>', 1
-            ).replace(
-                '<form method="post" action="/followups/pay-amount"',
-                '<form method="post" action="/followups/pay-amount"', 1
-            )
         TEMPLATES[_b_template] = _b_markup
 if hasattr(env.loader, "mapping"):
     env.loader.mapping.update(TEMPLATES)
