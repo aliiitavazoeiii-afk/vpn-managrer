@@ -33,6 +33,7 @@ h1{margin:29px 0 8px;font-weight:900;font-size:clamp(23px,5.3vw,30px);letter-spa
 .action svg{height:19px;width:19px;flex-shrink:0}
 #share-status{font-size:12px;line-height:1.9;color:#5c5c5c;margin:10px 0 0}
 #share-status:empty{display:none}
+#share-status a{color:#111;font-weight:800;text-underline-offset:3px}
 .confetti{position:fixed;top:-25px;width:6px;height:12px;pointer-events:none;background:var(--color);left:var(--left);animation:fall var(--duration) linear forwards;transform:rotate(var(--rot))}
 @keyframes fall{to{transform:translate(var(--drift),110vh) rotate(880deg);opacity:0}}
 @keyframes pop{from{transform:scale(.3);opacity:0}65%{transform:scale(1.08)}to{transform:scale(1);opacity:1}}
@@ -109,8 +110,11 @@ h1{margin:29px 0 8px;font-weight:900;font-size:clamp(23px,5.3vw,30px);letter-spa
 
   button.addEventListener('click',async function(){
     if(!whatsappUrl){status.textContent='لینک واتساپ پشتیبانی تنظیم نشده است.';return}
-    const canShareFile = !!(navigator.share && navigator.canShare &&
-      navigator.canShare({files:[new File(['receipt'],'receipt.png',{type:'image/png'})]}));
+    let canShareFile=false;
+    try{
+      canShareFile=!!(typeof File!=='undefined' && navigator.share && navigator.canShare &&
+        navigator.canShare({files:[new File(['receipt'],'receipt.png',{type:'image/png'})]}));
+    }catch(e){canShareFile=false}
     // Open the requested WhatsApp chat directly from the click on browsers
     // without native file sharing; opening after an await can be popup-blocked.
     if(!canShareFile) window.open(whatsappUrl,'_blank');
