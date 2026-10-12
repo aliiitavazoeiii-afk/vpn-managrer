@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <title>پنل مشترکین</title>
 <link rel="stylesheet" href="/assets/v2.css">
-<link rel="stylesheet" href="/assets/v2_polish.css">
+<link rel="stylesheet" href="/assets/v2_polish.css?v=account-halo-1">
 </head>
 <body>
 
@@ -59,7 +59,6 @@ function dismissEntryNotice(){
         </span>
       </div>
       <strong>{{ accounts|length|fa }}</strong>
-      <small>اکانت فعال زیر این شماره</small>
     </article>
 
     <article class="stat">
@@ -70,7 +69,6 @@ function dismissEntryNotice(){
         </span>
       </div>
       <strong>{{ total_debt|money }}</strong>
-      <small>تومان · مجموع بدهی فعلی</small>
     </article>
   </section>
 
@@ -79,7 +77,6 @@ function dismissEntryNotice(){
     <div class="renew-copy">
       <div class="renew-eyebrow">ONE PAYMENT · ALL ACCOUNTS</div>
       <h2>تمدید همه اکانت‌ها تا یکم آبان ماه</h2>
-      <p>این مبلغ براساس انتقال سررسید اکانت‌های شما به ابتدای ماه محاسبه شده است.</p>
     </div>
     <div class="renew-total">
       <div class="renew-price"><small>مبلغ قابل پرداخت</small><strong>{{ total_payable|money }}</strong><span> تومان</span></div>
@@ -99,14 +96,13 @@ function dismissEntryNotice(){
   <div class="section-head">
     <div>
       <h2>اکانت‌های شما</h2>
-      <p>تاریخ فعلی و تاریخ جدید هر اکانت را قبل از پرداخت ببینید.</p>
     </div>
     <span>{{ accounts|length|fa }} اکانت</span>
   </div>
 
   <section class="account-list">
     {% for a in accounts %}
-    <article class="account-card {{ 'is-overdue' if a.is_overdue else 'is-active' }}">
+    <article class="account-card {{ 'is-overdue' if (not a.verified_payment and (a.debt > 0 or a.followup_state == 'waiting')) else 'is-active' }}">
       <div class="account-top">
         <div class="account-title">
           <div class="account-avatar">{{ a.initial }}</div>
