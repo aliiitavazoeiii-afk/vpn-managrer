@@ -25,7 +25,7 @@ def _next(value):
 
 
 def _invoice(expiry, fee, today):
-    return calculate_invoice(_jd(expiry), fee, _jd(today), _start, _next)
+    return calculate_invoice(_jd(expiry) if expiry else None, fee, _jd(today), _start, _next)
 
 
 assert _invoice("1405/07/20", 300000, "1405/07/20") == {
