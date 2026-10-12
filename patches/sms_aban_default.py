@@ -107,11 +107,17 @@ def _aban_debt_send(
         _sms_text(
             """
             SELECT id, status FROM sms_jobs
-            WHERE phone=:phone AND source=:source AND status <> 'cancelled'
+            WHERE phone=:phone AND source LIKE 'debt:%'
+              AND status <> 'cancelled'
+              AND (source=:source OR created_at >= :current_jalali_month_start)
             ORDER BY id DESC LIMIT 1
             """
         ),
-        {"phone": normalized, "source": source},
+        {
+            "phone": normalized,
+            "source": source,
+            "current_jalali_month_start": _b_month_start(now),
+        },
     ).mappings().first()
     if previous:
         # A failed Android result can still correspond to a received SMS.
