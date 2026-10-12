@@ -1,0 +1,102 @@
+/* PORTAL_PERFORMANCE_LITE_V1
+ * Paint-only optimization for customers with many subscription cards.
+ * All cards remain server-rendered; no pagination, lazy loading or hidden
+ * accounts. No billing, dates, forms or payment logic is modified.
+ */
+
+/* Repeated blurred glass layers are expensive on low-end mobile GPUs. */
+.account-card,
+.stat,
+.login-panel,
+.phone-chip{
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+
+/* The old design animated TWO gradients forever on EACH account plus a
+ * pulsing arrow. Preserve the visual account-state cues, but keep them static.
+ * In some iOS browsers the masked conic-gradient layer could obscure text. */
+.account-card::before{
+  animation:none!important;
+  background:
+    radial-gradient(320px 160px at 0% 0%,
+      rgba(var(--account-glow-rgb),.09), transparent 68%)!important;
+  background-size:auto!important;
+  opacity:1!important;
+}
+.account-card::after{
+  animation:none!important;
+  z-index:0!important;
+  background:linear-gradient(135deg,
+    rgba(var(--account-glow-rgb),.64),
+    rgba(var(--account-glow-rgb),.16))!important;
+  opacity:.76!important;
+}
+.expiry-arrow svg,
+.expiry-arrow span{
+  animation:none!important;
+}
+
+/* Avoid creating an extra compositor layer per card on hover. */
+.account-card,
+.stat{
+  transform:none!important;
+  transition:border-color .14s ease,box-shadow .14s ease!important;
+}
+.account-card:hover,
+.stat:hover{
+  transform:none!important;
+}
+.account-card.is-active,
+.account-card.is-active:hover{
+  box-shadow:0 8px 24px rgba(17,17,17,.06),
+             0 0 0 1px rgba(22,163,74,.04)!important;
+}
+.account-card.is-overdue,
+.account-card.is-overdue:hover{
+  box-shadow:0 8px 24px rgba(17,17,17,.06),
+             0 0 0 1px rgba(220,38,38,.05)!important;
+}
+.stat{box-shadow:0 8px 24px rgba(17,17,17,.055)!important}
+
+/* Long names and mixed Latin/Persian account identifiers stay readable. */
+.account-title,
+.account-name{
+  min-width:0;
+  max-width:100%;
+}
+.account-name{
+  flex:1 1 auto;
+}
+.account-name b,
+.account-name small{
+  display:block;
+  max-width:100%;
+  white-space:normal!important;
+  overflow-wrap:anywhere;
+  word-break:normal;
+  visibility:visible;
+  opacity:1;
+  position:relative;
+  z-index:1;
+}
+.account-top,
+.account-meta,
+.account-actions,
+.expiry-shift{
+  position:relative;
+  z-index:1;
+}
+
+/* Preserve legible labels across narrow, dense mobile card layouts. */
+@media(max-width:860px){
+  .account-title{width:100%}
+  .account-name b{line-height:1.7}
+  .expiry-point{min-width:0}
+  .expiry-point strong{overflow-wrap:anywhere}
+}
+
+/* Respect system accessibility preferences. */
+@media(prefers-reduced-motion:reduce){
+  .account-card,.stat,.pay-one,.primary-btn,.disable-btn{transition:none!important}
+}
