@@ -30,6 +30,10 @@ test -s "$REPO/scripts/maya1_xui_export.py"
 test -s "$REPO/scripts/maya1_readonly_sync.py"
 test -s "$REPO/patches/maya1_control.py"
 test -s docker-compose.sms.yml
+if ! systemctl is-active --quiet cron; then
+  echo "STOP: cron is not active. Start system cron first so snapshots can refresh every 5 min."
+  exit 2
+fi
 "${C[@]}" config -q
 "${C[@]}" exec -T app python - <<'PY'
 import urllib.request
