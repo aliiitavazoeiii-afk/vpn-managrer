@@ -31,6 +31,7 @@ public final class SmsSender {
         }
 
         SmsStatusReceiver.initJob(c, jobId, parts.size());
+        GatewaySmsStore.queue(c, jobId, phone, message);
 
         if (parts.size() == 1) {
             PendingIntent sent = makeIntent(c, SmsStatusReceiver.ACTION_SENT, jobId, 0, 1);
