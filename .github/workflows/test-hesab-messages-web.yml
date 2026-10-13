@@ -6,6 +6,7 @@ on:
       - hesab-messages-v2
     paths:
       - "patches/hesab_messages_web.py"
+      - "scripts/install_hesab_messages_web.sh"
       - ".github/workflows/test-hesab-messages-web.yml"
   workflow_dispatch:
 
@@ -22,6 +23,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Verify installer bash syntax
+        run: bash -n scripts/install_hesab_messages_web.sh
       - name: Verify Python and Jinja syntax
         run: |
           pip install 'jinja2>=3.1,<4'
