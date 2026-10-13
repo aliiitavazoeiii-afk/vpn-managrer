@@ -56,6 +56,10 @@ _MC_PANEL = r"""
 .mc-table a{color:#a6d3ff;text-decoration:none}
 .mc-muted{color:#859ab4;font-size:11px}
 .mc-ok{color:#83dfb5}.mc-off{color:#efa992}
+.mc-leaders{margin:18px 0;border:1px solid rgba(151,176,218,.18);border-radius:16px;background:#101c2c;overflow:hidden}
+.mc-leaders h3{font-size:15px;margin:0;padding:15px 17px}
+.mc-leaders .mc-scroll table{min-width:570px}
+.mc-notice{margin:14px 0;font-size:12px;color:#a1b3c8;line-height:2}
 @media(max-width:700px){.mc-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.mc-card strong{font-size:20px}}
 </style>
 <div class="mc-header">
@@ -73,6 +77,31 @@ _MC_PANEL = r"""
     <div class="mc-card"><small>مستثنا از اتصال مالی</small><strong>{{ mc.excluded|fa }}</strong></div>
     <div class="mc-card"><small>فعال در x-ui</small><strong>{{ mc.enabled|fa }}</strong></div>
   </div>
+  <div class="mc-notice">
+    مصرف «امروز» از اختلاف نمونه‌های پنج‌دقیقه‌ای x-ui محاسبه می‌شود؛
+    برای ساعات قبل از شروع پایش، قطعی مانیتورینگ یا ریست شمارنده‌ها عددی تخمین زده نمی‌شود.
+    {% if mc.usage_available %}
+      <strong> مجموع ثبت‌شده امروز: {{ mc.today_total }}</strong>
+      · پوشش: {{ mc.today_samples|fa }} نمونه
+    {% else %}
+      <strong>ثبت نمونه‌های مصرف امروز هنوز آغاز نشده است.</strong>
+    {% endif %}
+  </div>
+  {% if mc.usage_available %}
+  <div class="mc-leaders">
+    <h3>۱۰ کاربر پرمصرف امروز (تا آخرین نمونه)</h3>
+    <div class="mc-scroll"><table class="mc-table">
+      <thead><tr><th>رتبه</th><th>کاربر</th><th>مصرف امروز</th><th>دانلود</th><th>آپلود</th></tr></thead>
+      <tbody>{% for row in mc.leaders %}
+      <tr><td>{{ loop.index|fa }}</td>
+        <td>{{ row.email }}{% if row.sid %}<div class="mc-muted">#{{ row.sid }} · {{ row.name }}</div>{% endif %}</td>
+        <td dir="ltr">{{ row.today_usage }}</td>
+        <td dir="ltr">{{ row.today_down }}</td><td dir="ltr">{{ row.today_up }}</td>
+      </tr>
+      {% else %}<tr><td colspan="5">هنوز مصرفی ثبت نشده است.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+  {% endif %}
   <div class="mc-panel">
     <div class="mc-tools">
       <div><b>فهرست کاربران</b><div class="mc-muted">آخرین سینک: {{ mc.synced }}</div></div>
@@ -83,18 +112,19 @@ _MC_PANEL = r"""
     </div>
     <div class="mc-scroll">
       <table class="mc-table">
-        <thead><tr><th>کلاینت x-ui</th><th>اکانت داشبورد</th><th>وضعیت</th><th>مصرف کل</th><th>آخرین اتصال</th><th>انقضای داشبورد</th></tr></thead>
+        <thead><tr><th>کلاینت x-ui</th><th>اکانت داشبورد</th><th>وضعیت</th><th>مصرف امروز</th><th>مصرف کل</th><th>آخرین اتصال</th><th>انقضای داشبورد</th></tr></thead>
         <tbody>
         {% for row in mc.rows %}
         <tr>
           <td><strong>{{ row.email }}</strong></td>
           <td>{% if row.sid %}<a href="/users/{{ row.sid }}">#{{ row.sid }} · {{ row.name }}</a>{% else %}<span class="mc-muted">مستثنا ({{ row.reason }})</span>{% endif %}</td>
           <td><span class="{{ 'mc-ok' if row.enabled else 'mc-off' }}">{{ 'فعال' if row.enabled else 'غیرفعال' }}</span>{% if row.dashboard_state %}<div class="mc-muted">داشبورد: {{ row.dashboard_state }}</div>{% endif %}</td>
+          <td dir="ltr">{{ row.today_usage }}</td>
           <td dir="ltr">{{ row.usage }}</td>
           <td dir="ltr">{{ row.last_online }}</td>
           <td>{% if row.expiry %}{{ row.expiry|jdate }}{% else %}—{% endif %}</td>
         </tr>
-        {% else %}<tr><td colspan="6">کاربری مطابق این جست‌وجو پیدا نشد.</td></tr>{% endfor %}
+        {% else %}<tr><td colspan="7">کاربری مطابق این جست‌وجو پیدا نشد.</td></tr>{% endfor %}
         </tbody>
       </table>
     </div>
@@ -140,7 +170,18 @@ def _mc_control_room(request: _mc_Request, db: _mc_Session = _mc_Depends(get_db)
         mc["linked"] = len(ids)
         mc["excluded"] = 4
         mc["enabled"] = sum(bool(c["enabled"]) for c in clients)
+        usage = _mc_read_json(_MC_FOLDER / "daily_usage.json")
+        today = _mc_datetime.now(_MC_TEHRAN).date().isoformat()
+        counts = {}
+        mc["usage_available"] = bool(usage and usage.get("format") == "MAYA1_USAGE_DAILY_V1"
+                                     and today in usage.get("days", {}))
+        if mc["usage_available"]:
+            counts = usage["days"][today]
+        mc["today_total"] = _mc_gb(sum(int(d.get("up", 0))+int(d.get("down", 0))
+                                     for d in counts.values()))
+        mc["today_samples"] = max((int(d.get("samples", 0)) for d in counts.values()), default=0)
         rows = []
+        leaders = []
         for c in clients:
             email = str(c["email"])
             link = mapping[email.casefold()]
@@ -152,12 +193,22 @@ def _mc_control_room(request: _mc_Request, db: _mc_Session = _mc_Depends(get_db)
                 "reason": link.get("reason", ""),
                 "enabled": bool(c["enabled"]),
                 "usage": _mc_gb(int(c["up_bytes"])+int(c["down_bytes"])),
+                "today_usage": _mc_gb(int(counts.get(email.casefold(), {}).get("up", 0))+
+                                      int(counts.get(email.casefold(), {}).get("down", 0))) if mc["usage_available"] else "—",
+                "today_up": _mc_gb(counts.get(email.casefold(), {}).get("up", 0)),
+                "today_down": _mc_gb(counts.get(email.casefold(), {}).get("down", 0)),
+                "today_bytes": int(counts.get(email.casefold(), {}).get("up", 0))+
+                               int(counts.get(email.casefold(), {}).get("down", 0)),
+
                 "last_online": _mc_stamp(c.get("last_online_ms")),
                 "expiry": sub.expiry_date if sub else None,
                 "dashboard_state": (states.get(sub.id) or "normal") if sub else "",
             }
+            leaders.append(row)
             if mc["query"].casefold() in (email + " " + name + " " + str(sid or "")).casefold():
                 rows.append(row)
+        mc["leaders"] = sorted((r for r in leaders if r["today_bytes"] > 0),
+                                key=lambda r: (-r["today_bytes"], r["email"].casefold()))[:10]
         mc["rows"] = rows
     except Exception as ex:
         # Do not expose internal exceptions or customer data in error responses.
