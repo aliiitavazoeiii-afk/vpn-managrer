@@ -72,6 +72,7 @@ public class GatewayService extends Service {
                                 } catch (Exception e) {
                                     SmsStatusReceiver.stopWithError(this, job.id,
                                             "Dispatch exception: " + e.getClass().getSimpleName());
+                                    GatewaySmsStore.failed(this, job.id);
                                     ApiClient.reportStatus(this, job.id, "failed",
                                             e.getClass().getSimpleName() + ": " + e.getMessage(), simId);
                                 }
