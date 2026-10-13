@@ -11,6 +11,20 @@ KEY=/root/.ssh/hesab_maya1_readonly
 C=(docker compose -f docker-compose.yml -f docker-compose.sms.yml)
 cd "$BASE"
 
+echo "=== STATIC PYTHON/JINJA CHECKS ==="
+python3 -m py_compile "$REPO/scripts/maya1_xui_export.py" "$REPO/scripts/maya1_readonly_sync.py" "$REPO/patches/maya1_control.py"
+"${C[@]}" exec -T app python -c '
+import ast,sys
+from jinja2 import Environment
+tree=ast.parse(sys.stdin.read())
+values=[node.value.value for node in tree.body
+        if isinstance(node,ast.Assign)
+        and any(isinstance(t,ast.Name) and t.id=="_MC_PANEL" for t in node.targets)]
+assert len(values)==1
+Environment(autoescape=True).parse(values[0])
+print("MAYA1 JINJA TEMPLATE VALID")
+' < "$REPO/patches/maya1_control.py"
+
 echo "=== CHECK: admin services and code ==="
 test -s "$REPO/scripts/maya1_xui_export.py"
 test -s "$REPO/scripts/maya1_readonly_sync.py"
@@ -141,19 +155,6 @@ Path("docker-compose.sms.yml").write_text(source,encoding="utf8")
 print("App-only compose patch prepared. Existing portal/Darma/Caddy configuration unchanged.")
 PY
 "${C[@]}" config -q
-
-echo "=== VALIDATE CONTROL-ROOM JINJA BEFORE RESTART ==="
-"${C[@]}" exec -T app python -c '
-import ast,sys
-from jinja2 import Environment
-tree=ast.parse(sys.stdin.read())
-values=[node.value.value for node in tree.body
-        if isinstance(node,ast.Assign)
-        and any(isinstance(t,ast.Name) and t.id=="_MC_PANEL" for t in node.targets)]
-assert len(values)==1
-Environment(autoescape=True).parse(values[0])
-print("MAYA1 JINJA TEMPLATE VALID")
-' < "$REPO/patches/maya1_control.py"
 
 echo "=== RECREATE ONLY ADMIN APP (not db, portal, Caddy or x-ui) ==="
 "${C[@]}" up -d --no-deps --no-build --force-recreate app
