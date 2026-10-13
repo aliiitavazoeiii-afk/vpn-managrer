@@ -49,7 +49,7 @@ chmod 600 "$KEY"
 PUB="$(cat "$KEY.pub")"
 [[ "$PUB" =~ ^ssh-ed25519\  ]] || { echo "STOP: invalid SSH key"; exit 3; }
 
-echo "=== PAIR MAYA1 (one-time SSH root password may be requested) ==="
+echo "=== PAIR MAYA1 (verify new SSH host fingerprint before accepting; then root password) ==="
 # The remote authorized key is forced to one audited read-only command.
 # Host key verification is never disabled.
 EXPORT_B64="$(base64 -w0 < "$REPO/scripts/maya1_xui_export.py")"
@@ -68,7 +68,7 @@ if ! grep -Fq '$PUB' /root/.ssh/authorized_keys; then
 fi
 printf '%s\n' 'MAYA1 RESTRICTED READ-ONLY KEY INSTALLED'
 EOF
-ssh -T -o StrictHostKeyChecking=accept-new \
+ssh -T -o StrictHostKeyChecking=ask \
   -o ConnectTimeout=12 \
   -o PreferredAuthentications=password,keyboard-interactive \
   -o PubkeyAuthentication=no \
@@ -141,6 +141,19 @@ Path("docker-compose.sms.yml").write_text(source,encoding="utf8")
 print("App-only compose patch prepared. Existing portal/Darma/Caddy configuration unchanged.")
 PY
 "${C[@]}" config -q
+
+echo "=== VALIDATE CONTROL-ROOM JINJA BEFORE RESTART ==="
+"${C[@]}" exec -T app python -c '
+import ast,sys
+from jinja2 import Environment
+tree=ast.parse(sys.stdin.read())
+values=[node.value.value for node in tree.body
+        if isinstance(node,ast.Assign)
+        and any(isinstance(t,ast.Name) and t.id=="_MC_PANEL" for t in node.targets)]
+assert len(values)==1
+Environment(autoescape=True).parse(values[0])
+print("MAYA1 JINJA TEMPLATE VALID")
+' < "$REPO/patches/maya1_control.py"
 
 echo "=== RECREATE ONLY ADMIN APP (not db, portal, Caddy or x-ui) ==="
 "${C[@]}" up -d --no-deps --no-build --force-recreate app
