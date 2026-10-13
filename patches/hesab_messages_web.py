@@ -70,7 +70,7 @@ input[type=tel]{direction:ltr;text-align:left;font-family:system-ui;letter-spaci
 <a class="chip primary" href="/debts">وصول بدهی ←</a>
 <a class="chip" href="/sms">تاریخچه کامل پیامک‌ها</a>
 <a class="chip" href="/followups">در انتظار</a>
-<a class="chip" href="hesab://local/inbox">پیام‌های شخصی گوشی</a>
+{% if hm.native %}<a class="chip" href="hesab://local/inbox">پیام‌های گوشی</a>{% else %}<span class="muted">پیام‌های شخصی فقط در اپ اندروید قابل مشاهده‌اند.</span>{% endif %}
 </div>
 <div class="divline"></div>
 <h2>ارسال پیامک دستی</h2>
@@ -99,7 +99,7 @@ input[type=tel]{direction:ltr;text-align:left;font-family:system-ui;letter-spaci
 <nav class="footer-nav">
 <a class="selected" href="/messages/">پیام‌های کاری</a>
 <a href="/debts">وصول بدهی</a>
-<a href="hesab://local/inbox">پیام‌های گوشی</a>
+{% if hm.native %}<a href="hesab://local/inbox">پیام‌های گوشی</a>{% else %}<a href="/sms">پیامک‌ها</a>{% endif %}
 </nav>
 <script>
 (function(){
@@ -115,6 +115,10 @@ if("serviceWorker" in navigator){navigator.serviceWorker.register("/messages/sw.
 })();
 </script>
 </body></html>'''
+
+TEMPLATES["hm_messages.html"] = _HM_HTML
+if hasattr(env.loader, "mapping"):
+    env.loader.mapping["hm_messages.html"] = _HM_HTML
 
 _HM_STATUS = {
     "queued": "در صف", "claimed": "دریافت گوشی",
@@ -169,9 +173,7 @@ def _hm_data(db):
 def _hm_page(request: _hm_Request, db: _hm_Session = _hm_Depends(get_db)):
     data = _hm_data(db)
     data["csrf"] = _hm_token(request)
-    TEMPLATES["hm_messages.html"] = _HM_HTML
-    if hasattr(env.loader, "mapping"):
-        env.loader.mapping["hm_messages.html"] = _HM_HTML
+    data["native"] = "HesabNative/" in request.headers.get("user-agent", "")
     result = render("hm_messages.html", request, hm=data)
     result.headers["Cache-Control"] = "no-store, private"
     result.headers["X-Content-Type-Options"] = "nosniff"
