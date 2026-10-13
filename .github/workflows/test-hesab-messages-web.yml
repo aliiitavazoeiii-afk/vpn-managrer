@@ -1,0 +1,46 @@
+name: Verify hosted Hesab Messages page
+
+on:
+  push:
+    branches:
+      - hesab-messages-v2
+    paths:
+      - "patches/hesab_messages_web.py"
+      - ".github/workflows/test-hesab-messages-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Python and Jinja syntax
+        run: |
+          pip install 'jinja2>=3.1,<4'
+          python - <<'PY'
+          from pathlib import Path
+          from jinja2 import Environment
+          import ast
+          filename="patches/hesab_messages_web.py"
+          src=Path(filename).read_text(encoding="utf-8")
+          compile(src,filename,"exec")
+          nodes=ast.parse(src).body
+          templates=[n.value.value for n in nodes if isinstance(n,ast.Assign)
+                     and any(isinstance(t,ast.Name) and t.id=="_HM_HTML" for t in n.targets)
+                     and isinstance(n.value,ast.Constant)]
+          assert len(templates)==1
+          Environment(autoescape=True).parse(templates[0])
+          assert "hesab://local/inbox" in templates[0]
+          assert 'name="csrf"' in templates[0]
+          assert "sms_jobs" in src
+          assert "audit_events" not in src
+          print("HOSTED MESSAGES: PYTHON + JINJA PASS")
+          PY
