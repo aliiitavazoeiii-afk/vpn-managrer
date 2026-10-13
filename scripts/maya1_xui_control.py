@@ -215,14 +215,14 @@ def execute():
         _fail("Unexpected VLESS client ID")
     if uuid != str(original.get("id") or ""):
         _fail("VLESS client UUID mismatch")
-    updated = copy.deepcopy(api_client)
+    updated = copy.deepcopy(original)
     updated["enable"] = target
     panel.update_client(inbound_id, uuid, updated)
     for attempt in range(6):
         time.sleep(1)
         fresh_inbound, fresh_client = _extract_client(panel.list_inbounds(), email)
         new_db_id, db_client = _db_client(email)
-        unchanged = all(fresh_client.get(k) == v for k, v in api_client.items() if k != "enable")
+        unchanged = all(db_client.get(k) == v for k, v in original.items() if k != "enable")
         if (int(fresh_inbound["id"]) == inbound_id and new_db_id == inbound_id
                 and bool(fresh_client.get("enable", True)) == target
                 and bool(db_client.get("enable", True)) == target
