@@ -114,13 +114,26 @@ ssh -T -o StrictHostKeyChecking=yes -o ConnectTimeout=12 \
   -o PreferredAuthentications=password,keyboard-interactive \
   -o PubkeyAuthentication=no "root@$HOST" sh -se <<< "$REMOTE"
 
-echo "===== LOCAL X-UI AUTHENTICATION CONFIGURATION ON MAYA1 ====="
-echo "You will be prompted LOCALLY via SSH for username/password or a panel API token."
-echo "No x-ui secrets will be printed or stored on the dashboard server."
-ssh -tt -o StrictHostKeyChecking=yes -o ConnectTimeout=12 \
+echo "===== VERIFY LOCAL X-UI AUTHENTICATION ON MAYA1 ====="
+if [[ "${MAYA1_AUTH_ALREADY_CONFIGURED:-0}" == "1" ]]; then
+  echo "Resuming after successful panel configuration; do not request panel credentials again."
+else
+  echo "Run this installer directly from a terminal, not via a heredoc or piped script."
+  echo "Credentials are entered on maya1 and are never shown or copied to the dashboard."
+  if [[ ! -t 0 ]]; then
+    echo "STOP: interactive X-UI setup needs a real terminal."
+    echo "If credentials were already saved on maya1, rerun with MAYA1_AUTH_ALREADY_CONFIGURED=1."
+    exit 5
+  fi
+  ssh -tt -o StrictHostKeyChecking=yes -o ConnectTimeout=12 \
+    -o PreferredAuthentications=password,keyboard-interactive \
+    -o PubkeyAuthentication=no "root@$HOST" \
+    'python3 /usr/local/sbin/maya1-xui-control --configure'
+fi
+ssh -T -o StrictHostKeyChecking=yes -o ConnectTimeout=12 \
   -o PreferredAuthentications=password,keyboard-interactive \
   -o PubkeyAuthentication=no "root@$HOST" \
-  'python3 /usr/local/sbin/maya1-xui-control --configure'
+  'python3 /usr/local/sbin/maya1-xui-control --check'
 
 echo "===== BACKUP DASHBOARD APP FILES ====="
 BACKUP="/opt/hesab-backups/maya1-controls-$(date +%Y%m%d-%H%M%S)"
