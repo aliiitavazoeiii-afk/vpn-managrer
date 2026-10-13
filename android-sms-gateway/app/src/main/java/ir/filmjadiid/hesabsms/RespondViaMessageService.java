@@ -3,6 +3,7 @@ package ir.filmjadiid.hesabsms;
 import android.app.Service;
 import android.content.Intent;
 import android.net.Uri;
+import android.telephony.TelephonyManager;
 import android.os.IBinder;
 
 /** System-only quick text reply action required by the default SMS role. */
@@ -10,7 +11,7 @@ public class RespondViaMessageService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         try {
-            if (intent != null && Intent.ACTION_RESPOND_VIA_MESSAGE.equals(intent.getAction())) {
+            if (intent != null && TelephonyManager.ACTION_RESPOND_VIA_MESSAGE.equals(intent.getAction())) {
                 Uri uri = intent.getData();
                 CharSequence body = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
                 if (uri != null && body != null) {
