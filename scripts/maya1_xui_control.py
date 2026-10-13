@@ -181,6 +181,17 @@ def configure():
     _save(CONFIG, auth)
     print("SUCCESS: X-UI LOCAL API VERIFIED AND SAVED (no client altered)")
 
+def check_configured():
+    """Verify saved login and read-only API without changing any client."""
+    auth = _load(CONFIG, 10000)
+    result = Panel(auth).list_inbounds()
+    if len(result) != 1:
+        _fail("Unexpected local inbound count")
+    allow = _load(ALLOW, 50000)
+    if allow.get("format") != "MAYA1_ALLOWED_CLIENTS_V1" or len(allow.get("emails", [])) != 141:
+        _fail("Approved client allowlist missing")
+    print("SUCCESS: MAYA1 PANEL AUTH READY (READ ONLY)")
+
 def execute():
     body = sys.stdin.buffer.read(2049)
     if len(body) > 2048:
@@ -234,9 +245,11 @@ def execute():
 if __name__ == "__main__":
     try:
         if len(sys.argv) != 2:
-            _fail("Usage: --configure or --execute")
+            _fail("Usage: --configure, --check or --execute")
         if sys.argv[1] == "--configure":
             configure()
+        elif sys.argv[1] == "--check":
+            check_configured()
         elif sys.argv[1] == "--execute":
             execute()
         else:
