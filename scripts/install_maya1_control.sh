@@ -12,7 +12,7 @@ C=(docker compose -f docker-compose.yml -f docker-compose.sms.yml)
 cd "$BASE"
 
 echo "=== STATIC PYTHON/JINJA CHECKS ==="
-python3 -m py_compile "$REPO/scripts/maya1_xui_export.py" "$REPO/scripts/maya1_readonly_sync.py" "$REPO/patches/maya1_control.py"
+python3 -m py_compile "$REPO/scripts/maya1_xui_export.py" "$REPO/scripts/maya1_readonly_sync.py" "$REPO/scripts/maya1_usage_daily.py" "$REPO/patches/maya1_control.py"
 "${C[@]}" exec -T app python -c '
 import ast,sys
 from jinja2 import Environment
@@ -28,6 +28,7 @@ print("MAYA1 JINJA TEMPLATE VALID")
 echo "=== CHECK: admin services and code ==="
 test -s "$REPO/scripts/maya1_xui_export.py"
 test -s "$REPO/scripts/maya1_readonly_sync.py"
+test -s "$REPO/scripts/maya1_usage_daily.py"
 test -s "$REPO/patches/maya1_control.py"
 test -s docker-compose.sms.yml
 if ! systemctl is-active --quiet cron; then
@@ -95,7 +96,8 @@ ssh -T -o StrictHostKeyChecking=ask \
 echo "=== INSTALL: local audit scripts without touching app ==="
 mkdir -p scripts maya1_sync /opt/hesab-backups
 cp "$REPO/scripts/maya1_readonly_sync.py" scripts/maya1_readonly_sync.py
-chmod 700 scripts/maya1_readonly_sync.py
+cp "$REPO/scripts/maya1_usage_daily.py" scripts/maya1_usage_daily.py
+chmod 700 scripts/maya1_readonly_sync.py scripts/maya1_usage_daily.py
 chown root:root scripts/maya1_readonly_sync.py
 chmod 750 maya1_sync
 
