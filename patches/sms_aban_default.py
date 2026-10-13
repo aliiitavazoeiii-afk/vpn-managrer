@@ -14,8 +14,7 @@ _ABAN_MANUAL_ONCE_PHONES = frozenset({
 _ABAN_MANUAL_ONCE_SUFFIX = ":manual-exception-aban1"
 
 _ABAN_SMS_PATTERN = (
-    "سلام و وقت بخیر 🌷\n\n"
-    "⏳اکانت شما {expiry} تمام شده\n\n"
+    "سلام، اکانت شما {expiry} تمام شده\n\n"
     "برای تمدید وارد پنل کاربری خودتون بشید به نشانی زیر\n\n"
     "usersmanager.ir\n\n"
     "ازین پس پرداخت فقط از طریق پنل کاربری انجام میشه و نیاز به ارسال لینک پرداخت نیست\n\n"
