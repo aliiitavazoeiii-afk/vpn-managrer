@@ -144,8 +144,10 @@ public class SmsStatusReceiver extends BroadcastReceiver {
             String details = "SMS part " + (part+1) + "/" + total + ": result=" +
                     result + "; vendor=" + vendor + "; noDefault=" + noDefault +
                     "; SIM=" + Prefs.simId(c);
+            GatewaySmsStore.failed(c, jobId);
             enqueueStatus(c, jobId, "failed", details);
         } else if (completed) {
+            GatewaySmsStore.sent(c, jobId);
             enqueueStatus(c, jobId, "sent", "");
         }
     }
@@ -167,7 +169,10 @@ public class SmsStatusReceiver extends BroadcastReceiver {
                     .putInt("delivered_" + jobId, delivered).commit();
             completed = delivered == total;
         }
-        if (completed) enqueueStatus(c, jobId, "delivered", "");
+        if (completed) {
+            GatewaySmsStore.delivered(c, jobId);
+            enqueueStatus(c, jobId, "delivered", "");
+        }
     }
 
     private static synchronized void clearJob(Context c, long jobId) {
