@@ -186,6 +186,8 @@ def main():
             "mapping": mapping,
             "expected_sha": EXPECTED_SHA,
         })
+        from maya1_usage_daily import record as _usage_record
+        print("MAYA1 DAILY USAGE:", _usage_record(snapshot, OUT / "daily_usage.json"))
         print("MAYA1 SYNC COMPLETE: read-only snapshot refreshed.")
     else:
         print("DRY RUN PASSED: no files, Docker services or accounts modified.")
