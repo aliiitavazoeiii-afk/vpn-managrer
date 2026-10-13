@@ -86,7 +86,8 @@ public class SmsStatusReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent == null) return;
-        final PendingResult pending = goAsync();
+        // Persist callback evidence immediately. Network I/O happens later
+        // in the foreground GatewayService, never in a short-lived receiver.
         final Context app = context.getApplicationContext();
         final String action = intent.getAction();
         final long jobId = intent.getLongExtra("job_id", -1L);
@@ -95,21 +96,17 @@ public class SmsStatusReceiver extends BroadcastReceiver {
         final int resultCode = getResultCode();
         final int vendorCode = intent.getIntExtra("errorCode", -1);
         final boolean noDefault = intent.getBooleanExtra("noDefault", false);
-        new Thread(() -> {
-            try {
-                if (jobId < 0L || part < 0 || part > 128) return;
-                if (ACTION_SENT.equals(action)) {
-                    onSent(app, jobId, part, totalFromIntent, resultCode,
-                            vendorCode, noDefault);
-                } else if (ACTION_DELIVERED.equals(action)) {
-                    onDelivered(app, jobId, part, resultCode);
-                }
-            } catch (Exception ex) {
-                android.util.Log.e("HesabSmsGateway", "SMS callback processing failed", ex);
-            } finally {
-                pending.finish();
+        if (jobId < 0L || part < 0 || part > 128) return;
+        try {
+            if (ACTION_SENT.equals(action)) {
+                onSent(app, jobId, part, totalFromIntent, resultCode,
+                        vendorCode, noDefault);
+            } else if (ACTION_DELIVERED.equals(action)) {
+                onDelivered(app, jobId, part, resultCode);
             }
-        }, "hesab-sms-status-" + jobId + "-" + part).start();
+        } catch (Exception ex) {
+            android.util.Log.e("HesabSmsGateway", "SMS receipt persistence failed", ex);
+        }
     }
 
     private static void onSent(Context c, long jobId, int part, int requestedTotal,
@@ -120,7 +117,8 @@ public class SmsStatusReceiver extends BroadcastReceiver {
         synchronized (SmsStatusReceiver.class) {
             SharedPreferences p = prefs(c);
             total = p.getInt("total_" + jobId, 0);
-            if (total <= 0 || part >= total || p.getBoolean("sent_seen_" + jobId + "_" + part, false))
+            if (total <= 0 || part >= total || p.getBoolean("failed_" + jobId, false) ||
+                    p.getBoolean("sent_seen_" + jobId + "_" + part, false))
                 return;
             // Count a specific segment's result ONCE even if Android replays a PendingIntent.
             p.edit().putBoolean("sent_seen_" + jobId + "_" + part, true).commit();
@@ -146,9 +144,9 @@ public class SmsStatusReceiver extends BroadcastReceiver {
             String details = "SMS part " + (part+1) + "/" + total + ": result=" +
                     result + "; vendor=" + vendor + "; noDefault=" + noDefault +
                     "; SIM=" + Prefs.simId(c);
-            reportOrQueue(c, jobId, "failed", details);
+            enqueueStatus(c, jobId, "failed", details);
         } else if (completed) {
-            reportOrQueue(c, jobId, "sent", "");
+            enqueueStatus(c, jobId, "sent", "");
         }
     }
 
@@ -169,8 +167,7 @@ public class SmsStatusReceiver extends BroadcastReceiver {
                     .putInt("delivered_" + jobId, delivered).commit();
             completed = delivered == total;
         }
-        if (completed && reportOrQueue(c, jobId, "delivered", ""))
-            clearJob(c, jobId);
+        if (completed) enqueueStatus(c, jobId, "delivered", "");
     }
 
     private static synchronized void clearJob(Context c, long jobId) {
@@ -187,28 +184,20 @@ public class SmsStatusReceiver extends BroadcastReceiver {
                 .remove("pending_" + jobId + "_failed").commit();
     }
 
-    private static boolean reportOrQueue(Context c, long jobId, String status, String error) {
-        int simId = Prefs.simId(c);
-        boolean ok = false;
-        for (int i = 0; i < 3 && !ok; i++) {
-            ok = ApiClient.reportStatus(c, jobId, status, error, simId);
-            if (!ok) {
-                try { Thread.sleep(1200L * (i + 1)); }
-                catch (InterruptedException ignored) { Thread.currentThread().interrupt(); break; }
-            }
+    private static void enqueueStatus(Context c, long jobId, String status, String error) {
+        // Durable outbox; the foreground service flushes it over HTTPS.
+        // This avoids the Android BroadcastReceiver lifetime/network timeout.
+        try {
+            JSONObject obj = new JSONObject();
+            obj.put("job_id", jobId);
+            obj.put("status", status);
+            obj.put("error", error == null ? "" : error);
+            obj.put("sim_id", Prefs.simId(c));
+            prefs(c).edit().putString(
+                    "pending_" + jobId + "_" + status, obj.toString()).commit();
+        } catch (Exception ex) {
+            android.util.Log.e("HesabSmsGateway", "Failed to persist SMS status", ex);
         }
-        if (!ok) {
-            try {
-                JSONObject obj = new JSONObject();
-                obj.put("job_id", jobId);
-                obj.put("status", status);
-                obj.put("error", error == null ? "" : error);
-                obj.put("sim_id", simId);
-                prefs(c).edit().putString(
-                        "pending_" + jobId + "_" + status, obj.toString()).commit();
-            } catch (Exception ignored) {}
-        }
-        return ok;
     }
 
     public static void flushPending(Context c) {
