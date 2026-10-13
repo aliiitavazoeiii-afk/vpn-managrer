@@ -331,14 +331,14 @@ def _mc_toggle(
         payload = _mc_json.dumps({
             "email": email.strip(), "sid": sid,
             "target": bool(target), "expected": bool(expected)
-        }, ensure_ascii=False).encode() + b"\\n"
+        }, ensure_ascii=False).encode() + b"\n"
         with _mc_socket.socket(_mc_socket.AF_UNIX, _mc_socket.SOCK_STREAM) as sock:
             sock.settimeout(110)
             sock.connect(str(_MC_FOLDER / "control.sock"))
             sock.sendall(payload)
             sock.shutdown(_mc_socket.SHUT_WR)
             result = b""
-            while not result.endswith(b"\\n") and len(result) < 8192:
+            while not result.endswith(b"\n") and len(result) < 8192:
                 packet = sock.recv(8192-len(result))
                 if not packet:
                     break
