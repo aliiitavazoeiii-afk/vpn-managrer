@@ -20,14 +20,18 @@
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
-        <!-- New main surface: local SMS inbox + conversations, no cloud sync. -->
-        <activity
-            android:name=".MessagesActivity"
-            android:exported="true">
+        <!-- Hosted mobile work UI: visual updates load from server without APK reinstall. -->
+        <activity android:name=".HostedPanelActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+
+        <!-- Native personal SMS inbox and mandatory SENDTO handler. -->
+        <activity
+            android:name=".MessagesActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.SENDTO" />
                 <category android:name="android.intent.category.DEFAULT" />
