@@ -136,6 +136,23 @@ def _aban_debt_send(
             "current_jalali_month_start": _b_month_start(now),
         },
     ).mappings().first()
+    if previous and previous["status"] == "failed":
+        # Owner-authorized one-time manual resend for prior failed SMS only.
+        # Preserve the old failed job and its evidence; create a NEW job.
+        # A distinct source prevents repeated sends of this exception.
+        retry_source = source + ":manual-resend-20261013"
+        used = db.execute(
+            _sms_text("""
+                SELECT id FROM sms_jobs
+                WHERE phone=:phone AND source=:retry_source
+                LIMIT 1
+            """),
+            {"phone": normalized, "retry_source": retry_source},
+        ).first()
+        if used:
+            return _SmsRedirectResponse("/debts?sms_existing=1", 303)
+        source = retry_source
+        previous = None
     if previous:
         # One explicit operator-authorized follow-up for these three phones.
         # Prior canceled AYRIA payment requests and prior SMS delivery results
