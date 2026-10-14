@@ -1,0 +1,258 @@
+/* No phone-side gateway, no SMS API, no remote relay and no credentials.
+   One explicitly clicked Hesab send -> a dedicated Google Messages Web tab. */
+"use strict";
+
+const TRUSTED_SITE = "https://hesab.filmjadiid.ir";
+const GOOGLE_NEW = "https://messages.google.com/web/conversations/new";
+let busy = false;
+const recent = new Map();
+
+function validRequest(message, sender) {
+  if (!sender || !sender.tab || typeof sender.url !== "string") return false;
+  let site;
+  try { site = new URL(sender.url); } catch (_) { return false; }
+  if (site.origin !== TRUSTED_SITE) return false;
+  if (message?.type !== "HESAB_SEND_IN_GOOGLE_MESSAGES") return false;
+  if (!/^\+989\d{9}$/.test(message.phone || "")) return false;
+  if (typeof message.message !== "string" || !message.message.trim() ||
+      message.message.length > 1000) return false;
+  if (!["debt", "manual"].includes(message.source)) return false;
+  return true;
+}
+
+function tabReady(tabId) {
+  return new Promise((resolve, reject) => {
+    let resolved = false;
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true; chrome.tabs.onUpdated.removeListener(listener);
+        reject(new Error("GOOGLE_MESSAGES_LOAD_TIMEOUT"));
+      }
+    }, 25000);
+    const listener = (id, info, tab) => {
+      if (id !== tabId || info.status !== "complete") return;
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve(tab);
+    };
+    chrome.tabs.onUpdated.addListener(listener);
+    chrome.tabs.get(tabId, tab => {
+      if (chrome.runtime.lastError) return;
+      if (tab?.status === "complete" && !resolved) {
+        resolved = true; clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve(tab);
+      }
+    });
+  });
+}
+
+/**
+ * Runs in Google's MAIN world: Angular/Material observes native input/change
+ * events there. No extension APIs, eval, remote code or Google credentials.
+ * Fail closed: only auto-click Send after a matching phone option was selected.
+ */
+async function prepareGoogleCompose(phone, body, autoSend) {
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const digits = input => String(input || "")
+    .replace(/[۰-۹]/g, ch => String("۰۱۲۳۴۵۶۷۸۹".indexOf(ch)))
+    .replace(/[٠-٩]/g, ch => String("٠١٢٣٤٥٦٧٨٩".indexOf(ch)))
+    .replace(/\D/g, "");
+  const expected = digits(phone).slice(-10);
+  const visible = el => {
+    if (!el || !(el instanceof HTMLElement)) return false;
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return rect.width > 1 && rect.height > 1 &&
+      style.display !== "none" && style.visibility !== "hidden";
+  };
+  const waitFor = async (get, timeout = 18000) => {
+    const until = Date.now() + timeout;
+    while (Date.now() < until) {
+      const x = get();
+      if (x) return x;
+      await sleep(150);
+    }
+    return null;
+  };
+  const nativeSet = (el, value) => {
+    el.focus();
+    if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
+      const proto = el instanceof HTMLTextAreaElement ?
+        HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const set = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+      if (set) set.call(el, value);
+      else el.value = value;
+    } else if (el.isContentEditable) {
+      el.textContent = value;
+    } else throw new Error("NO_EDITABLE_INPUT");
+    el.dispatchEvent(new InputEvent("input", {
+      bubbles: true, composed: true, inputType: "insertText", data: value
+    }));
+    el.dispatchEvent(new Event("change", {bubbles:true, composed:true}));
+  };
+
+  if (location.hostname !== "messages.google.com" ||
+      location.protocol !== "https:") {
+    return {ok:false,code:"UNTRUSTED_GOOGLE_PAGE"};
+  }
+
+  if (location.pathname.includes("authentication") ||
+      location.pathname.includes("welcome")) {
+    return {ok:false,code:"PAIRING_REQUIRED",message:"Google Messages Web needs pairing"};
+  }
+
+  const recipientInput = await waitFor(() => {
+    const choices = [...document.querySelectorAll(
+      'input[placeholder], input[aria-label], input[role="combobox"], input[type="text"]'
+    )].filter(visible);
+    const preferred = choices.find(el =>
+      /phone|recipient|name|email|to\b|number|شماره|مخاطب/i.test(
+        (el.getAttribute("placeholder") || "") + " " +
+        (el.getAttribute("aria-label") || "")
+      ));
+    if (preferred) return preferred;
+    // In the new conversation route there is normally exactly one input.
+    return choices.length === 1 ? choices[0] : null;
+  }, 16000);
+
+  if (!recipientInput) {
+    return {ok:false,code:"RECIPIENT_INPUT_NOT_FOUND",
+      message:"Google Messages may need pairing or its layout changed"};
+  }
+  if (recipientInput.value?.trim()) {
+    return {ok:false,code:"EXISTING_RECIPIENT",
+      message:"The recipient field is not empty; no changes made"};
+  }
+
+  nativeSet(recipientInput, phone);
+  await sleep(1000);
+
+  const matchingOption = [...document.querySelectorAll(
+      'mws-contact-list-item, mw-contact-list-item, [role="option"], ' +
+      '[role="listitem"], mat-option, [data-e2e-contact-list-item]'
+    )].filter(visible).filter(el => {
+      const raw = digits(el.innerText || el.textContent);
+      return raw.endsWith(expected) && raw.length >= 10 && raw.length < 35;
+    });
+  if (matchingOption.length === 1) {
+    matchingOption[0].click();
+  } else {
+    // An Enter key can choose an unrelated contact when multiple suggestions
+    // are shown. Never pick an unverified person automatically.
+    return {ok:false,code:"MANUAL_RECIPIENT",
+      message:"Choose the matching number in the Google Messages tab manually"};
+  }
+
+  const composer = await waitFor(() => {
+    const candidates = [...document.querySelectorAll(
+      'mws-autosize-textarea textarea, ' +
+      'mws-message-compose textarea, textarea, ' +
+      '[contenteditable="true"][role="textbox"], [contenteditable="true"]'
+    )].filter(visible);
+    return candidates.find(el => el instanceof HTMLTextAreaElement) ||
+      candidates.find(el => el.isContentEditable) || null;
+  }, 18000);
+
+  if (!composer) {
+    return {ok:false,code:"COMPOSE_NOT_FOUND",
+      message:"Recipient may not have been selected; message not sent"};
+  }
+
+  const existing = composer instanceof HTMLTextAreaElement ?
+    composer.value : composer.textContent;
+  if (String(existing || "").trim()) {
+    return {ok:false,code:"EXISTING_DRAFT",
+      message:"The conversation already has a draft. Refusing to overwrite it."};
+  }
+
+  nativeSet(composer, body);
+  await sleep(650);
+  const typed = composer instanceof HTMLTextAreaElement ?
+    composer.value : composer.textContent;
+  if (typed !== body) {
+    return {ok:false,code:"COMPOSE_TEXT_MISMATCH",
+      message:"Google Messages did not accept the exact message text"};
+  }
+
+  if (!autoSend) {
+    return {ok:true,code:"DRAFT_READY"};
+  }
+
+  // Auto-send only after exact recipient and exact message were matched.
+  const sendButton = await waitFor(() => {
+    const nodes = [...document.querySelectorAll(
+      'button[data-e2e-send-text-button], ' +
+      'mws-message-send-button button, ' +
+      'mws-message-send-button[role="button"], ' +
+      'button[aria-label*="send" i], button[title*="send" i]'
+    )].filter(visible);
+    return nodes.find(el => !el.disabled &&
+      el.getAttribute("aria-disabled") !== "true") || null;
+  }, 6000);
+
+  if (!sendButton) {
+    return {ok:true,code:"DRAFT_READY",
+      message:"Send button not recognized; click it manually in Google Messages"};
+  }
+
+  // Exactly one automated click. Do not retry if the UI stays nonempty:
+  // a retry might send twice after a delayed network response.
+  sendButton.click();
+  await sleep(1500);
+  const after = composer instanceof HTMLTextAreaElement ?
+    composer.value : composer.textContent;
+  return after === "" ?
+    {ok:true,code:"SUBMITTED"} :
+    {ok:false,code:"AMBIGUOUS_SEND",
+      message:"Send was clicked, but UI completion could not be confirmed"};
+}
+
+async function handleBridge(message) {
+  if (busy) return {ok:false,code:"BUSY",
+    message:"Another Google Messages request is in progress"};
+  busy = true;
+  try {
+    const now = Date.now();
+    const fingerprint = message.phone + "\0" + message.message;
+    for (const [k, time] of recent) {
+      if (now - time > 180000) recent.delete(k);
+    }
+    if (recent.has(fingerprint)) {
+      return {ok:false,code:"DUPLICATE",
+        message:"This exact message was requested recently. Check Google Messages before retrying."};
+    }
+    recent.set(fingerprint,now);
+
+    const {autoSend} = await chrome.storage.local.get({autoSend:false});
+    const tab = await chrome.tabs.create({url:GOOGLE_NEW,active:true});
+    await tabReady(tab.id);
+    const out = await chrome.scripting.executeScript({
+      target:{tabId:tab.id}, world:"MAIN", injectImmediately:false,
+      func:prepareGoogleCompose,
+      args:[message.phone,message.message,!!autoSend]
+    });
+    const result=out?.[0]?.result || {ok:false,code:"NO_COMPOSE_RESULT"};
+    return {...result, googleTabId:tab.id};
+  } catch (error) {
+    return {ok:false,code:"BROWSER_AUTOMATION_ERROR",
+      message:String(error?.message || error).slice(0,200)};
+  } finally {
+    busy = false;
+  }
+}
+
+chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
+  if (message?.type !== "HESAB_SEND_IN_GOOGLE_MESSAGES") return false;
+  if (!validRequest(message,sender)) {
+    sendResponse({ok:false,code:"UNAUTHORIZED_SITE_OR_INVALID_MESSAGE",
+      message:"Only explicitly submitted SMS forms on Hesab are accepted"});
+    return false;
+  }
+  handleBridge(message).then(sendResponse).catch(err =>
+    sendResponse({ok:false,code:"UNEXPECTED_ERROR",
+      message:String(err?.message || err).slice(0,150)}));
+  return true;
+});
