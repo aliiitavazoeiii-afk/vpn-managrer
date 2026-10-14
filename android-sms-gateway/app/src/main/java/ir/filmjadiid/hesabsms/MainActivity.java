@@ -2,6 +2,7 @@ package ir.filmjadiid.hesabsms;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -137,6 +138,24 @@ public class MainActivity extends Activity {
         );
         stopLp.topMargin = dp(9);
         card.addView(stop, stopLp);
+
+        TextView queueInfo = text(SmsStatusReceiver.queueState(this), 12, Color.rgb(244, 193, 135));
+        queueInfo.setGravity(Gravity.RIGHT);
+        LinearLayout.LayoutParams queueLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        queueLp.topMargin = dp(16);
+        card.addView(queueInfo, queueLp);
+        Button resume = button("باز کردن صف پس از بررسی خطا",
+                Color.rgb(88, 50, 42), Color.rgb(255, 222, 204));
+        card.addView(resume, fieldLp());
+        resume.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("ادامه صف ارسال؟")
+                .setMessage("اول پیام آخر را در گوشی و داشبورد بررسی کن. پیامک نامطمئن خودکار تکرار نمی‌شود؛ این دکمه فقط اجازه برداشتن پیام بعدی را می‌دهد.")
+                .setNegativeButton("انصراف", null)
+                .setPositiveButton("بررسی کردم؛ ادامه", (d, w) -> {
+                    SmsStatusReceiver.resumeAfterReview(this);
+                    queueInfo.setText(SmsStatusReceiver.queueState(this));
+                }).show());
 
         Button test = button("تست اتصال به سایت", Color.rgb(20, 43, 75), Color.rgb(174, 205, 255));
         LinearLayout.LayoutParams testLp = new LinearLayout.LayoutParams(
