@@ -65,9 +65,10 @@ public class SmsStatusReceiver extends BroadcastReceiver {
 
     private static boolean confirmedDelivered(int status, String format) {
         if (SmsMessage.FORMAT_3GPP.equals(format)) {
-            // 3GPP TS 23.040 TP-Status 0x00..0x1f: short message received.
-            // 0x20..0x3f: pending; 0x40+ is failure.
-            return status >= 0 && status < 0x20;
+            // Strict 3GPP TS 23.040: ONLY TP-Status 0x00 confirms receipt.
+            // 0x01 means forwarded by SMSC but delivery not confirmed;
+            // 0x02 means replaced; 0x20..0x3f pending, 0x40+ failures.
+            return status == 0x00;
         }
         if (SmsMessage.FORMAT_3GPP2.equals(format)) {
             // Android SmsMessage docs: CDMA receipt success = 2 << 16.
