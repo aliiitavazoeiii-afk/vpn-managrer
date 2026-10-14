@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Hesab → Google Messages",
+  "version": "0.1.0",
+  "description": "Send messages from Hesab VPN dashboard through an already paired Google Messages Web tab; no Android gateway.",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://messages.google.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://hesab.filmjadiid.ir/*"
+      ],
+      "js": [
+        "hesab.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Hesab → Google Messages"
+  }
+}
