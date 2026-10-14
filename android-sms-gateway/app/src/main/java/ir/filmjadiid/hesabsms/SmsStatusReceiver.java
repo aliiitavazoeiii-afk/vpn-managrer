@@ -21,7 +21,7 @@ public class SmsStatusReceiver extends BroadcastReceiver {
     public static final String ACTION_DELIVERED = "ir.filmjadiid.hesabsms.SMS_DELIVERED";
     private static final String STORE = "sms_delivery_state";
     private static final long TIMEOUT_MS = 180_000L;
-    private static final long GAP_MS = 20_000L;
+    private static final long GAP_MS = 8_000L;
 
     private static String resultName(int code) {
         if (code == Activity.RESULT_OK) return "RESULT_OK";
