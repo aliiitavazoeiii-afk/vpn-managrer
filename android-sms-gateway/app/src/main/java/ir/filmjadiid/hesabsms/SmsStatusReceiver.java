@@ -127,6 +127,12 @@ public class SmsStatusReceiver extends BroadcastReceiver {
                 .putLong("last_dispatch", System.currentTimeMillis()).commit();
     }
 
+    public static String lastDeliveryDiagnostic(Context c) {
+        String report = prefs(c).getString("last_delivery_report", "");
+        return report == null || report.isEmpty() ? "" :
+                "\n⚠ آخرین گزارش تأییدنشده شبکه:\n" + report;
+    }
+
     public static String queueState(Context c) {
         SharedPreferences p = prefs(c);
         if (p.getBoolean("paused", false))
