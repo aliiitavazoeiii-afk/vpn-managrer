@@ -14,8 +14,8 @@ android {
         applicationId "ir.filmjadiid.hesabsms"
         minSdk 26
         targetSdk 34
-        versionCode 2
-        versionName "1.1.0-repair"
+        versionCode 3
+        versionName "1.1.1-receipt-fix"
     }
 
     buildTypes {
