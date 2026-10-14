@@ -15,8 +15,11 @@ public final class SmsSender {
     @SuppressWarnings("deprecation")
     private static SmsManager managerFor(Context c) {
         int simId = Prefs.simId(c);
-        if (simId >= 0) return SmsManager.getSmsManagerForSubscriptionId(simId);
-        return SmsManager.getDefault();
+        // Do not silently fall back to SmsManager.getDefault(): on multi-SIM
+        // Android 15 it may have no unambiguous SMS subscription.
+        if (simId < 0) throw new IllegalStateException(
+                "Select a physical SIM card in the Gateway settings before sending");
+        return SmsManager.getSmsManagerForSubscriptionId(simId);
     }
 
     public static void send(Context c, long jobId, String phone, String message) {
