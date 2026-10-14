@@ -1,0 +1,73 @@
+name: Build Hesab Google Messages Chrome Bridge
+
+on:
+  push:
+    branches:
+      - google-messages-chrome-bridge
+    paths:
+      - "chrome-google-messages/**"
+      - ".github/workflows/build-google-messages-bridge.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check chrome-google-messages/hesab.js
+          node --check chrome-google-messages/background.js
+          node --check chrome-google-messages/popup.js
+
+      - name: Check manifest and narrow scopes
+        run: |
+          node - <<'JS'
+          const fs=require('fs'),assert=require('assert');
+          const p='chrome-google-messages/';
+          const m=JSON.parse(fs.readFileSync(p+'manifest.json','utf8'));
+          assert.equal(m.manifest_version,3);
+          assert.deepEqual(m.host_permissions,['https://messages.google.com/*']);
+          assert.deepEqual(m.content_scripts[0].matches,['https://hesab.filmjadiid.ir/*']);
+          assert(!m.permissions.includes('debugger'));
+          assert(!m.permissions.includes('webRequest'));
+          const site=fs.readFileSync(p+'hesab.js','utf8');
+          assert(site.includes('event.preventDefault()'));
+          assert(site.includes('event.stopImmediatePropagation()'));
+          assert(site.includes('/sms/debt-send'));
+          assert(site.includes('/sms/send'));
+          assert(!site.includes("fetch('/sms/debt-send'"));
+          const bg=fs.readFileSync(p+'background.js','utf8');
+          assert(bg.includes('autoSend:false'));
+          assert(bg.includes('AMBIGUOUS_SEND'));
+          console.log('Chrome extension manifest, form interception and default manual mode PASS');
+          JS
+
+      - name: Create installable extension ZIP
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile,ZIP_DEFLATED
+          root=Path("chrome-google-messages")
+          names=["manifest.json","hesab.js","background.js","popup.html","popup.js","README.md"]
+          with ZipFile("Hesab-Google-Messages-Bridge.zip","w",ZIP_DEFLATED) as archive:
+              for name in names:
+                  assert (root/name).is_file()
+                  archive.write(root/name,name)
+          print("PACKAGED",names)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Hesab-Google-Messages-Bridge
+          path: Hesab-Google-Messages-Bridge.zip
+          if-no-files-found: error
+          retention-days: 30
