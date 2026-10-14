@@ -14,12 +14,9 @@ _ABAN_MANUAL_ONCE_PHONES = frozenset({
 _ABAN_MANUAL_ONCE_SUFFIX = ":manual-exception-aban1"
 
 _ABAN_SMS_PATTERN = (
-    "سلام، اکانت شما {expiry} تمام شده\n\n"
-    "برای تمدید وارد پنل کاربری خودتون بشید به نشانی زیر\n\n"
-    "usersmanager.ir\n\n"
-    "ازین پس پرداخت فقط از طریق پنل کاربری انجام میشه و نیاز به ارسال لینک پرداخت نیست\n\n"
-    "📱با شماره همراه خودتون وارد بشید.\n\n"
-    "🗓️تمامی اکانت ها تا تاریخ ۱ آبان محاسبه شدن لذا سر رسید جدید تمامی اکانت ها یکم هر ماه هست"
+    "سلام اکانت شما {expiry} تمام شده.\n"
+    "برای تمدید با شماره همراه خودتون وارد این سایت بشید و نسبت به پرداخت اقدام فرمایید.\n\n"
+    "usersmanager.ir"
 )
 
 # Single account expiry date for an entire phone group: oldest actual due
