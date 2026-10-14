@@ -39,6 +39,7 @@ public class MainActivity extends Activity {
     private EditText pollSeconds;
     private Spinner simSpinner;
     private TextView status;
+    private TextView queueInfo;
     private final ArrayList<Integer> simIds = new ArrayList<>();
 
     private int dp(int n) {
@@ -139,7 +140,7 @@ public class MainActivity extends Activity {
         stopLp.topMargin = dp(9);
         card.addView(stop, stopLp);
 
-        TextView queueInfo = text(SmsStatusReceiver.queueState(this), 12, Color.rgb(244, 193, 135));
+        queueInfo = text(SmsStatusReceiver.queueState(this), 12, Color.rgb(244, 193, 135));
         queueInfo.setGravity(Gravity.RIGHT);
         LinearLayout.LayoutParams queueLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -400,6 +401,10 @@ public class MainActivity extends Activity {
 
     private void refreshStatus() {
         if (status == null) return;
+        if (queueInfo != null) {
+            queueInfo.setText(SmsStatusReceiver.queueState(this) +
+                    SmsStatusReceiver.lastDeliveryDiagnostic(this));
+        }
         boolean on = Prefs.enabled(this);
         status.setText(on
                 ? "● Gateway فعال است · Device ID: " + Prefs.deviceId(this)
