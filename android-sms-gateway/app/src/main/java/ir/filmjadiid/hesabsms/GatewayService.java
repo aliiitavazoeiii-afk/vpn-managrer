@@ -35,6 +35,11 @@ public class GatewayService extends Service {
             return START_NOT_STICKY;
         }
 
+        if (Prefs.simId(this) < 0) {
+            Prefs.setEnabled(this, false);
+            stopSelf(startId);
+            return START_NOT_STICKY;
+        }
         Prefs.setEnabled(this, true);
         startForeground(NOTIFICATION_ID, notification("در حال اتصال به حساب…"));
         startWorker();
