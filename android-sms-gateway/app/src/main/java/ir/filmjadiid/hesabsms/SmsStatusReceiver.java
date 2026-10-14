@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.telephony.SmsManager;
+import android.telephony.SmsMessage;
 
 import org.json.JSONObject;
 
@@ -32,6 +33,47 @@ public class SmsStatusReceiver extends BroadcastReceiver {
         if (code == SmsManager.RESULT_ERROR_NO_SERVICE) return "NO_SERVICE";
         if (code == SmsManager.RESULT_ERROR_RADIO_OFF) return "RADIO_OFF";
         return "OTHER_ANDROID_RESULT";
+    }
+
+    /**
+     * A delivery PendingIntent can have RESULT_OK for a received status report
+     * even when that report describes a temporary or permanent failure.
+     * Only the SMS-STATUS-REPORT PDU's TP-Status determines delivery.
+     *
+     * Returns Integer.MIN_VALUE if no authentic, parseable status report exists.
+     * Do not log/upload raw PDU: it may include phone number and network data.
+     */
+    private static int readDeliveryStatus(Intent intent) {
+        byte[] pdu = intent.getByteArrayExtra("pdu");
+        String format = intent.getStringExtra("format");
+        if (pdu == null || pdu.length == 0 ||
+                (!SmsMessage.FORMAT_3GPP.equals(format) &&
+                 !SmsMessage.FORMAT_3GPP2.equals(format))) {
+            return Integer.MIN_VALUE;
+        }
+        try {
+            SmsMessage report = SmsMessage.createFromPdu(pdu, format);
+            if (report == null || !report.isStatusReportMessage()) {
+                return Integer.MIN_VALUE;
+            }
+            return report.getStatus();
+        } catch (RuntimeException ex) {
+            android.util.Log.w("HesabSmsGateway", "Unable to decode SMS delivery report", ex);
+            return Integer.MIN_VALUE;
+        }
+    }
+
+    private static boolean confirmedDelivered(int status, String format) {
+        if (SmsMessage.FORMAT_3GPP.equals(format)) {
+            // 3GPP TS 23.040 TP-Status 0x00..0x1f: short message received.
+            // 0x20..0x3f: pending; 0x40+ is failure.
+            return status >= 0 && status < 0x20;
+        }
+        if (SmsMessage.FORMAT_3GPP2.equals(format)) {
+            // Android SmsMessage docs: CDMA receipt success = 2 << 16.
+            return status == (2 << 16);
+        }
+        return false;
     }
 
     private static SharedPreferences prefs(Context c) {
@@ -114,7 +156,7 @@ public class SmsStatusReceiver extends BroadcastReceiver {
                 onSent(app, jobId, part, totalFromIntent, resultCode,
                         vendorCode, noDefault);
             } else if (ACTION_DELIVERED.equals(action)) {
-                onDelivered(app, jobId, part, resultCode);
+                onDelivered(app, jobId, part, resultCode, intent);
             }
         } catch (Exception ex) {
             android.util.Log.e("HesabSmsGateway", "SMS receipt persistence failed", ex);
@@ -162,9 +204,35 @@ public class SmsStatusReceiver extends BroadcastReceiver {
         }
     }
 
-    private static void onDelivered(Context c, long jobId, int part, int result) {
-        if (result != Activity.RESULT_OK) {
-            // Delivery receipt absent/negative is NOT evidence of send failure.
+    private static void onDelivered(Context c, long jobId, int part,
+                                    int callbackResult, Intent intent) {
+        // RESULT_OK merely reports callback completion. Verify the network
+        // status report; otherwise the dashboard can show false "delivered".
+        int status = readDeliveryStatus(intent);
+        String format = intent.getStringExtra("format");
+        if (callbackResult != Activity.RESULT_OK ||
+                !confirmedDelivered(status, format)) {
+            String problem = "SMS delivery NOT confirmed: job=" + jobId
+                    + " part=" + (part + 1)
+                    + " callback=" + callbackResult
+                    + " TP-Status=" + (status == Integer.MIN_VALUE ? "missing/invalid" : status)
+                    + " format=" + (format == null ? "unknown" : format);
+            // A negative receipt does not mean the SMS failed to leave the
+            // phone. Never report "failed" or auto-retry a sent SMS here.
+            prefs(c).edit().putString("last_delivery_report", problem).commit();
+            android.util.Log.w("HesabSmsGateway", problem);
+
+            // 3GPP terminal failure report means we should review before
+            // submitting additional customer reminders.
+            if (SmsMessage.FORMAT_3GPP.equals(format)
+                    && status >= 0x40 && status <= 0x7f) {
+                synchronized (SmsStatusReceiver.class) {
+                    prefs(c).edit().putBoolean("paused", true)
+                            .putString("pause_reason", "Carrier delivery failure: job="
+                                    + jobId + " part=" + (part + 1)
+                                    + " TP-Status=" + status).commit();
+                }
+            }
             return;
         }
         boolean completed = false;
