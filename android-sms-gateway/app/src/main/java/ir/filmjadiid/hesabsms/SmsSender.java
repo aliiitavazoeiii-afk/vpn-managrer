@@ -1,6 +1,8 @@
 package ir.filmjadiid.hesabsms;
 
 import android.app.PendingIntent;
+import android.net.Uri;
+import android.os.Build;
 import android.content.Context;
 import android.content.Intent;
 import android.telephony.SmsManager;
@@ -52,13 +54,14 @@ public final class SmsSender {
         i.putExtra("job_id", jobId);
         i.putExtra("part", part);
         i.putExtra("total", total);
-        int type = action.equals(SmsStatusReceiver.ACTION_SENT) ? 1 : 2;
-        int requestCode = (int) ((jobId % 100000L) * 100L + part * 2L + type);
-        return PendingIntent.getBroadcast(
-                c,
-                requestCode,
-                i,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
+        // Explicit component + unique data URI avoids PendingIntent collisions
+        // between different SMS jobs or segments, including after app restarts.
+        String phase = action.equals(SmsStatusReceiver.ACTION_SENT) ? "sent" : "delivered";
+        i.setData(Uri.parse("hesab-gateway://receipt/" + jobId + "/" + part + "/" + phase));
+        // Mutable allows Android telephony to attach vendor errorCode diagnostics.
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT |
+                (Build.VERSION.SDK_INT >= 31 ?
+                        PendingIntent.FLAG_MUTABLE : PendingIntent.FLAG_IMMUTABLE);
+        return PendingIntent.getBroadcast(c, 0, i, flags);
     }
 }
