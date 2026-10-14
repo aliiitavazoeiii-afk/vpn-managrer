@@ -1,0 +1,44 @@
+name: Verify short debt SMS template
+
+on:
+  push:
+    branches: [sms-app]
+    paths:
+      - "patches/sms_aban_default.py"
+      - "scripts/install_short_debt_sms_20261014.sh"
+      - ".github/workflows/test-short-debt-sms.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify installer syntax
+        run: bash -n scripts/install_short_debt_sms_20261014.sh
+      - name: Verify message and per-account expiry
+        run: |
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          p = Path("patches/sms_aban_default.py")
+          s = p.read_text(encoding="utf-8")
+          compile(s, str(p), "exec")
+          nodes = [n for n in ast.parse(s).body if isinstance(n, ast.Assign)
+                   and any(isinstance(t, ast.Name) and t.id == "_ABAN_SMS_PATTERN"
+                           for t in n.targets)]
+          assert len(nodes) == 1
+          text = ast.literal_eval(nodes[0].value)
+          assert text.count("{expiry}") == 1
+          assert text.endswith("usersmanager.ir")
+          assert "نسبت به پرداخت اقدام فرمایید." in text
+          assert "body = _ABAN_SMS_PATTERN.format(expiry=jdate(earliest))" in s
+          assert "_aban_display_text = _ABAN_SMS_PATTERN.replace" in s
+          assert "INSERT INTO sms_jobs(phone,message,status,source)" in s
+          print("PASS: only text is changed; date is dynamic in preview and SMS body.")
+          print("Example SMS chars:",len(text.format(expiry="۵ شهریور")))
+          PY
