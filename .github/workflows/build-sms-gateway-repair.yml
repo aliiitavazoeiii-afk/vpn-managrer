@@ -1,0 +1,52 @@
+name: Build Hesab SMS Gateway Repair APK
+
+on:
+  push:
+    branches:
+      - sms-gateway-repair-20261014
+    paths:
+      - "android-sms-gateway/**"
+      - ".github/workflows/build-sms-gateway-repair.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android platform
+        shell: bash
+        run: |
+          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(command -v sdkmanager)"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Compile SMS-only repair
+        run: gradle -p android-sms-gateway :app:assembleDebug --stacktrace
+
+      - name: Collect APK
+        run: cp android-sms-gateway/app/build/outputs/apk/debug/app-debug.apk Hesab-SMS-Gateway-Repair.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Hesab-SMS-Gateway-Repair
+          path: Hesab-SMS-Gateway-Repair.apk
+          if-no-files-found: error
+          retention-days: 20
