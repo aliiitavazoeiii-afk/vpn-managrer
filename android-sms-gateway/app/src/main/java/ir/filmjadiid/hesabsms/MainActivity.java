@@ -311,6 +311,11 @@ public class MainActivity extends Activity {
         }
 
         saveSettings();
+        if (Prefs.simId(this) < 0) {
+            toast("برای ارسال قابل‌اعتماد، سیم‌کارت واقعی را از فهرست انتخاب کن (نه SIM پیش‌فرض).");
+            status.setText("لطفاً SIM 1 یا SIM 2 را صریح انتخاب کن.");
+            return;
+        }
         Prefs.setEnabled(this, true);
         Intent i = new Intent(this, GatewayService.class).setAction(GatewayService.ACTION_START);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(i);
@@ -348,7 +353,7 @@ public class MainActivity extends Activity {
     private void loadSims() {
         ArrayList<String> labels = new ArrayList<>();
         simIds.clear();
-        labels.add("SIM پیش‌فرض گوشی");
+        labels.add("⚠ SIM پیش‌فرض نامشخص — برای Gateway انتخاب نکن");
         simIds.add(-1);
 
         if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
