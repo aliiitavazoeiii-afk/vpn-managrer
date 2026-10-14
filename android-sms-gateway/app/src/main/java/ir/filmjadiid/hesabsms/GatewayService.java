@@ -58,18 +58,31 @@ public class GatewayService extends Service {
                         if (hb) lastHeartbeat = now;
                     }
 
-                    ApiClient.SmsJob job = ApiClient.poll(this);
-                    if (job != null) {
-                        int simId = Prefs.simId(this);
-                        boolean accepted = ApiClient.reportStatus(this, job.id, "dispatching", "", simId);
-                        if (accepted) {
-                            updateNotification("در حال ارسال به " + job.phone);
-                            try {
-                                SmsSender.send(this, job.id, job.phone, job.message);
-                            } catch (Exception e) {
-                                ApiClient.reportStatus(this, job.id, "failed", e.getClass().getSimpleName() + ": " + e.getMessage(), simId);
+                    // Claim no new job while a multipart SMS has unresolved send
+                    // callbacks or when the previous send failed. Never race jobs.
+                    if (SmsStatusReceiver.mayClaimNext(this)) {
+                        ApiClient.SmsJob job = ApiClient.poll(this);
+                        if (job != null) {
+                            int simId = Prefs.simId(this);
+                            boolean accepted = ApiClient.reportStatus(this, job.id, "dispatching", "", simId);
+                            if (accepted) {
+                                updateNotification("در حال ارسال پیامک کاری #" + job.id);
+                                try {
+                                    SmsSender.send(this, job.id, job.phone, job.message);
+                                } catch (Exception e) {
+                                    SmsStatusReceiver.stopWithError(this, job.id,
+                                            "Dispatch exception: " + e.getClass().getSimpleName());
+                                    ApiClient.reportStatus(this, job.id, "failed",
+                                            e.getClass().getSimpleName() + ": " + e.getMessage(), simId);
+                                }
+                            } else {
+                                // A claimed job was not sent; server can recover
+                                // the claim, but no user should be messaged here.
+                                updateNotification("تأیید درخواست سرور ناموفق بود");
                             }
                         }
+                    } else {
+                        updateNotification(SmsStatusReceiver.queueState(this));
                     }
                 } catch (Exception e) {
                     updateNotification("خطای ارتباط · تلاش مجدد");
