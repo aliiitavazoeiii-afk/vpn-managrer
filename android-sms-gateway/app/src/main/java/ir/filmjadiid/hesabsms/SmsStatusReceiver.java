@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.telephony.SmsManager;
 
 import org.json.JSONObject;
 
@@ -21,6 +22,17 @@ public class SmsStatusReceiver extends BroadcastReceiver {
     private static final String STORE = "sms_delivery_state";
     private static final long TIMEOUT_MS = 180_000L;
     private static final long GAP_MS = 20_000L;
+
+    private static String resultName(int code) {
+        if (code == Activity.RESULT_OK) return "RESULT_OK";
+        if (code == Activity.RESULT_CANCELED) return "RESULT_CANCELED";
+        if (code == SmsManager.RESULT_ERROR_LIMIT_EXCEEDED) return "ANDROID_SMS_LIMIT_EXCEEDED";
+        if (code == SmsManager.RESULT_RIL_REQUEST_RATE_LIMITED) return "RADIO_REQUEST_RATE_LIMITED";
+        if (code == SmsManager.RESULT_ERROR_GENERIC_FAILURE) return "GENERIC_FAILURE";
+        if (code == SmsManager.RESULT_ERROR_NO_SERVICE) return "NO_SERVICE";
+        if (code == SmsManager.RESULT_ERROR_RADIO_OFF) return "RADIO_OFF";
+        return "OTHER_ANDROID_RESULT";
+    }
 
     private static SharedPreferences prefs(Context c) {
         return c.getSharedPreferences(STORE, Context.MODE_PRIVATE);
@@ -127,7 +139,7 @@ public class SmsStatusReceiver extends BroadcastReceiver {
                 String reason = "SMS_CALLBACK_FAILURE job=" + jobId +
                         " part=" + (part+1) + "/" + total +
                         " requestedTotal=" + requestedTotal +
-                        " result=" + result + " errorCode=" + vendor +
+                        " result=" + result + " (" + resultName(result) + ")" + " errorCode=" + vendor +
                         " noDefault=" + noDefault + " sim=" + Prefs.simId(c);
                 stopWithError(c, jobId, reason);
             } else if (!p.getBoolean("failed_" + jobId, false)) {
@@ -142,7 +154,7 @@ public class SmsStatusReceiver extends BroadcastReceiver {
         }
         if (failed) {
             String details = "SMS part " + (part+1) + "/" + total + ": result=" +
-                    result + "; vendor=" + vendor + "; noDefault=" + noDefault +
+                    result + " (" + resultName(result) + ")" + "; vendor=" + vendor + "; noDefault=" + noDefault +
                     "; SIM=" + Prefs.simId(c);
             enqueueStatus(c, jobId, "failed", details);
         } else if (completed) {
