@@ -14,8 +14,8 @@ android {
         applicationId "ir.filmjadiid.hesabsms"
         minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName "3.0.0-manual"
+        versionCode 4
+        versionName "3.0.1-manual-fixed"
     }
 
     buildTypes {
