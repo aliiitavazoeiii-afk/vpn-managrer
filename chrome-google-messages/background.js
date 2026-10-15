@@ -288,6 +288,18 @@ async function handleBridge(message) {
 }
 
 chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
+  if (message?.type === "HESAB_FOCUS_ORIGINAL") {
+    if (!sender?.tab?.id || !sender.url ||
+        new URL(sender.url).origin !== TRUSTED_SITE) {
+      sendResponse({ok:false});
+      return false;
+    }
+    chrome.tabs.update(sender.tab.id,{active:true}).then(
+      () => sendResponse({ok:true}),
+      () => sendResponse({ok:false})
+    );
+    return true;
+  }
   if (message?.type !== "HESAB_SEND_IN_GOOGLE_MESSAGES") return false;
   if (!validRequest(message,sender)) {
     sendResponse({ok:false,code:"UNAUTHORIZED_SITE_OR_INVALID_MESSAGE",
