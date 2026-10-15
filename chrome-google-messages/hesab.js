@@ -123,7 +123,7 @@
       let done = false;
       const timeout = setTimeout(() => {
         if (!done) { done = true; resolve({ok:false, code:"TIMEOUT"}); }
-      }, 45000);
+      }, 85000);
       try {
         chrome.runtime.sendMessage(request, response => {
           if (done) return;
@@ -188,6 +188,8 @@
         toast("درخواست ارسال در Google Messages Web ثبت شد.\nاین تأیید تحویل به گیرنده نیست؛ مکالمه را بررسی کن.\nوضعیت بدهی در پنل به‌طور خودکار تغییر نکرد.", "ok", form);
       } else if (result.ok && result.code === "DRAFT_READY") {
         toast("گیرنده و متن در Google Messages آماده شد.\nبرای ارسال نهایی روی دکمه Send در همان تب بزن.\nوضعیت بدهی در پنل به‌طور خودکار تغییر نکرد.", "ok", form);
+      } else if (result.ok && result.code === "DRAFT_READY_REVIEW_RECIPIENT") {
+        toast("متن فارسی در چت Google Messages آماده شد.\nانتخاب مخاطب از روی شماره تأیید خودکار نشده؛ شماره را دقیق بررسی کن و فقط خودت روی Send بزن.\nوضعیت بدهی تغییر نکرد.", "info", form);
       } else if (result.code === "MANUAL_RECIPIENT") {
         toast("Google Messages باز شد، اما انتخاب دقیق گیرنده به تأیید دستی نیاز دارد.\nگیرنده را انتخاب کن؛ سپس پیام را در Google Messages بفرست.\nفرم قدیمی حساب در صف قرار نگرفت.", "info", form);
       } else if (result.code === "AMBIGUOUS_SEND") {
