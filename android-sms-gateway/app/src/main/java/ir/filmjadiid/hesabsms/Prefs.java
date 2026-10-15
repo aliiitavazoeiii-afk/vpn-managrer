@@ -100,6 +100,23 @@ public final class Prefs {
     public static void pause(Context c,String reason) {
         p(c).edit().putBoolean("paused",true).putString("pause_reason",reason).commit();
     }
+    // Fail-closed test release: only the explicitly approved number may be sent.
+    // Future customer-sending builds must use an independently reviewed release.
+    public static String testPhone(Context c) {
+        String v = p(c).getString("test_phone", "");
+        return v == null ? "" : v.trim();
+    }
+    public static boolean validTestPhone(String v) {
+        return v != null && v.matches("09[0-9]{9}");
+    }
+    public static void setTestPhone(Context c, String v) {
+        p(c).edit().putString("test_phone", v == null ? "" : v.trim()).commit();
+    }
+    public static boolean allowedTestRecipient(Context c, String phone) {
+        String approved = testPhone(c);
+        return validTestPhone(approved) && approved.equals(phone == null ? "" : phone.trim());
+    }
+
     public static void unpause(Context c) {
         p(c).edit().putBoolean("paused",false).remove("pause_reason").commit();
     }
