@@ -280,9 +280,10 @@ def _bs_legacy_blocked():
 app.router.routes[:] = [
     r for r in app.router.routes
     if not (
-        getattr(r, "path", None) in ("/sms/send", "/sms/debt-send")
+        getattr(r, "path", None) in ("/sms/send", "/sms/debt-send", "/sms/{job_id}/retry")
         and "POST" in (getattr(r, "methods", set()) or set())
     )
 ]
 app.add_api_route("/sms/send", _bs_legacy_blocked, methods=["POST"])
 app.add_api_route("/sms/debt-send", _bs_legacy_blocked, methods=["POST"])
+app.add_api_route("/sms/{job_id}/retry", _bs_legacy_blocked, methods=["POST"])
