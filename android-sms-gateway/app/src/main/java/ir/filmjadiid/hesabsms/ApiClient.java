@@ -89,18 +89,14 @@ public final class ApiClient {
         return ping(c);
     }
 
-    public static SmsJob poll(Context c) throws Exception {
-        String device = URLEncoder.encode(Prefs.deviceId(c), StandardCharsets.UTF_8.name());
-        String approved = Prefs.testPhone(c);
-        if (!Prefs.validTestPhone(approved)) throw new IllegalStateException("test recipient not configured");
-        String phone = URLEncoder.encode(approved, StandardCharsets.UTF_8.name());
-        Resp r = request(c, "GET", "/sms-gateway/v2/jobs/next?device_id=" + device
-                + "&test_phone=" + phone, null, true);
-        if (r.code == 204) return null;
-        if (r.code != 200) throw new IllegalStateException("poll HTTP " + r.code + " " + r.body);
-
-        JSONObject j = new JSONObject(r.body);
-        return new SmsJob(j.getLong("id"), j.getString("phone"), j.getString("message"));
+    // No telephony access; this fetch only prepares a human-approved draft.
+    public static SmsJob pollDraft(Context c) throws Exception {
+        String device=URLEncoder.encode(Prefs.deviceId(c),StandardCharsets.UTF_8.name());
+        Resp r=request(c,"GET","/sms-gateway/v3/drafts/next?device_id="+device,null,true);
+        if(r.code==204) return null;
+        if(r.code!=200) throw new IllegalStateException("draft HTTP "+r.code+" "+r.body);
+        JSONObject j=new JSONObject(r.body);
+        return new SmsJob(j.getLong("id"),j.getString("phone"),j.getString("message"));
     }
 
     public static boolean markAttempting(Context c, long jobId, int parts) {
