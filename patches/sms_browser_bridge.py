@@ -265,3 +265,19 @@ async def _bs_finish(request: _bs_Request, db: _bs_Session = _bs_Depends(get_db)
 
 app.add_api_route("/sms/browser/begin", _bs_begin, methods=["POST"])
 app.add_api_route("/sms/browser/finish", _bs_finish, methods=["POST"])
+
+
+# Disable direct legacy gateway queueing from any browser/profile without the
+# bridge, preventing accidental accounting transitions on stale forms.
+def _bs_legacy_blocked():
+    return _bs_fail("BROWSER_BRIDGE_REQUIRED_NO_GATEWAY_QUEUE")
+
+app.router.routes[:] = [
+    r for r in app.router.routes
+    if not (
+        getattr(r, "path", None) in ("/sms/send", "/sms/debt-send")
+        and "POST" in (getattr(r, "methods", set()) or set())
+    )
+]
+app.add_api_route("/sms/send", _bs_legacy_blocked, methods=["POST"])
+app.add_api_route("/sms/debt-send", _bs_legacy_blocked, methods=["POST"])
