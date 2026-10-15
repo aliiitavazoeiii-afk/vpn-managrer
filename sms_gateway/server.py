@@ -577,6 +577,15 @@ def manual_draft_cancel(job_id: int, body: ManualDraftResult,
 # "operator_opened" means prepared in SMS composer, NOT sent/delivered.
 from fastapi import Query as _batch_query
 
+@app.on_event("startup")
+def _batch_initialize_queue():
+    # One schema check at gateway startup; never run DDL on each 4-second poll.
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            _native_setup(cur)
+        conn.commit()
+
+
 @app.get("/v4/drafts/pending")
 def batch_pending_drafts(
     device_id: str,
