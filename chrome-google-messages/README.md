@@ -61,3 +61,12 @@ This is a **proof of concept**, not a production delivery-confirmation service. 
 - **DRAFT_READY**: click Send yourself in the Google tab.
 - **AMBIGUOUS_SEND**: do not retry; look at the Google conversation first.
 - **Old panel says queued/delivered**: these are historical Android Gateway entries; the bridge does not edit them.
+
+## v0.1.3 — recipient selection and Persian draft
+
+- The Google Messages suggestion list is now checked repeatedly instead of only one second after entering the phone.
+- When one result visibly contains the exact requested Iranian mobile number, the extension attempts to select that result and fill the message.
+- If there is one name-only contact suggestion, it may open the conversation for **draft preparation only**. The destination was not verifiably matched to the number; the user must check it and click Send manually. Auto-send is blocked for this scenario, even if the popup option was enabled.
+- If no safe suggestion is found, the extension allows roughly 28 seconds for the user to click the intended contact, then fills the draft as soon as the composer appears. If this window expires, the attempt stops; do not expect text to appear afterward.
+- Always check the recipient and the exact Persian text before pressing Send. Selecting a recipient or filling a draft is **not** a successful send or delivery receipt.
+- Until verified with a self-owned test number, keep automatic sending disabled. Neither the backend SMS queue nor debt accounting is updated by this extension.
