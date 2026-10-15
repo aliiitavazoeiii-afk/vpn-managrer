@@ -123,4 +123,19 @@ public final class Prefs {
     public static void unpause(Context c) {
         p(c).edit().putBoolean("paused",false).remove("pause_reason").commit();
     }
+    public static boolean hasDraft(Context c) {
+        return p(c).getLong("draft_id",-1)>0;
+    }
+    public static boolean saveDraft(Context c,long id,String phone,String message) {
+        if(id<=0 || phone==null || !phone.matches("09[0-9]{9}") || message==null || message.isEmpty())
+            return false;
+        return p(c).edit().putLong("draft_id",id).putString("draft_phone",phone)
+            .putString("draft_message",message).commit();
+    }
+    public static long draftId(Context c){return p(c).getLong("draft_id",-1);}
+    public static String draftPhone(Context c){return p(c).getString("draft_phone","");}
+    public static String draftMessage(Context c){return p(c).getString("draft_message","");}
+    public static void clearDraft(Context c) {
+        p(c).edit().remove("draft_id").remove("draft_phone").remove("draft_message").commit();
+    }
 }
