@@ -588,7 +588,6 @@ def batch_pending_drafts(
         raise HTTPException(status_code=400, detail="invalid device_id")
     with db_conn() as conn:
         with conn.cursor() as cur:
-            _native_setup(cur)
             cur.execute("""
                 SELECT id, phone, message, source
                 FROM native_sms_v2_jobs
@@ -620,8 +619,7 @@ def batch_operator_open(job_id: int, body: ManualDraftResult,
     with db_conn() as conn:
         with conn.transaction():
             with conn.cursor() as cur:
-                _native_setup(cur)
-                cur.execute("""
+                    cur.execute("""
                     SELECT id,phone,source,account_ids,status,device_id
                     FROM native_sms_v2_jobs WHERE id=%s FOR UPDATE
                 """,(job_id,))
