@@ -5,6 +5,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.telephony.SmsManager;
+import android.util.Log;
 import org.json.JSONObject;
 
 import java.util.Map;
@@ -18,6 +20,18 @@ public final class SmsStatusReceiver extends BroadcastReceiver {
     public static final String ACTION_DELIVERED = "ir.filmjadiid.hesabsms.SMS_DELIVERED";
     private static final String STORE = "hesab_native_sms_v2_delivery";
     private static final Object LOCK = new Object();
+    private static final String TAG = "HesabSmsRadio";
+    private static String explain(int code) {
+        if (code == Activity.RESULT_OK) return "SENT_OK";
+        if (code == SmsManager.RESULT_ERROR_LIMIT_EXCEEDED) return "ANDROID_SMS_RATE_LIMIT";
+        if (code == SmsManager.RESULT_ERROR_RADIO_OFF) return "RADIO_OFF";
+        if (code == SmsManager.RESULT_ERROR_NO_SERVICE) return "NO_SERVICE";
+        if (code == SmsManager.RESULT_ERROR_GENERIC_FAILURE) return "GENERIC_MODEM_FAILURE";
+        if (code == SmsManager.RESULT_RIL_REQUEST_RATE_LIMITED) return "MODEM_RATE_LIMIT";
+        if (code == SmsManager.RESULT_RIL_NETWORK_REJECT) return "NETWORK_REJECT";
+        if (code == SmsManager.RESULT_RIL_MODEM_ERR) return "MODEM_ERROR";
+        return "ANDROID_CODE_" + code;
+    }
 
     private static SharedPreferences prefs(Context c) {
         return c.getSharedPreferences(STORE,Context.MODE_PRIVATE);
@@ -44,6 +58,9 @@ public final class SmsStatusReceiver extends BroadcastReceiver {
         final int part=intent.getIntExtra("part",-1);
         final int total=intent.getIntExtra("total",0);
         final int result=getResultCode();
+        final int radioError=intent.getIntExtra("errorCode",-1);
+        Log.i(TAG,"callback job="+id+" action="+action+" part="+part+"/"+total
+                +" code="+result+" cause="+explain(result)+" radioError="+radioError);
         new Thread(() -> {
           try {
             if (id<=0 || part<0 || total<1 || total>30 || part>=total) return;
@@ -53,8 +70,8 @@ public final class SmsStatusReceiver extends BroadcastReceiver {
                 if(ACTION_SENT.equals(action)) {
                     if(result!=Activity.RESULT_OK) {
                         p.edit().putBoolean("failed_"+id,true).commit();
-                        Prefs.pause(app,"Android SMS error "+result+"; job "+id);
-                        reportOrQueue(app,id,"failed",result,total,"SMS sent callback="+result);
+                        Prefs.pause(app,"SMS job "+id+" part "+part+" Android="+result+" ("+explain(result)+") radio="+radioError);
+                        reportOrQueue(app,id,"failed",result,total,"Android="+result+" ("+explain(result)+") radio="+radioError);
                         return;
                     }
                     String key="sent_"+id+"_"+part;
