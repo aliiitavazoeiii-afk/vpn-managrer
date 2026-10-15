@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - sms-app
+      - android-sms-safe-v2
     paths:
       - "android-sms-gateway/**"
       - ".github/workflows/build-sms-apk.yml"
