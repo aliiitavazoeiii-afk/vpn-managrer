@@ -34,6 +34,7 @@ public class MainActivity extends Activity {
 
     private EditText baseUrl;
     private EditText token;
+    private EditText testPhone;
     private EditText deviceName;
     private EditText pollSeconds;
     private Spinner simSpinner;
@@ -99,6 +100,11 @@ public class MainActivity extends Activity {
         token.setTextDirection(View.TEXT_DIRECTION_LTR);
         card.addView(token);
 
+        addLabel(card, "شماره آزمایشی مجاز (فقط خط خودت)");
+        testPhone = input(Prefs.testPhone(this), InputType.TYPE_CLASS_PHONE);
+        testPhone.setTextDirection(View.TEXT_DIRECTION_LTR);
+        card.addView(testPhone);
+
         addLabel(card, "نام این گوشی");
         deviceName = input(Prefs.deviceName(this), InputType.TYPE_CLASS_TEXT);
         card.addView(deviceName);
@@ -122,7 +128,7 @@ public class MainActivity extends Activity {
         statusLp.topMargin = dp(14);
         card.addView(status, statusLp);
 
-        Button start = button("شروع Gateway", Color.rgb(235, 240, 247), Color.rgb(15, 23, 36));
+        Button start = button("شروع Gateway آزمایشی", Color.rgb(235, 240, 247), Color.rgb(15, 23, 36));
         LinearLayout.LayoutParams buttonLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 dp(48)
@@ -155,7 +161,7 @@ public class MainActivity extends Activity {
         card.addView(battery, batteryLp);
 
         TextView note = text(
-                "برای ارسال خودکار، مجوز SMS و Phone را تأیید کن. اعلان دائمی کوچک یعنی Gateway روشن است. پیام‌ها با SmsManager از سیم‌کارت خود گوشی ارسال می‌شوند.",
+                "نسخه آزمایشی فقط اجازه ارسال به شماره تأییدشده بالا را دارد. بین پیام‌ها حداقل ۹۰ ثانیه فاصله است. در خطا یا نتیجه نامشخص ارسال خودکار متوقف می‌شود.",
                 11,
                 Color.rgb(110, 124, 145)
         );
@@ -263,6 +269,7 @@ public class MainActivity extends Activity {
         Prefs.setBaseUrl(this, baseUrl.getText().toString());
         Prefs.setToken(this, token.getText().toString());
         Prefs.setDeviceName(this, deviceName.getText().toString());
+        Prefs.setTestPhone(this, testPhone.getText().toString());
 
         int seconds = 15;
         try { seconds = Integer.parseInt(pollSeconds.getText().toString().trim()); }
@@ -285,6 +292,15 @@ public class MainActivity extends Activity {
             toast("Gateway Token را از سرور وارد کن.");
             return;
         }
+        if (!Prefs.validTestPhone(testPhone.getText().toString().trim())) {
+            toast("برای تست، شماره مجاز ۱۱ رقمی با 09 ثبت کن.");
+            return;
+        }
+        if (Prefs.paused(this) || Prefs.inFlight(this) >= 0L) {
+            toast("تلاش قبلی نیاز به بررسی دارد. ارسال خودکار فعال نمی‌شود.");
+            refreshStatus();
+            return;
+        }
         if (!hasCorePermissions()) {
             ensurePermissions(true);
             toast("مجوزها را تأیید کن و دوباره «شروع Gateway» را بزن.");
@@ -297,7 +313,7 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(i);
         else startService(i);
         refreshStatus();
-        toast("Gateway روشن شد.");
+        toast("Gateway فقط برای شماره آزمایشی فعال شد.");
     }
 
     private void stopGateway() {
@@ -377,10 +393,20 @@ public class MainActivity extends Activity {
     private void refreshStatus() {
         if (status == null) return;
         boolean on = Prefs.enabled(this);
-        status.setText(on
-                ? "● Gateway فعال است · Device ID: " + Prefs.deviceId(this)
-                : "● Gateway خاموش است · تنظیمات را وارد و Start کن");
-        status.setTextColor(on ? Color.rgb(94, 219, 132) : Color.rgb(148, 163, 184));
+        String detail = on ? "● Gateway آزمایشی روشن" : "● Gateway خاموش";
+        if (Prefs.paused(this)) {
+            detail += "\\n⛔ توقف ایمنی: " + Prefs.pauseReason(this);
+        } else if (Prefs.inFlight(this) >= 0L) {
+            detail += "\\nدر انتظار نتیجه job=" + Prefs.inFlight(this);
+        } else if (!Prefs.validTestPhone(Prefs.testPhone(this))) {
+            detail += "\\nشماره آزمایشی ثبت نشده است";
+        } else {
+            detail += "\\nمجاز فقط برای " + Prefs.testPhone(this);
+        }
+        detail += "\\nDevice ID: " + Prefs.deviceId(this);
+        status.setText(detail);
+        status.setTextColor(Prefs.paused(this) ? Color.rgb(248, 113, 113)
+                : on ? Color.rgb(94, 219, 132) : Color.rgb(148, 163, 184));
     }
 
     private void toast(String s) {
