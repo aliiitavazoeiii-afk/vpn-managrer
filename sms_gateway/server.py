@@ -619,7 +619,7 @@ def batch_operator_open(job_id: int, body: ManualDraftResult,
     with db_conn() as conn:
         with conn.transaction():
             with conn.cursor() as cur:
-                    cur.execute("""
+                cur.execute("""
                     SELECT id,phone,source,account_ids,status,device_id
                     FROM native_sms_v2_jobs WHERE id=%s FOR UPDATE
                 """,(job_id,))
