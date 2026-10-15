@@ -13,8 +13,12 @@ public final class SmsSender {
     @SuppressWarnings("deprecation")
     private static SmsManager managerFor(Context c) {
         int simId = Prefs.simId(c);
-        if (simId >= 0) return SmsManager.getSmsManagerForSubscriptionId(simId);
-        return SmsManager.getDefault();
+        if (simId < 0) throw new IllegalStateException("SIM must be selected explicitly");
+        return SmsManager.getSmsManagerForSubscriptionId(simId);
+    }
+
+    public static int partsCount(Context c, String message) {
+        return Math.max(1, managerFor(c).divideMessage(message).size());
     }
 
     public static void send(Context c, long jobId, String phone, String message) {
