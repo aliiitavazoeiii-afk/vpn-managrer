@@ -52,9 +52,11 @@ jobs:
           assert(site.includes('/sms/send'));
           assert(!site.includes("fetch('/sms/debt-send'"));
           const bg=fs.readFileSync(p+'background.js','utf8');
-          assert(bg.includes('autoSend:false'));
+          assert(bg.includes('autoSend:true'));
+          assert(site.includes('/sms/browser/begin'));
+          assert(site.includes('/sms/browser/finish'));
           assert(bg.includes('AMBIGUOUS_SEND'));
-          console.log('Chrome extension manifest, form interception and default manual mode PASS');
+          console.log('Chrome extension manifest, form interception and guarded one-click mode PASS');
           JS
 
       - name: Create installable extension ZIP
