@@ -99,33 +99,12 @@ public final class ApiClient {
         return new SmsJob(j.getLong("id"),j.getString("phone"),j.getString("message"));
     }
 
-    public static boolean markAttempting(Context c, long jobId, int parts) {
+    public static boolean markDraftOpened(Context c,long jobId) {
         try {
             JSONObject j=new JSONObject();
             j.put("device_id",Prefs.deviceId(c));
-            j.put("status","attempting");
-            j.put("parts",parts);
-            Resp r=request(c,"POST","/sms-gateway/v2/jobs/"+jobId+"/start",j,true);
+            Resp r=request(c,"POST","/sms-gateway/v3/drafts/"+jobId+"/opened",j,true);
             return r.code==200;
-        } catch(Exception e){return false;}
-    }
-
-    public static boolean reportStatus(Context c,long jobId,String status,
-                                       String error,int simId,int resultCode,int parts) {
-        try {
-            JSONObject j=new JSONObject();
-            j.put("device_id",Prefs.deviceId(c));
-            j.put("status",status);
-            j.put("error",error==null?"":error);
-            j.put("result_code",resultCode);
-            j.put("parts",parts);
-            Resp r=request(c,"POST","/sms-gateway/v2/jobs/"+jobId+"/report",j,true);
-            return r.code==200;
-        } catch(Exception e){return false;}
-    }
-
-    // Compatibility wrapper; native V2 uses detailed result code above.
-    public static boolean reportStatus(Context c, long jobId, String status, String error, int simId) {
-        return reportStatus(c,jobId,status,error,simId,0,0);
+        }catch(Exception e){return false;}
     }
 }
