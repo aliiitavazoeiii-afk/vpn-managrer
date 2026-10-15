@@ -63,6 +63,7 @@ jobs:
           assert "SmsSender.send(" not in worker
           assert "ApiClient.pollDraft(" in worker
           assert "Intent.ACTION_SENDTO" in activity and '"sms_body"' in activity
+          assert "setContentView(scroll);" in activity, "MainActivity must attach view, otherwise app launches blank"
           assert "/v3/drafts/next" in server
           assert "/v3/drafts/next" in api
           print("PASS: manual handoff, no modem send")
