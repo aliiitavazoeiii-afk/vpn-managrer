@@ -101,6 +101,10 @@ public class GatewayService extends Service {
                 }
             }
             running = false;
+            if (!Prefs.enabled(this)) {
+                stopForeground(STOP_FOREGROUND_REMOVE);
+                stopSelf();
+            }
         });
     }
 
