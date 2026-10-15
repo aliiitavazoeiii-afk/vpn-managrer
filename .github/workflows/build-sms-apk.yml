@@ -43,6 +43,29 @@ jobs:
         with:
           gradle-version: "8.7"
 
+      - name: Verify SMS V2 fail-closed source contracts
+        shell: bash
+        run: |
+          python3 -m py_compile sms_gateway/server.py patches/sms_native_v2.py
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("android-sms-gateway/app/src/main/java/ir/filmjadiid/hesabsms")
+          worker=(root/"GatewayService.java").read_text()
+          sender=(root/"SmsSender.java").read_text()
+          preferences=(root/"Prefs.java").read_text()
+          api=(root/"ApiClient.java").read_text()
+          backend=Path("sms_gateway/server.py").read_text()
+          assert "ApiClient.markAttempting" in worker
+          assert 'reportStatus(this, job.id, "dispatching"' not in worker
+          assert "Prefs.begin(this, job.id)" in worker
+          assert "Prefs.allowedTestRecipient(this, job.phone)" in worker
+          assert "Prefs.allowedTestRecipient(c, phone)" in sender
+          assert 'putBoolean("enabled",false)' in preferences
+          assert '"&test_phone=" + phone' in api
+          assert "WHERE status='queued' AND phone=%s" in backend
+          print("PASS: native V2 test-only and no-retry contracts")
+          PY
+
       - name: Build debug APK
         run: gradle -p android-sms-gateway :app:assembleDebug --stacktrace
 
