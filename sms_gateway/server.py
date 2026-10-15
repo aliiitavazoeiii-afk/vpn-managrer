@@ -311,7 +311,7 @@ def native_next(device_id: str, test_phone: str = "", x_sms_gateway_token: str =
                 cur.execute("""
                   WITH next AS (
                     SELECT id FROM native_sms_v2_jobs
-                    WHERE status='queued' AND phone=%s
+                    WHERE status='queued' AND phone=%s AND source='manual'
                       AND NOT EXISTS (
                         SELECT 1 FROM native_sms_v2_jobs
                         WHERE status IN ('claimed','attempting','failed','uncertain')
