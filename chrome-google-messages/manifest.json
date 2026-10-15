@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Hesab → Google Messages",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Guarded one-click sending through paired Google Messages Web, with Hesab backend reconciliation; no Android gateway.",
   "permissions": [
     "tabs",
