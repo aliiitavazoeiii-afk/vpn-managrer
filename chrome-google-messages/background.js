@@ -198,11 +198,13 @@ async function prepareGoogleCompose(phone, body, autoSend) {
     )].filter(visible);
     return candidates.find(el => el instanceof HTMLTextAreaElement) ||
       candidates.find(el => el.isContentEditable) || null;
-  }, 18000);
+  }, selection ? 18000 : 28000);
 
   if (!composer) {
-    return {ok:false,code:"COMPOSE_NOT_FOUND",
-      message:"Recipient may not have been selected; message not sent"};
+    return {ok:false,code:selection ? "COMPOSE_NOT_FOUND" : "MANUAL_RECIPIENT",
+      message:selection
+        ? "The suggestion was clicked but the chat composer did not appear; no message sent"
+        : "Click the correct suggestion in Google Messages. No message was sent."};
   }
 
   const existing = composer instanceof HTMLTextAreaElement ?
@@ -221,6 +223,12 @@ async function prepareGoogleCompose(phone, body, autoSend) {
       message:"Google Messages did not accept the exact message text"};
   }
 
+  // Without an exact phone shown in a matching contact row, do not permit
+  // auto-send. The user must verify the destination and click Send manually.
+  if (!selection?.verified) {
+    return {ok:true,code:"DRAFT_READY_REVIEW_RECIPIENT",
+      message:"Draft filled. Verify the recipient in Google Messages; click Send manually."};
+  }
   if (!autoSend) {
     return {ok:true,code:"DRAFT_READY"};
   }
