@@ -32,6 +32,7 @@ public final class MainActivity extends Activity {
         root.setPadding(32,44,32,38);
         root.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(root);
+        setContentView(scroll);
         title(root,"حساب VPN · ارسال دستی",26);
         title(root,"درخواست سایت به این گوشی می‌رسد. با لمس اعلان، متن در Google Messages آماده می‌شود؛ ارسال فقط با لمس دکمه Send توسط شماست.",15);
         title(root,"آدرس حساب",14);
