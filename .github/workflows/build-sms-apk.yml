@@ -7,6 +7,9 @@ on:
       - android-sms-safe-v2
     paths:
       - "android-sms-gateway/**"
+      - "sms_gateway/server.py"
+      - "patches/sms_native_v2.py"
+      - "scripts/install_native_sms_v2_safe.sh"
       - ".github/workflows/build-sms-apk.yml"
   workflow_dispatch:
 
@@ -47,6 +50,7 @@ jobs:
         shell: bash
         run: |
           python3 -m py_compile sms_gateway/server.py patches/sms_native_v2.py
+          bash -n scripts/install_native_sms_v2_safe.sh
           python3 - <<'PY'
           from pathlib import Path
           root=Path("android-sms-gateway/app/src/main/java/ir/filmjadiid/hesabsms")
