@@ -31,6 +31,9 @@ jobs:
       - name: Test safe form field extraction
         run: node --test chrome-google-messages/tests/read-message.test.cjs
 
+      - name: Test recipient selection and draft-only safety
+        run: node --test chrome-google-messages/tests/recipient-choice.test.cjs
+
       - name: Check manifest and narrow scopes
         run: |
           node - <<'JS'
