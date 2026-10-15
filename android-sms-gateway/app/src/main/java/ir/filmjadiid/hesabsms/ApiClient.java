@@ -91,7 +91,11 @@ public final class ApiClient {
 
     public static SmsJob poll(Context c) throws Exception {
         String device = URLEncoder.encode(Prefs.deviceId(c), StandardCharsets.UTF_8.name());
-        Resp r = request(c, "GET", "/sms-gateway/v2/jobs/next?device_id=" + device, null, true);
+        String approved = Prefs.testPhone(c);
+        if (!Prefs.validTestPhone(approved)) throw new IllegalStateException("test recipient not configured");
+        String phone = URLEncoder.encode(approved, StandardCharsets.UTF_8.name());
+        Resp r = request(c, "GET", "/sms-gateway/v2/jobs/next?device_id=" + device
+                + "&test_phone=" + phone, null, true);
         if (r.code == 204) return null;
         if (r.code != 200) throw new IllegalStateException("poll HTTP " + r.code + " " + r.body);
 
