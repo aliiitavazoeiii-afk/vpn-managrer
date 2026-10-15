@@ -78,7 +78,7 @@ public final class ApiClient {
 
     public static boolean ping(Context c) {
         try {
-            Resp r = request(c, "GET", "/sms-gateway/health", null, false);
+            Resp r = request(c, "GET", "/sms-gateway/v2/health", null, false);
             return r.code == 200;
         } catch (Exception e) {
             return false;
@@ -105,7 +105,7 @@ public final class ApiClient {
 
     public static SmsJob poll(Context c) throws Exception {
         String device = URLEncoder.encode(Prefs.deviceId(c), StandardCharsets.UTF_8.name());
-        Resp r = request(c, "GET", "/sms-gateway/v1/jobs/next?device_id=" + device, null, true);
+        Resp r = request(c, "GET", "/sms-gateway/v2/jobs/next?device_id=" + device, null, true);
         if (r.code == 204) return null;
         if (r.code != 200) throw new IllegalStateException("poll HTTP " + r.code + " " + r.body);
 
@@ -113,19 +113,33 @@ public final class ApiClient {
         return new SmsJob(j.getLong("id"), j.getString("phone"), j.getString("message"));
     }
 
-    public static boolean reportStatus(Context c, long jobId, String status, String error, int simId) {
+    public static boolean markAttempting(Context c, long jobId, int parts) {
         try {
-            JSONObject j = new JSONObject();
-            j.put("device_id", Prefs.deviceId(c));
-            j.put("status", status);
-            j.put("error", error == null ? "" : error);
-            if (simId >= 0) j.put("sim_subscription_id", simId);
-            else j.put("sim_subscription_id", JSONObject.NULL);
+            JSONObject j=new JSONObject();
+            j.put("device_id",Prefs.deviceId(c));
+            j.put("status","attempting");
+            j.put("parts",parts);
+            Resp r=request(c,"POST","/sms-gateway/v2/jobs/"+jobId+"/start",j,true);
+            return r.code==200;
+        } catch(Exception e){return false;}
+    }
 
-            Resp r = request(c, "POST", "/sms-gateway/v1/jobs/" + jobId + "/status", j, true);
-            return r.code >= 200 && r.code < 300;
-        } catch (Exception e) {
-            return false;
-        }
+    public static boolean reportStatus(Context c,long jobId,String status,
+                                       String error,int simId,int resultCode,int parts) {
+        try {
+            JSONObject j=new JSONObject();
+            j.put("device_id",Prefs.deviceId(c));
+            j.put("status",status);
+            j.put("error",error==null?"":error);
+            j.put("result_code",resultCode);
+            j.put("parts",parts);
+            Resp r=request(c,"POST","/sms-gateway/v2/jobs/"+jobId+"/report",j,true);
+            return r.code==200;
+        } catch(Exception e){return false;}
+    }
+
+    // Compatibility wrapper; native V2 uses detailed result code above.
+    public static boolean reportStatus(Context c, long jobId, String status, String error, int simId) {
+        return reportStatus(c,jobId,status,error,simId,0,0);
     }
 }
