@@ -22,6 +22,9 @@ public final class SmsSender {
     }
 
     public static void send(Context c, long jobId, String phone, String message) {
+        if (!Prefs.allowedTestRecipient(c, phone)) {
+            throw new SecurityException("recipient is not the approved test phone");
+        }
         if (phone == null || phone.trim().isEmpty()) throw new IllegalArgumentException("empty phone");
         if (message == null || message.trim().isEmpty()) throw new IllegalArgumentException("empty message");
 
