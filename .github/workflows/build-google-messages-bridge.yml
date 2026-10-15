@@ -34,6 +34,24 @@ jobs:
       - name: Test recipient selection and draft-only safety
         run: node --test chrome-google-messages/tests/recipient-choice.test.cjs
 
+      - name: Validate standalone backend bridge and safe installer
+        run: |
+          python3 -m py_compile patches/sms_browser_bridge.py
+          bash -n scripts/install_browser_sms_bridge.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("patches/sms_browser_bridge.py").read_text()
+          assert 'sms_browser_intents' in p
+          assert 'browser_submitted' in p
+          assert 'delivery_confirmed":False' in p
+          assert '_followup_set' in p
+          assert 'DEBT_MESSAGE_CHANGED_REVIEW_REQUIRED' in p
+          assert 'BROWSER_BRIDGE_REQUIRED_NO_GATEWAY_QUEUE' in p
+          assert 'INSERT INTO sms_jobs' not in p
+          assert 'status=\'delivered\'' not in p
+          print("Safe browser intent backend and installer compiled")
+          PY
+
       - name: Check manifest and narrow scopes
         run: |
           node - <<'JS'
