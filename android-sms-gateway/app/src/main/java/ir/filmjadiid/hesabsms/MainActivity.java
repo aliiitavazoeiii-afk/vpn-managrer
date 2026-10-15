@@ -1,16 +1,17 @@
 package ir.filmjadiid.hesabsms;
 
-import android.Manifest;
 import android.app.Activity;
-import android.app.NotificationManager;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.InputType;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
@@ -19,199 +20,278 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public final class MainActivity extends Activity {
-    private EditText baseUrl, token;
-    private TextView status;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-    @Override protected void onCreate(Bundle bundle) {
-        super.onCreate(bundle);
-        ScrollView scroll=new ScrollView(this);
-        scroll.setFillViewport(true);
-        scroll.setBackgroundColor(Color.rgb(10,18,31));
+public final class MainActivity extends Activity {
+    private static final int BACKGROUND=0xff0a1220;
+    private static final int CARD=0xff182338;
+    private static final int OUTLINE=0xff273954;
+    private static final int MUTED=0xffabbad0;
+    private static final int ACCENT=0xffc5dcff;
+    private static final long REFRESH_MS=4000L;
+
+    private final Handler handler=new Handler(Looper.getMainLooper());
+    private final ExecutorService io=Executors.newSingleThreadExecutor();
+    private final AtomicBoolean fetching=new AtomicBoolean(false);
+    private final AtomicBoolean acknowledging=new AtomicBoolean(false);
+    private final Runnable periodic=new Runnable(){
+        @Override public void run(){
+            refresh(false);
+            handler.postDelayed(this,REFRESH_MS);
+        }
+    };
+
+    private EditText baseUrl,token;
+    private TextView status,count;
+    private LinearLayout messages;
+    private ScrollView screen;
+    private boolean visible=false;
+    private String lastFingerprint="";
+    private boolean configSaved=false;
+
+    @Override protected void onCreate(Bundle b){
+        super.onCreate(b);
+        screen=new ScrollView(this);
+        screen.setFillViewport(true);
+        screen.setBackgroundColor(BACKGROUND);
         LinearLayout root=new LinearLayout(this);
-        root.setPadding(32,44,32,38);
         root.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(root);
-        setContentView(scroll);
-        title(root,"حساب VPN · ارسال دستی",26);
-        title(root,"درخواست سایت به این گوشی می‌رسد. با لمس اعلان، متن در Google Messages آماده می‌شود؛ ارسال فقط با لمس دکمه Send توسط شماست.",15);
-        title(root,"آدرس حساب",14);
-        baseUrl=field(root,Prefs.baseUrl(this),false);
-        title(root,"Gateway Token",14);
-        token=field(root,Prefs.token(this),true);
-        Button save=button(root,"ذخیره و شروع دریافت پیام‌ها");
+        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        root.setPadding(dp(18),dp(27),dp(18),dp(34));
+        screen.addView(root,new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));
+        setContentView(screen);
+
+        TextView title=label("پیامک‌های آماده حساب VPN",24,Color.WHITE,true);
+        root.addView(title);
+        root.addView(label("همه درخواست‌های سایت یکجا اینجا نمایش داده می‌شوند. هر پیام را جداگانه در Google Messages باز کن و خودت Send را بزن.",13,MUTED,false));
+        TextView info=label("با زدن «بازکردن پیام»، سایت همان لحظه مشتری را «در انتظار» ثبت می‌کند؛ حتی اگر پیامک را ارسال نکنی.",12,ACCENT,false);
+        info.setPadding(dp(13),dp(12),dp(13),dp(12));
+        info.setBackground(shape(0xff1c3350,OUTLINE,12));
+        LinearLayout.LayoutParams infoLp=verticalMargin(dp(15));
+        root.addView(info,infoLp);
+
+        LinearLayout settings=block();
+        root.addView(settings,verticalMargin(dp(12)));
+        settings.addView(label("آدرس سرور",12,MUTED,false));
+        baseUrl=new EditText(this);
+        setupInput(baseUrl,Prefs.baseUrl(this),false);
+        settings.addView(baseUrl);
+        settings.addView(label("Gateway Token",12,MUTED,false));
+        token=new EditText(this);
+        setupInput(token,Prefs.token(this),true);
+        settings.addView(token);
+        Button save=button("ذخیره و دریافت صف",0xffdbe9ff,0xff12223a);
+        settings.addView(save);
         save.setOnClickListener(v->{
             String url=baseUrl.getText().toString().trim();
-            if(!url.startsWith("https://")){toast("آدرس باید HTTPS باشد");return;}
-            if(token.getText().toString().trim().length()<24){toast("توکن معتبر وارد کن");return;}
+            String key=token.getText().toString().trim();
+            if(!url.startsWith("https://")||key.isEmpty()){
+                toast("آدرس HTTPS و توکن لازم است");return;
+            }
             Prefs.setBaseUrl(this,url);
-            Prefs.setToken(this,token.getText().toString());
-            Prefs.setEnabled(this,true);
-            if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
-                    !=PackageManager.PERMISSION_GRANTED)
-                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},101);
-            Intent service=new Intent(this,GatewayService.class).setAction(GatewayService.ACTION_START);
-            if(Build.VERSION.SDK_INT>=26)startForegroundService(service);else startService(service);
-            toast("دریافت درخواست فعال شد؛ هیچ SMS خودکاری ارسال نمی‌شود");
-            updateStatus();
-        });
-        title(root,"برای تشخیص اینکه واقعاً Send زده‌ای، برنامه فقط پوشه پیامک‌های ارسالی گوشی را با متن و شماره همین درخواست تطبیق می‌دهد. اطلاعات سایر پیامک‌ها به سرور ارسال نمی‌شود. برای پیام RCS تشخیص خودکار تضمین‌شده نیست.",13);
-        Button permission=button(root,"فعال‌سازی تشخیص ارسال (اجازه خواندن SMS)");
-        permission.setOnClickListener(v->{
-            if(Build.VERSION.SDK_INT>=23 && !SentSmsVerifier.permitted(this)) {
-                requestPermissions(new String[]{Manifest.permission.READ_SMS},102);
-            } else toast("اجازه خواندن SMS فعال است");
-        });
-        Button open=button(root,"بازکردن پیام آماده در Google Messages");
-        open.setOnClickListener(v->openDraft());
-        Button verify=button(root,"بررسی دوباره پیامک ارسالی");
-        verify.setOnClickListener(v->verifyNow(true));
-        Button skip=button(root,"لغو پیش‌نویس ارسال‌نشده");
-        skip.setOnClickListener(v->{
-            if(!Prefs.hasDraft(this)){toast("درخواستی برای لغو وجود ندارد");return;}
-            new android.app.AlertDialog.Builder(this)
-                .setTitle("لغو پیش‌نویس")
-                .setMessage("فقط اگر مطمئنی پیامک را نفرستاده‌ای لغو کن؛ این کار مشتری را به در انتظار منتقل نمی‌کند.")
-                .setNegativeButton("بازگشت",null)
-                .setPositiveButton("لغو درخواست",(dialog,which)->{
-                    long id=Prefs.draftId(this);
-                    new Thread(()->{
-                        boolean ok=ApiClient.cancelDraft(this,id);
-                        if(ok)Prefs.clearDraft(this);
-                        runOnUiThread(()->{
-                            toast(ok?"پیش‌نویس لغو شد":"لغو در سرور تأیید نشد؛ پیش‌نویس باقی ماند");
-                            updateStatus();
-                        });
-                    },"cancel-manual-draft").start();
-                }).show();
+            Prefs.setToken(this,key);
+            configSaved=true;
+            lastFingerprint="";
+            refresh(true);
         });
 
-        Button stop=button(root,"توقف دریافت درخواست‌ها");
-        stop.setOnClickListener(v->{
-            Prefs.setEnabled(this,false);
-            stopService(new Intent(this,GatewayService.class));
-            updateStatus();
-        });
-        Button test=button(root,"آزمایش اتصال به سرور");
-        test.setOnClickListener(v->new Thread(()->{
-            boolean ok=ApiClient.ping(this);
-            runOnUiThread(()->toast(ok?"اتصال برقرار است":"اتصال API برقرار نیست؛ سرور را بررسی کن"));
-        }).start());
-        status=new TextView(this);
-        status.setTextColor(Color.WHITE);
-        status.setTextSize(14);
-        root.addView(status);
-        updateStatus();
-        processIncoming(getIntent());
+        LinearLayout queueHeader=new LinearLayout(this);
+        queueHeader.setOrientation(LinearLayout.VERTICAL);
+        root.addView(queueHeader,verticalMargin(dp(18)));
+        count=label("صف پیام‌ها",20,Color.WHITE,true);
+        queueHeader.addView(count);
+        status=label("برای بارگذاری، اطلاعات اتصال را ذخیره کن.",12,MUTED,false);
+        queueHeader.addView(status);
+        Button reload=button("به‌روزرسانی صف",0xff283a55,Color.WHITE);
+        queueHeader.addView(reload);
+        reload.setOnClickListener(v->refresh(true));
+
+        messages=new LinearLayout(this);
+        messages.setOrientation(LinearLayout.VERTICAL);
+        root.addView(messages);
+        configSaved=!Prefs.token(this).isEmpty();
     }
-    @Override protected void onNewIntent(Intent i) {
-        super.onNewIntent(i);setIntent(i);processIncoming(i);
-    }
+
     @Override protected void onResume(){
         super.onResume();
-        if(status!=null)updateStatus();
-        if(Prefs.hasDraft(this) && Prefs.draftOpenedAt(this)>0L && SentSmsVerifier.permitted(this))
-            verifyNow(false);
+        visible=true;
+        handler.removeCallbacks(periodic);
+        attemptPendingAcknowledgement();
+        refresh(true);
+        handler.postDelayed(periodic,REFRESH_MS);
     }
-    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] results){
-        super.onRequestPermissionsResult(requestCode,permissions,results);
-        if(requestCode==102){
-            toast(SentSmsVerifier.permitted(this)
-                ?"اجازه فعال شد؛ پیام ارسالی بررسی می‌شود"
-                :"اجازه خواندن SMS فعال نشد؛ انتقال خودکار انجام نمی‌شود");
-            updateStatus();
-            if(SentSmsVerifier.permitted(this))verifyNow(false);
-        }
+    @Override protected void onPause(){
+        visible=false;
+        handler.removeCallbacks(periodic);
+        super.onPause();
     }
-    private void verifyNow(boolean announce){
-        if(!Prefs.hasDraft(this)||Prefs.draftOpenedAt(this)<=0L){
-            if(announce)toast("ابتدا پیش‌نویس را در Google Messages باز کن");
-            return;
-        }
-        if(!SentSmsVerifier.permitted(this)){
-            if(announce)toast("مجوز READ_SMS فعال نیست");
-            return;
-        }
-        new Thread(()->{
-            boolean found=false,confirmed=false;
-            try{
-                found=SentSmsVerifier.matchingSentSms(this);
-                if(found){
-                    long id=Prefs.draftId(this);
-                    confirmed=ApiClient.markVerifiedSent(this,id);
-                    if(confirmed){
-                        Prefs.clearDraft(this);
-                        getSystemService(NotificationManager.class).cancel(4108);
-                    }
-                }
-            }catch(Exception error){android.util.Log.w("HesabDraft","SMS verification failed",error);}
-            final boolean matched=found,ack=confirmed;
+    @Override protected void onDestroy(){
+        handler.removeCallbacks(periodic);
+        io.shutdownNow();
+        super.onDestroy();
+    }
+
+    private void refresh(boolean force){
+        if(!configSaved || !visible)return;
+        if(!fetching.compareAndSet(false,true))return;
+        if(force)status.setText("در حال دریافت پیام‌های آماده...");
+        io.execute(()->{
+            ApiClient.Queue queue=null;
+            String error=null;
+            try{queue=ApiClient.pending(getApplicationContext());}
+            catch(Exception ex){error=ex.getMessage();}
+            final ApiClient.Queue result=queue;
+            final String problem=error;
             runOnUiThread(()->{
-                updateStatus();
-                if(announce||ack)toast(ack
-                    ?"ارسال SMS در گوشی تأیید شد؛ سایت به در انتظار منتقل می‌کند"
-                    :matched?"پیام ارسالی پیدا شد ولی پاسخ سایت دریافت نشد؛ بعداً دوباره بررسی می‌شود"
-                    :"پیامک ارسالی با همین شماره و متن هنوز شناسایی نشده است");
+                fetching.set(false);
+                if(isFinishing()||isDestroyed())return;
+                if(problem!=null){
+                    status.setText("اتصال برقرار نشد: "+problem);
+                    return;
+                }
+                status.setText("صف متصل است · هنگام بازبودن برنامه هر ۴ ثانیه تازه می‌شود");
+                renderQueue(result);
             });
-        },"verify-google-sms-sent").start();
+        });
     }
-    private void processIncoming(Intent i){
-        if(i!=null && "ir.filmjadiid.hesabsms.OPEN_DRAFT".equals(i.getAction()))openDraft();
+
+    private void renderQueue(ApiClient.Queue queue){
+        long pending=Prefs.pendingOperatorJob(this);
+        ArrayList<ApiClient.SmsJob> jobs=new ArrayList<>();
+        StringBuilder key=new StringBuilder().append(queue.total).append(':').append(pending);
+        for(ApiClient.SmsJob x:queue.drafts){
+            if(x.id==pending)continue;
+            jobs.add(x);
+            key.append(':').append(x.id).append('/').append(x.phone);
+        }
+        count.setText("پیام‌های آماده: "+queue.total+
+            (pending>0?" · ۱ مورد در حال ثبت در سایت":""));
+        if(key.toString().equals(lastFingerprint))return;
+        lastFingerprint=key.toString();
+        int previous=screen.getScrollY();
+        messages.removeAllViews();
+        if(pending>0){
+            TextView pendingNotice=label("یک درخواست بازشده هنوز در سرور تأیید نشده است. اتصال را بررسی کن؛ برنامه خودکار ثبت آن را تکرار می‌کند، نه پیامک را.",13,0xffffca97,false);
+            pendingNotice.setPadding(dp(13),dp(12),dp(13),dp(12));
+            pendingNotice.setBackground(shape(0xff412b26,0xff774b36,12));
+            messages.addView(pendingNotice,verticalMargin(dp(8)));
+            Button retry=button("تلاش مجدد برای ثبت در سایت",0xff483429,Color.WHITE);
+            messages.addView(retry);
+            retry.setOnClickListener(v->attemptPendingAcknowledgement());
+        }
+        if(jobs.isEmpty() && pending<0){
+            TextView empty=label("فعلاً پیام آماده‌ای در صف نیست.",15,MUTED,false);
+            empty.setGravity(Gravity.CENTER);
+            empty.setPadding(0,dp(40),0,dp(25));
+            messages.addView(empty);
+        }
+        for(ApiClient.SmsJob job:jobs){
+            LinearLayout c=block();
+            messages.addView(c,verticalMargin(dp(8)));
+            c.addView(label((job.source.equals("debt")?"وصول بدهی":"پیام دستی")
+                    +"  ·  درخواست "+job.id,11,ACCENT,true));
+            TextView phone=label(job.phone,19,Color.WHITE,true);
+            phone.setTextDirection(View.TEXT_DIRECTION_LTR);
+            c.addView(phone);
+            TextView body=label(job.message,13,MUTED,false);
+            body.setMaxLines(5);
+            c.addView(body);
+            Button open=button("بازکردن پیام در Google Messages",0xffdae8ff,0xff12233c);
+            c.addView(open,verticalMargin(dp(8)));
+            open.setEnabled(pending<0);
+            open.setOnClickListener(v->openMessage(job));
+        }
+        screen.post(()->screen.scrollTo(0,Math.min(previous,
+            Math.max(0,messages.getBottom()-screen.getHeight()+dp(40)))));
     }
-    private void openDraft(){
-        if(!Prefs.hasDraft(this)){toast("پیام آماده‌ای وجود ندارد");return;}
-        String phone=Prefs.draftPhone(this);
-        String message=Prefs.draftMessage(this);
-        if(!phone.matches("09[0-9]{9}") || message.isEmpty()){toast("شماره یا پیام نامعتبر است");return;}
-        // ACTION_SENDTO delegates composition AND final human send to the SMS app.
-        Intent compose=new Intent(Intent.ACTION_SENDTO,Uri.parse("smsto:"+phone));
-        compose.putExtra("sms_body",message);
+
+    private void openMessage(ApiClient.SmsJob job){
+        if(Prefs.pendingOperatorJob(this)>0){
+            toast("ابتدا ثبت پیام قبلی در سایت کامل شود");return;
+        }
+        if(!job.phone.matches("09[0-9]{9}") || job.message.trim().isEmpty()){
+            toast("شماره یا متن معتبر نیست");return;
+        }
+        // Only the user's default SMS composer. NO SEND_SMS permission/API.
+        Intent compose=new Intent(Intent.ACTION_SENDTO,Uri.parse("smsto:"+job.phone));
+        compose.putExtra("sms_body",job.message);
+        if(!Prefs.storePendingOperatorJob(this,job.id)){
+            toast("ذخیره درخواست انجام نشد");return;
+        }
         try{
-            long id=Prefs.draftId(this);
-            long previousOpen=Prefs.draftOpenedAt(this);
-            if(previousOpen<=0L && !Prefs.markDraftOpenedLocally(this,id,System.currentTimeMillis())){
-                toast("زمان بازشدن پیش‌نویس ذخیره نشد");return;
-            }
             startActivity(compose);
-            // Opening Google Messages does NOT mean an SMS was sent.
-            new Thread(()->ApiClient.markDraftOpened(getApplicationContext(),id),
-                    "draft-opened-ack").start();
-            updateStatus();
+            // User explicitly asked opening (not sending) to mark waiting.
+            // Persist & retry this acknowledgement if Android backgrounds us.
+            attemptPendingAcknowledgement();
+        }catch(ActivityNotFoundException ex){
+            Prefs.clearPendingOperatorJob(this,job.id);
+            toast("Google Messages را به‌عنوان برنامه پیش‌فرض SMS انتخاب کن");
         }catch(Exception ex){
-            toast("برنامه پیامک پیدا نشد؛ Google Messages را پیش‌فرض کن");
+            Prefs.clearPendingOperatorJob(this,job.id);
+            toast("بازکردن برنامه پیامک انجام نشد");
         }
     }
-    private void updateStatus(){
-        if(status!=null)status.setText((Prefs.enabled(this)?"دریافت درخواست فعال":"دریافت درخواست خاموش")
-                +(Prefs.hasDraft(this)
-                    ?(Prefs.draftOpenedAt(this)>0L
-                       ?"\nپیش‌نویس باز شده؛ منتظر شناسایی SMS ارسالی"
-                       :"\nیک پیام آماده بازکردن وجود دارد")
-                    :"\nپیام آماده‌ای نیست")
-                +"\nتشخیص SMS: "+(SentSmsVerifier.permitted(this)?"فعال":"غیرفعال (مجوز لازم است)")
-                +"\nDevice ID: "+Prefs.deviceId(this));
+
+    private void attemptPendingAcknowledgement(){
+        long id=Prefs.pendingOperatorJob(this);
+        if(id<=0 || !acknowledging.compareAndSet(false,true))return;
+        new Thread(()->{
+            boolean ok=ApiClient.operatorOpened(getApplicationContext(),id);
+            if(ok)Prefs.clearPendingOperatorJob(getApplicationContext(),id);
+            acknowledging.set(false);
+            runOnUiThread(()->{
+                if(isFinishing()||isDestroyed())return;
+                if(ok){
+                    lastFingerprint="";
+                    refresh(true);
+                }else if(visible)status.setText("ثبت در سایت هنوز تأیید نشده؛ اتصال را بررسی کن");
+            });
+        },"hesab-operator-ack").start();
     }
-    private void title(LinearLayout root,String t,int size){
+
+    private LinearLayout block(){
+        LinearLayout panel=new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(14),dp(12),dp(14),dp(12));
+        panel.setBackground(shape(CARD,OUTLINE,16));
+        return panel;
+    }
+    private GradientDrawable shape(int bg,int edge,int r){
+        GradientDrawable shape=new GradientDrawable();
+        shape.setColor(bg);shape.setCornerRadius(dp(r));shape.setStroke(dp(1),edge);
+        return shape;
+    }
+    private TextView label(String text,int size,int color,boolean strong){
         TextView v=new TextView(this);
-        v.setText(t);v.setTextColor(Color.WHITE);v.setTextSize(size);
+        v.setText(text);v.setTextSize(size);v.setTextColor(color);
         v.setGravity(Gravity.RIGHT);
-        v.setPadding(0,18,0,14);
-        root.addView(v);
+        if(strong)v.setTypeface(null,android.graphics.Typeface.BOLD);
+        v.setPadding(0,dp(4),0,dp(7));
+        return v;
     }
-    private EditText field(LinearLayout root,String initial,boolean secret){
-        EditText e=new EditText(this);
-        e.setText(initial);e.setTextColor(Color.WHITE);
-        e.setTextDirection(android.view.View.TEXT_DIRECTION_LTR);
-        e.setSingleLine(true);
-        e.setInputType(secret?InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD:
-                InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
-        root.addView(e,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,110));
-        return e;
-    }
-    private Button button(LinearLayout root,String caption){
-        Button b=new Button(this);b.setText(caption);b.setAllCaps(false);
-        root.addView(b,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,125));
+    private Button button(String text,int background,int foreground){
+        Button b=new Button(this);
+        b.setText(text);b.setAllCaps(false);b.setTextColor(foreground);
+        b.setTextSize(14);b.setBackground(shape(background,background,12));
         return b;
     }
-    private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
+    private void setupInput(EditText e,String initial,boolean secret){
+        e.setText(initial);e.setTextColor(Color.WHITE);e.setTextSize(14);
+        e.setSingleLine(true);e.setTextDirection(View.TEXT_DIRECTION_LTR);
+        e.setInputType(secret?InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD:
+                InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
+    }
+    private LinearLayout.LayoutParams verticalMargin(int top){
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT);
+        p.topMargin=top;
+        return p;
+    }
+    private int dp(int x){return Math.round(x*getResources().getDisplayMetrics().density);}
+    private void toast(String text){Toast.makeText(this,text,Toast.LENGTH_LONG).show();}
 }
