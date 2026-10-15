@@ -96,16 +96,8 @@ def _ns_enqueue(db, phone, source, message=""):
     if len(message)>1000:
         db.rollback()
         return None,"MESSAGE_TOO_LONG"
-    # Never send next after any uncertain/failed native job before an operator
-    # investigates, which prevents repeating the previous "five messages" issue.
-    held=db.execute(_ns_text("""
-       SELECT id,status FROM native_sms_v2_jobs
-       WHERE status IN ('failed','uncertain')
-       ORDER BY id DESC LIMIT 1
-    """)).mappings().first()
-    if held:
-        db.rollback()
-        return None,"NATIVE_QUEUE_PAUSED_CHECK_JOB_"+str(held["id"])
+    # Manual handoff does not touch the radio. Historical native SMS failures
+    # must not block preparation of a new human-approved Google Messages draft.
     job_id=db.execute(_ns_text("""
       INSERT INTO native_sms_v2_jobs(phone,message,source,cycle_key,account_ids,status)
       VALUES (:phone,:body,:source,:cycle,:ids,'queued') RETURNING id
