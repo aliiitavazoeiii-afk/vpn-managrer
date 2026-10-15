@@ -181,26 +181,9 @@ _NS_SCRIPT = r"""<script>
         headers:{"Accept":"application/json","X-Requested-With":"XMLHttpRequest"}});
       const a=await r.json();
       if(!r.ok || !a.ok){notice("پیامک ثبت نشد: "+(a.code||r.status),true);return}
-      notice("پیام در گوشی آماده است. پس از زدن Send در Google Messages، وضعیت سایت خودکار به‌روز می‌شود.",false);
-      // Compose opened is NOT sent. Watch only the authenticated backend
-      // status, which advances after Android verifies the matching sent SMS.
-      for(let i=0;i<160;i++){
-        await new Promise(resolve=>setTimeout(resolve,3000));
-        const result=await fetch("/sms/native-v2/status?job_id="+encodeURIComponent(a.job_id),
-          {credentials:"same-origin",cache:"no-store"});
-        if(!result.ok)continue;
-        const state=await result.json();
-        if(state.status==="sent" || state.status==="delivered"){
-          notice("ارسال در گوشی تأیید شد؛ مشتری به در انتظار منتقل می‌شود.",false);
-          window.setTimeout(()=>window.location.reload(),700);
-          return;
-        }
-        if(state.status==="cancelled"){
-          notice("پیش‌نویس بدون ارسال لغو شد؛ وضعیت مشتری تغییر نکرد.",true);
-          return;
-        }
-      }
-      notice("هنوز تأیید ارسال دریافت نشده. در صورت ارسال واقعی، سایت بعد از تأیید گوشی به‌روزرسانی می‌شود.",true);
+      notice("درخواست به صف گوشی اضافه شد. می‌توانی برای بقیه مشتری‌ها هم درخواست ثبت کنی؛ در اپ با بازکردن هر پیام، همان مشتری به «در انتظار» می‌رود.",false);
+      // No wait for Android: all customer requests can be queued in one visit.
+      // The operator-open endpoint is responsible for followup_waiting.
     } catch (_) {
       notice("نتیجه ثبت قطعی نیست؛ پیش از هر ارسال مجدد وضعیت را بررسی کن.",true);
     } finally {
