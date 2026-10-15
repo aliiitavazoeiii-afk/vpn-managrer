@@ -91,6 +91,9 @@ public final class MainActivity extends Activity {
         compose.putExtra("sms_body",message);
         try{
             startActivity(compose);
+            long id=Prefs.draftId(this);
+            new Thread(()->ApiClient.markDraftOpened(getApplicationContext(),id),
+                    "draft-opened-ack").start();
             Prefs.clearDraft(this);
             getSystemService(NotificationManager.class).cancel(4108);
             updateStatus();
