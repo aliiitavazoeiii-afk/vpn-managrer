@@ -55,8 +55,37 @@ public final class MainActivity extends Activity {
             toast("دریافت درخواست فعال شد؛ هیچ SMS خودکاری ارسال نمی‌شود");
             updateStatus();
         });
+        title(root,"برای تشخیص اینکه واقعاً Send زده‌ای، برنامه فقط پوشه پیامک‌های ارسالی گوشی را با متن و شماره همین درخواست تطبیق می‌دهد. اطلاعات سایر پیامک‌ها به سرور ارسال نمی‌شود. برای پیام RCS تشخیص خودکار تضمین‌شده نیست.",13);
+        Button permission=button(root,"فعال‌سازی تشخیص ارسال (اجازه خواندن SMS)");
+        permission.setOnClickListener(v->{
+            if(Build.VERSION.SDK_INT>=23 && !SentSmsVerifier.permitted(this)) {
+                requestPermissions(new String[]{Manifest.permission.READ_SMS},102);
+            } else toast("اجازه خواندن SMS فعال است");
+        });
         Button open=button(root,"بازکردن پیام آماده در Google Messages");
         open.setOnClickListener(v->openDraft());
+        Button verify=button(root,"بررسی دوباره پیامک ارسالی");
+        verify.setOnClickListener(v->verifyNow(true));
+        Button skip=button(root,"لغو پیش‌نویس ارسال‌نشده");
+        skip.setOnClickListener(v->{
+            if(!Prefs.hasDraft(this)){toast("درخواستی برای لغو وجود ندارد");return;}
+            new android.app.AlertDialog.Builder(this)
+                .setTitle("لغو پیش‌نویس")
+                .setMessage("فقط اگر مطمئنی پیامک را نفرستاده‌ای لغو کن؛ این کار مشتری را به در انتظار منتقل نمی‌کند.")
+                .setNegativeButton("بازگشت",null)
+                .setPositiveButton("لغو درخواست",(dialog,which)->{
+                    long id=Prefs.draftId(this);
+                    new Thread(()->{
+                        boolean ok=ApiClient.cancelDraft(this,id);
+                        if(ok)Prefs.clearDraft(this);
+                        runOnUiThread(()->{
+                            toast(ok?"پیش‌نویس لغو شد":"لغو در سرور تأیید نشد؛ پیش‌نویس باقی ماند");
+                            updateStatus();
+                        });
+                    },"cancel-manual-draft").start();
+                }).show();
+        });
+
         Button stop=button(root,"توقف دریافت درخواست‌ها");
         stop.setOnClickListener(v->{
             Prefs.setEnabled(this,false);
@@ -66,7 +95,7 @@ public final class MainActivity extends Activity {
         Button test=button(root,"آزمایش اتصال به سرور");
         test.setOnClickListener(v->new Thread(()->{
             boolean ok=ApiClient.ping(this);
-            runOnUiThread(()->toast(ok?"اتصال برقرار است":"اتصال V2 برقرار نیست؛ سرور را بررسی کن"));
+            runOnUiThread(()->toast(ok?"اتصال برقرار است":"اتصال API برقرار نیست؛ سرور را بررسی کن"));
         }).start());
         status=new TextView(this);
         status.setTextColor(Color.WHITE);
@@ -78,7 +107,54 @@ public final class MainActivity extends Activity {
     @Override protected void onNewIntent(Intent i) {
         super.onNewIntent(i);setIntent(i);processIncoming(i);
     }
-    @Override protected void onResume(){super.onResume();if(status!=null)updateStatus();}
+    @Override protected void onResume(){
+        super.onResume();
+        if(status!=null)updateStatus();
+        if(Prefs.hasDraft(this) && Prefs.draftOpenedAt(this)>0L && SentSmsVerifier.permitted(this))
+            verifyNow(false);
+    }
+    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] results){
+        super.onRequestPermissionsResult(requestCode,permissions,results);
+        if(requestCode==102){
+            toast(SentSmsVerifier.permitted(this)
+                ?"اجازه فعال شد؛ پیام ارسالی بررسی می‌شود"
+                :"اجازه خواندن SMS فعال نشد؛ انتقال خودکار انجام نمی‌شود");
+            updateStatus();
+            if(SentSmsVerifier.permitted(this))verifyNow(false);
+        }
+    }
+    private void verifyNow(boolean announce){
+        if(!Prefs.hasDraft(this)||Prefs.draftOpenedAt(this)<=0L){
+            if(announce)toast("ابتدا پیش‌نویس را در Google Messages باز کن");
+            return;
+        }
+        if(!SentSmsVerifier.permitted(this)){
+            if(announce)toast("مجوز READ_SMS فعال نیست");
+            return;
+        }
+        new Thread(()->{
+            boolean found=false,confirmed=false;
+            try{
+                found=SentSmsVerifier.matchingSentSms(this);
+                if(found){
+                    long id=Prefs.draftId(this);
+                    confirmed=ApiClient.markVerifiedSent(this,id);
+                    if(confirmed){
+                        Prefs.clearDraft(this);
+                        getSystemService(NotificationManager.class).cancel(4108);
+                    }
+                }
+            }catch(Exception error){android.util.Log.w("HesabDraft","SMS verification failed",error);}
+            final boolean matched=found,ack=confirmed;
+            runOnUiThread(()->{
+                updateStatus();
+                if(announce||ack)toast(ack
+                    ?"ارسال SMS در گوشی تأیید شد؛ سایت به در انتظار منتقل می‌کند"
+                    :matched?"پیام ارسالی پیدا شد ولی پاسخ سایت دریافت نشد؛ بعداً دوباره بررسی می‌شود"
+                    :"پیامک ارسالی با همین شماره و متن هنوز شناسایی نشده است");
+            });
+        },"verify-google-sms-sent").start();
+    }
     private void processIncoming(Intent i){
         if(i!=null && "ir.filmjadiid.hesabsms.OPEN_DRAFT".equals(i.getAction()))openDraft();
     }
@@ -91,18 +167,28 @@ public final class MainActivity extends Activity {
         Intent compose=new Intent(Intent.ACTION_SENDTO,Uri.parse("smsto:"+phone));
         compose.putExtra("sms_body",message);
         try{
-            startActivity(compose);
             long id=Prefs.draftId(this);
+            long previousOpen=Prefs.draftOpenedAt(this);
+            if(previousOpen<=0L && !Prefs.markDraftOpenedLocally(this,id,System.currentTimeMillis())){
+                toast("زمان بازشدن پیش‌نویس ذخیره نشد");return;
+            }
+            startActivity(compose);
+            // Opening Google Messages does NOT mean an SMS was sent.
             new Thread(()->ApiClient.markDraftOpened(getApplicationContext(),id),
                     "draft-opened-ack").start();
-            Prefs.clearDraft(this);
-            getSystemService(NotificationManager.class).cancel(4108);
             updateStatus();
-        }catch(Exception ex){toast("برنامه پیامک پیدا نشد؛ Google Messages را پیش‌فرض کن");}
+        }catch(Exception ex){
+            toast("برنامه پیامک پیدا نشد؛ Google Messages را پیش‌فرض کن");
+        }
     }
     private void updateStatus(){
         if(status!=null)status.setText((Prefs.enabled(this)?"دریافت درخواست فعال":"دریافت درخواست خاموش")
-                +(Prefs.hasDraft(this)?"\nیک پیام آماده بازکردن وجود دارد":"\nپیام آماده‌ای نیست")
+                +(Prefs.hasDraft(this)
+                    ?(Prefs.draftOpenedAt(this)>0L
+                       ?"\nپیش‌نویس باز شده؛ منتظر شناسایی SMS ارسالی"
+                       :"\nیک پیام آماده بازکردن وجود دارد")
+                    :"\nپیام آماده‌ای نیست")
+                +"\nتشخیص SMS: "+(SentSmsVerifier.permitted(this)?"فعال":"غیرفعال (مجوز لازم است)")
                 +"\nDevice ID: "+Prefs.deviceId(this));
     }
     private void title(LinearLayout root,String t,int size){
