@@ -5,7 +5,6 @@
 const TRUSTED_SITE = "https://hesab.filmjadiid.ir";
 const GOOGLE_NEW = "https://messages.google.com/web/conversations/new";
 let busy = false;
-const recent = new Map();
 
 function validRequest(message, sender) {
   if (!sender || !sender.tab || typeof sender.url !== "string") return false;
@@ -267,18 +266,10 @@ async function handleBridge(message) {
     message:"Another Google Messages request is in progress"};
   busy = true;
   try {
-    const now = Date.now();
-    const fingerprint = message.phone + "\0" + message.message;
-    for (const [k, time] of recent) {
-      if (now - time > 180000) recent.delete(k);
-    }
-    if (recent.has(fingerprint)) {
-      return {ok:false,code:"DUPLICATE",
-        message:"This exact message was requested recently. Check Google Messages before retrying."};
-    }
-    recent.set(fingerprint,now);
-
-    const {autoSend} = await chrome.storage.local.get({autoSend:false});
+    // Idempotency and duplicate blocking now live in the authenticated
+    // Hesab browser-intent endpoint, not in volatile extension memory.
+    // One explicit click creates at most one server-guarded intent.
+    const {autoSend} = await chrome.storage.local.get({autoSend:true});
     const tab = await chrome.tabs.create({url:GOOGLE_NEW,active:true});
     await tabReady(tab.id);
     const out = await chrome.scripting.executeScript({
