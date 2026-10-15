@@ -99,7 +99,8 @@ public final class SmsStatusReceiver extends BroadcastReceiver {
             if(!prefs(c).edit().putString(key,j.toString()).commit()){
                 Prefs.pause(c,"Cannot persist callback report");return;
             }
-            flushPending(c);
+            // BroadcastReceiver must not block on a 10–25s HTTP request.
+            // Foreground worker uploads this durable status on its next poll.
         } catch(Exception ex){
             Prefs.pause(c,"Cannot store SMS outcome: "+ex.getClass().getSimpleName());
         }
