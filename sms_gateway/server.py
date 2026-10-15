@@ -569,3 +569,115 @@ def manual_draft_cancel(job_id: int, body: ManualDraftResult,
     if not matched:
         raise HTTPException(409,"cannot cancel this draft")
     return {"ok":True,"status":"cancelled","sent":False}
+
+
+# GOOGLE_MESSAGES_BATCH_OPEN_V4
+# GET retrieves pending drafts without claiming them. Only explicit tap
+# (not opening the app, syncing, or fetching the queue) changes followup.
+# "operator_opened" means prepared in SMS composer, NOT sent/delivered.
+from fastapi import Query as _batch_query
+
+@app.get("/v4/drafts/pending")
+def batch_pending_drafts(
+    device_id: str,
+    limit: int = _batch_query(default=200, ge=1, le=500),
+    x_sms_gateway_token: str = Header(default=""),
+):
+    require_token(x_sms_gateway_token)
+    if not 1 <= len(device_id or "") <= 128:
+        raise HTTPException(status_code=400, detail="invalid device_id")
+    with db_conn() as conn:
+        with conn.cursor() as cur:
+            _native_setup(cur)
+            cur.execute("""
+                SELECT id, phone, message, source
+                FROM native_sms_v2_jobs
+                WHERE status='queued'
+                   OR (status IN ('claimed','opened') AND device_id=%s)
+                ORDER BY id ASC
+                LIMIT %s
+            """, (device_id, limit))
+            rows=cur.fetchall()
+            cur.execute("""
+                SELECT COUNT(*) AS n FROM native_sms_v2_jobs
+                WHERE status='queued'
+                   OR (status IN ('claimed','opened') AND device_id=%s)
+            """, (device_id,))
+            total=int(cur.fetchone()["n"])
+    return {
+        "ok":True,"total":total,
+        "drafts":[{"id":int(r["id"]),"phone":r["phone"],
+                   "message":r["message"],"source":r["source"]} for r in rows]
+    }
+
+
+@app.post("/v4/drafts/{job_id}/operator-open")
+def batch_operator_open(job_id: int, body: ManualDraftResult,
+                        x_sms_gateway_token: str = Header(default="")):
+    require_token(x_sms_gateway_token)
+    if job_id<=0:
+        raise HTTPException(status_code=400, detail="invalid job_id")
+    with db_conn() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                _native_setup(cur)
+                cur.execute("""
+                    SELECT id,phone,source,account_ids,status,device_id
+                    FROM native_sms_v2_jobs WHERE id=%s FOR UPDATE
+                """,(job_id,))
+                r=cur.fetchone()
+                if not r:
+                    raise HTTPException(status_code=404,detail="draft not found")
+                # Idempotency of an operator click; no repeat audit or waiting.
+                if r["status"]=="operator_opened" and r["device_id"]==body.device_id:
+                    return {"ok":True,"status":"operator_opened","moved":0,"duplicate":True,
+                            "sent_confirmed":False}
+                allowed=r["status"]=="queued" or (
+                    r["status"] in ("claimed","opened") and r["device_id"]==body.device_id
+                )
+                if not allowed:
+                    raise HTTPException(status_code=409,detail="draft not available for device")
+                cur.execute("""
+                    UPDATE native_sms_v2_jobs
+                       SET status='operator_opened', device_id=%s,
+                           updated_at=NOW(), claimed_at=COALESCE(claimed_at,NOW())
+                     WHERE id=%s
+                """,(body.device_id,job_id))
+                moved=0
+                if r["source"]=="debt":
+                    from datetime import date as _batch_date
+                    # Apply only to subscriptions linked to this exact queued
+                    # debt request, with the same guards as existing followup.
+                    for sid in r["account_ids"]:
+                        sid=int(sid)
+                        cur.execute("""
+                            SELECT id,phone,is_free,expiry_date
+                            FROM subscriptions WHERE id=%s FOR UPDATE
+                        """,(sid,))
+                        sub=cur.fetchone()
+                        if (not sub or sub["phone"]!=r["phone"] or
+                            sub["is_free"] or sub["expiry_date"] is None or
+                            sub["expiry_date"] > _batch_date.today()):
+                            continue
+                        cur.execute("""
+                            SELECT kind FROM audit_events
+                            WHERE kind IN ('followup_waiting','followup_cut','followup_clear')
+                              AND message LIKE %s
+                            ORDER BY id DESC LIMIT 1
+                        """,(f"sid={sid};%",))
+                        prev=cur.fetchone()
+                        if prev and prev["kind"] in ("followup_waiting","followup_cut"):
+                            continue
+                        cur.execute("""
+                            INSERT INTO audit_events(kind,message,created_at)
+                            VALUES ('followup_waiting',%s,NOW())
+                        """,(f"sid={sid}; Google Messages opened by operator; "
+                             f"job={job_id}; SMS send not verified",))
+                        moved+=1
+                cur.execute("""
+                    INSERT INTO audit_events(kind,message,created_at)
+                    VALUES ('sms_manual_operator_open',%s,NOW())
+                """,(f"job={job_id}; source={r['source']}; moved={moved}; "
+                     "Google Messages composer opened; no proof of sending",))
+    return {"ok":True,"status":"operator_opened","moved":moved,
+            "sent_confirmed":False,"duplicate":False}
