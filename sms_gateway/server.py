@@ -236,3 +236,190 @@ def update_status(
                 new_row = cur.fetchone()
 
     return {"ok": True, "status": new_row["status"]}
+
+
+# NATIVE_SMS_V2_SEPARATE_QUEUE
+# This API deliberately never consumes or retries old sms_jobs.
+# One outstanding attempt across the dedicated queue; failed/uncertain hold
+# the entire queue until an operator investigates.
+from pydantic import BaseModel as _NModel, Field as _NField
+from fastapi import Body as _NBody
+
+NATIVE_DDL = """
+CREATE TABLE IF NOT EXISTS native_sms_v2_jobs (
+ id BIGSERIAL PRIMARY KEY,
+ phone VARCHAR(11) NOT NULL, message TEXT NOT NULL,
+ source VARCHAR(12) NOT NULL,
+ cycle_key VARCHAR(32),
+ account_ids INTEGER[] NOT NULL DEFAULT '{}',
+ status VARCHAR(24) NOT NULL DEFAULT 'queued',
+ device_id VARCHAR(128),
+ parts INTEGER,
+ result_code INTEGER,
+ error TEXT,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+ claimed_at TIMESTAMPTZ,
+ started_at TIMESTAMPTZ,
+ sent_at TIMESTAMPTZ,
+ delivered_at TIMESTAMPTZ,
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS native_sms_one_debt_cycle_v2
+ ON native_sms_v2_jobs (phone,cycle_key) WHERE source='debt';
+CREATE INDEX IF NOT EXISTS native_sms_v2_queue_idx ON native_sms_v2_jobs(status,id);
+"""
+
+class NativeStatus(_NModel):
+    device_id: str = _NField(min_length=1,max_length=128)
+    status: str
+    parts: int = _NField(default=0,ge=0,le=30)
+    result_code: int = 0
+    error: str = _NField(default="", max_length=300)
+
+
+def _native_setup(cursor):
+    cursor.execute(NATIVE_DDL)
+
+
+def _native_require(token):
+    require_token(token)
+
+
+@app.get("/v2/health")
+def native_health(x_sms_gateway_token: str = Header(default="")):
+    _native_require(x_sms_gateway_token)
+    return {"ok": True, "engine": "native_sms_v2_separate_queue"}
+
+
+@app.get("/v2/jobs/next")
+def native_next(device_id: str, x_sms_gateway_token: str = Header(default="")):
+    _native_require(x_sms_gateway_token)
+    device_id = (device_id or "").strip()
+    if not 1 <= len(device_id) <= 128:
+        raise HTTPException(status_code=400, detail="device_id")
+    with db_conn() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                _native_setup(cur)
+                # Do not reclaim a timed-out claim or an attempted SMS. A
+                # callback could arrive late and duplicate SMS is unacceptable.
+                cur.execute("""
+                  WITH next AS (
+                    SELECT id FROM native_sms_v2_jobs
+                    WHERE status='queued'
+                      AND NOT EXISTS (
+                        SELECT 1 FROM native_sms_v2_jobs
+                        WHERE status IN ('claimed','attempting','failed','uncertain')
+                      )
+                      AND NOT EXISTS (
+                        SELECT 1 FROM native_sms_v2_jobs
+                        WHERE sent_at > NOW() - INTERVAL '90 seconds'
+                      )
+                    ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1
+                  )
+                  UPDATE native_sms_v2_jobs j SET status='claimed',
+                   claimed_at=NOW(), device_id=%s,updated_at=NOW()
+                  FROM next WHERE j.id=next.id
+                  RETURNING j.id,j.phone,j.message
+                """, (device_id,))
+                row=cur.fetchone()
+    return dict(row) if row else Response(status_code=204)
+
+
+@app.post("/v2/jobs/{job_id}/start")
+def native_start(job_id: int, body: NativeStatus,
+                 x_sms_gateway_token: str=Header(default="")):
+    _native_require(x_sms_gateway_token)
+    if body.status != "attempting":
+        raise HTTPException(400, "invalid start status")
+    with db_conn() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                _native_setup(cur)
+                cur.execute("""
+                   UPDATE native_sms_v2_jobs
+                   SET status='attempting',started_at=NOW(),updated_at=NOW(),
+                       parts=%s
+                   WHERE id=%s AND status='claimed' AND device_id=%s
+                   RETURNING id
+                """,(body.parts,job_id,body.device_id))
+                row=cur.fetchone()
+    if not row:
+        raise HTTPException(409,"start rejected; no retry")
+    return {"ok":True}
+
+
+@app.post("/v2/jobs/{job_id}/report")
+def native_report(job_id: int, body: NativeStatus,
+                  x_sms_gateway_token: str=Header(default="")):
+    _native_require(x_sms_gateway_token)
+    if body.status not in ("sent","delivered","failed","uncertain"):
+        raise HTTPException(400,"invalid result status")
+    with db_conn() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                _native_setup(cur)
+                cur.execute("""
+                  SELECT id,phone,source,account_ids,status,device_id
+                  FROM native_sms_v2_jobs WHERE id=%s FOR UPDATE
+                """,(job_id,))
+                row=cur.fetchone()
+                if not row or row["device_id"] != body.device_id:
+                    raise HTTPException(409,"unknown job or device")
+                current=row["status"]
+                if current == body.status:
+                    return {"ok":True,"status":current,"duplicate":True}
+                allowed = (current=="attempting" and
+                           body.status in ("sent","failed","uncertain")) or (
+                           current=="sent" and body.status=="delivered")
+                if not allowed:
+                    raise HTTPException(409,"transition not permitted; no retry")
+                cur.execute("""
+                  UPDATE native_sms_v2_jobs
+                  SET status=%s,updated_at=NOW(),result_code=%s,error=%s,
+                      sent_at=CASE WHEN %s IN ('sent','delivered')
+                           THEN COALESCE(sent_at,NOW()) ELSE sent_at END,
+                      delivered_at=CASE WHEN %s='delivered'
+                           THEN NOW() ELSE delivered_at END
+                  WHERE id=%s
+                """,(body.status,body.result_code,body.error,
+                     body.status,body.status,job_id))
+                moved=0
+                if body.status=="sent" and row["source"]=="debt":
+                    # Only accounts pinned when the operator pressed Send;
+                    # additionally guard against concurrent payment/archive.
+                    for sid in row["account_ids"]:
+                        cur.execute("""
+                          SELECT id,phone,is_free,expiry_date
+                          FROM subscriptions WHERE id=%s FOR UPDATE
+                        """,(int(sid),))
+                        sub=cur.fetchone()
+                        if not sub or sub["phone"]!=row["phone"] or sub["is_free"]:
+                            continue
+                        cur.execute("""
+                          SELECT kind FROM audit_events
+                          WHERE kind IN ('followup_waiting','followup_cut','followup_clear')
+                            AND message LIKE %s
+                          ORDER BY id DESC LIMIT 1
+                        """,(f"sid={int(sid)};%",))
+                        ev=cur.fetchone()
+                        if ev and ev["kind"] in ("followup_waiting","followup_cut"):
+                            continue
+                        # expiry at send time is rechecked; do not move accounts
+                        # already extended by payment while this SMS was sending.
+                        from datetime import date as _date
+                        if sub["expiry_date"] is None or sub["expiry_date"] > _date.today():
+                            continue
+                        cur.execute("""
+                          INSERT INTO audit_events(kind,message,created_at)
+                          VALUES ('followup_waiting',%s,NOW())
+                        """,(f"sid={int(sid)}; native SMS v2 sent; job={job_id}; "
+                             "not a delivery receipt",))
+                        moved+=1
+                cur.execute("""
+                  INSERT INTO audit_events(kind,message,created_at)
+                  VALUES ('native_sms_v2_status',%s,NOW())
+                """,(f"job={job_id}; status={body.status}; code={body.result_code}; "
+                     f"moved={moved}",))
+    return {"ok":True,"status":body.status,"moved":moved,
+            "delivery_confirmed":body.status=="delivered"}
