@@ -78,7 +78,7 @@ public final class ApiClient {
 
     public static boolean ping(Context c) {
         try {
-            Resp r = request(c, "GET", "/sms-gateway/v2/health", null, false);
+            Resp r = request(c, "GET", "/sms-gateway/v2/health", null, true);
             return r.code == 200;
         } catch (Exception e) {
             return false;
@@ -86,21 +86,7 @@ public final class ApiClient {
     }
 
     public static boolean heartbeat(Context c) {
-        try {
-            JSONObject j = new JSONObject();
-            j.put("device_id", Prefs.deviceId(c));
-            j.put("device_name", Prefs.deviceName(c));
-            j.put("app_version", BuildConfig.VERSION_NAME);
-            j.put("android_version", Build.VERSION.RELEASE == null ? "" : Build.VERSION.RELEASE);
-            int simId = Prefs.simId(c);
-            if (simId >= 0) j.put("sim_subscription_id", simId);
-            else j.put("sim_subscription_id", JSONObject.NULL);
-
-            Resp r = request(c, "POST", "/sms-gateway/v1/heartbeat", j, true);
-            return r.code >= 200 && r.code < 300;
-        } catch (Exception e) {
-            return false;
-        }
+        return ping(c);
     }
 
     public static SmsJob poll(Context c) throws Exception {
