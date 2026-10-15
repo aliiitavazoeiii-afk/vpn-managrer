@@ -5,130 +5,136 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-
 import org.json.JSONObject;
 
 import java.util.Map;
 
-public class SmsStatusReceiver extends BroadcastReceiver {
+/** SMS result receivers are independent of the activity/foreground service.
+ * No status callback is considered final until the server acknowledges it.
+ * NO automatic retry of an SMS is ever performed here.
+ */
+public final class SmsStatusReceiver extends BroadcastReceiver {
     public static final String ACTION_SENT = "ir.filmjadiid.hesabsms.SMS_SENT";
     public static final String ACTION_DELIVERED = "ir.filmjadiid.hesabsms.SMS_DELIVERED";
-    private static final String STORE = "sms_delivery_state";
+    private static final String STORE = "hesab_native_sms_v2_delivery";
+    private static final Object LOCK = new Object();
 
-    public static void initJob(Context c, long jobId, int total) {
-        SharedPreferences.Editor e = c.getSharedPreferences(STORE, Context.MODE_PRIVATE).edit();
-        e.putInt("total_" + jobId, Math.max(1, total));
-        e.putInt("sent_" + jobId, 0);
-        e.putInt("delivered_" + jobId, 0);
-        e.putBoolean("failed_" + jobId, false);
-        e.apply();
+    private static SharedPreferences prefs(Context c) {
+        return c.getSharedPreferences(STORE,Context.MODE_PRIVATE);
     }
 
-    @Override
-    public void onReceive(Context context, Intent intent) {
-        final PendingResult pending = goAsync();
-        final Context app = context.getApplicationContext();
-        final String action = intent.getAction();
-        final long jobId = intent.getLongExtra("job_id", -1L);
-        final int result = getResultCode();
+    public static void initJob(Context c,long id,int count) {
+        synchronized(LOCK) {
+            SharedPreferences.Editor ed=prefs(c).edit()
+                .putInt("total_"+id,Math.max(1,count))
+                .putBoolean("failed_"+id,false);
+            for(int i=0;i<count;i++) {
+                ed.remove("sent_"+id+"_"+i);
+                ed.remove("delivered_"+id+"_"+i);
+            }
+            if(!ed.commit()) throw new IllegalStateException("Cannot persist SMS multipart state");
+        }
+    }
 
+    @Override public void onReceive(Context context,Intent intent) {
+        final PendingResult pending=goAsync();
+        final Context app=context.getApplicationContext();
+        final String action=intent.getAction();
+        final long id=intent.getLongExtra("job_id",-1L);
+        final int part=intent.getIntExtra("part",-1);
+        final int total=intent.getIntExtra("total",0);
+        final int result=getResultCode();
         new Thread(() -> {
-            try {
-                if (jobId < 0) return;
-                SharedPreferences p = app.getSharedPreferences(STORE, Context.MODE_PRIVATE);
-                if (p.getBoolean("failed_" + jobId, false)) return;
-
-                if (ACTION_SENT.equals(action)) {
-                    if (result != Activity.RESULT_OK) {
-                        p.edit().putBoolean("failed_" + jobId, true).apply();
-                        reportOrQueue(app, jobId, "failed", "Android SMS send result=" + result);
+          try {
+            if (id<=0 || part<0 || total<1 || total>30 || part>=total) return;
+            synchronized(LOCK) {
+                SharedPreferences p=prefs(app);
+                if(p.getInt("total_"+id,0)!=total || p.getBoolean("failed_"+id,false)) return;
+                if(ACTION_SENT.equals(action)) {
+                    if(result!=Activity.RESULT_OK) {
+                        p.edit().putBoolean("failed_"+id,true).commit();
+                        Prefs.pause(app,"Android SMS error "+result+"; job "+id);
+                        reportOrQueue(app,id,"failed",result,total,"SMS sent callback="+result);
                         return;
                     }
-                    int n;
-                    int total;
-                    synchronized (SmsStatusReceiver.class) {
-                        n = p.getInt("sent_" + jobId, 0) + 1;
-                        total = p.getInt("total_" + jobId, 1);
-                        p.edit().putInt("sent_" + jobId, n).apply();
+                    String key="sent_"+id+"_"+part;
+                    if(p.getBoolean(key,false)) return; // duplicate PendingIntent callback
+                    if(!p.edit().putBoolean(key,true).commit()) {
+                        Prefs.pause(app,"Cannot persist SMS callback progress"); return;
                     }
-                    if (n >= total) {
-                        reportOrQueue(app, jobId, "sent", "");
+                    if(allParts(p,"sent_"+id+"_",total)) {
+                        reportOrQueue(app,id,"sent",0,total,"");
                     }
-                } else if (ACTION_DELIVERED.equals(action)) {
-                    if (result != Activity.RESULT_OK) return;
-                    int n;
-                    int total;
-                    synchronized (SmsStatusReceiver.class) {
-                        n = p.getInt("delivered_" + jobId, 0) + 1;
-                        total = p.getInt("total_" + jobId, 1);
-                        p.edit().putInt("delivered_" + jobId, n).apply();
-                    }
-                    if (n >= total) {
-                        if (reportOrQueue(app, jobId, "delivered", "")) {
-                            clearJob(app, jobId);
-                        }
-                    }
+                } else if(ACTION_DELIVERED.equals(action)) {
+                    // Absence of a delivery receipt is not evidence of failure;
+                    // sent status and carrier delivery are separate.
+                    if(result!=Activity.RESULT_OK) return;
+                    String key="delivered_"+id+"_"+part;
+                    if(p.getBoolean(key,false))return;
+                    p.edit().putBoolean(key,true).commit();
+                    if(allParts(p,"delivered_"+id+"_",total))
+                        reportOrQueue(app,id,"delivered",0,total,"");
                 }
-            } finally {
-                pending.finish();
             }
-        }, "sms-status-" + jobId).start();
+          } finally {pending.finish();}
+        },"sms-v2-callback-"+id).start();
     }
 
-    private static void clearJob(Context c, long jobId) {
-        c.getSharedPreferences(STORE, Context.MODE_PRIVATE).edit()
-                .remove("total_" + jobId)
-                .remove("sent_" + jobId)
-                .remove("delivered_" + jobId)
-                .remove("failed_" + jobId)
-                .remove("pending_" + jobId + "_sent")
-                .remove("pending_" + jobId + "_delivered")
-                .remove("pending_" + jobId + "_failed")
-                .apply();
+    private static boolean allParts(SharedPreferences p,String prefix,int total) {
+        for(int i=0;i<total;i++)if(!p.getBoolean(prefix+i,false))return false;
+        return true;
     }
 
-    private static boolean reportOrQueue(Context c, long jobId, String status, String error) {
-        int simId = Prefs.simId(c);
-        boolean ok = false;
-        for (int i = 0; i < 3 && !ok; i++) {
-            ok = ApiClient.reportStatus(c, jobId, status, error, simId);
-            if (!ok) {
-                try { Thread.sleep(1200L * (i + 1)); } catch (InterruptedException ignored) {}
+    private static void reportOrQueue(Context c,long id,String status,
+                                      int code,int parts,String error) {
+        try {
+            JSONObject j=new JSONObject();
+            j.put("id",id);
+            j.put("status",status);
+            j.put("code",code);
+            j.put("parts",parts);
+            j.put("error",error);
+            String key="pending_"+id+"_"+status;
+            // Critical: persist the callback before trying the HTTP request.
+            if(!prefs(c).edit().putString(key,j.toString()).commit()){
+                Prefs.pause(c,"Cannot persist callback report");return;
             }
+            flushPending(c);
+        } catch(Exception ex){
+            Prefs.pause(c,"Cannot store SMS outcome: "+ex.getClass().getSimpleName());
         }
-        if (!ok) {
-            try {
-                JSONObject j = new JSONObject();
-                j.put("job_id", jobId);
-                j.put("status", status);
-                j.put("error", error == null ? "" : error);
-                j.put("sim_id", simId);
-                c.getSharedPreferences(STORE, Context.MODE_PRIVATE)
-                        .edit()
-                        .putString("pending_" + jobId + "_" + status, j.toString())
-                        .apply();
-            } catch (Exception ignored) {}
+    }
+
+    public static void reportUnknown(Context c,long id,String detail) {
+        synchronized(LOCK) {
+            int count=prefs(c).getInt("total_"+id,1);
+            Prefs.pause(c,"SMS result uncertain: job "+id);
+            reportOrQueue(c,id,"uncertain",0,count,detail);
         }
-        return ok;
     }
 
     public static void flushPending(Context c) {
-        SharedPreferences p = c.getSharedPreferences(STORE, Context.MODE_PRIVATE);
-        Map<String, ?> all = p.getAll();
-        for (Map.Entry<String, ?> entry : all.entrySet()) {
-            if (!entry.getKey().startsWith("pending_")) continue;
-            if (!(entry.getValue() instanceof String)) continue;
-            try {
-                JSONObject j = new JSONObject((String) entry.getValue());
-                long jobId = j.getLong("job_id");
-                String status = j.getString("status");
-                String error = j.optString("error", "");
-                int simId = j.optInt("sim_id", -1);
-                if (ApiClient.reportStatus(c, jobId, status, error, simId)) {
-                    p.edit().remove(entry.getKey()).apply();
-                    if ("delivered".equals(status)) clearJob(c, jobId);
-                }
-            } catch (Exception ignored) {}
+        synchronized(LOCK){
+            Map<String,?> all=prefs(c).getAll();
+            // Always acknowledge 'sent' before a separately received 'delivered'.
+            String[] order={"sent","delivered","failed","uncertain"};
+            for(String status:order){
+              for(Map.Entry<String,?> e:all.entrySet()){
+                if(!e.getKey().startsWith("pending_") ||
+                   !e.getKey().endsWith("_"+status) ||
+                   !(e.getValue() instanceof String)) continue;
+                try{
+                    JSONObject j=new JSONObject((String)e.getValue());
+                    long id=j.getLong("id");
+                    if(ApiClient.reportStatus(c,id,status,
+                         j.optString("error",""),Prefs.simId(c),
+                         j.optInt("code",0),j.optInt("parts",0))) {
+                        prefs(c).edit().remove(e.getKey()).commit();
+                        if("sent".equals(status)) Prefs.finish(c,id);
+                    }
+                } catch(Exception ignored){}
+              }
+            }
         }
     }
 }
