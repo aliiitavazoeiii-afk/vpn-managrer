@@ -6,7 +6,7 @@ import android.content.SharedPreferences;
 import java.util.UUID;
 
 public final class Prefs {
-    private static final String NAME = "hesab_sms_gateway";
+    private static final String NAME = "hesab_sms_native_v2";
     private static final String DEFAULT_BASE = "https://hesab.filmjadiid.ir";
 
     private Prefs() {}
@@ -66,11 +66,11 @@ public final class Prefs {
 
     public static int pollSeconds(Context c) {
         int n = p(c).getInt("poll_seconds", 15);
-        return Math.max(5, Math.min(300, n));
+        return Math.max(5, Math.min(120, n));
     }
 
     public static void setPollSeconds(Context c, int n) {
-        p(c).edit().putInt("poll_seconds", Math.max(5, Math.min(300, n))).apply();
+        p(c).edit().putInt("poll_seconds", Math.max(5, Math.min(120, n))).apply();
     }
 
     public static boolean enabled(Context c) {
@@ -79,5 +79,28 @@ public final class Prefs {
 
     public static void setEnabled(Context c, boolean enabled) {
         p(c).edit().putBoolean("enabled", enabled).apply();
+    }
+
+    // Persist BEFORE calling SmsManager; never reissue a possibly-sent job.
+    public static long inFlight(Context c) { return p(c).getLong("active_job", -1L); }
+    public static long inFlightAt(Context c) { return p(c).getLong("active_job_at", 0L); }
+    public static boolean begin(Context c,long job) {
+        if (inFlight(c)>=0) return false;
+        return p(c).edit().putLong("active_job",job)
+                .putLong("active_job_at",System.currentTimeMillis()).commit();
+    }
+    public static void finish(Context c,long job) {
+        if (inFlight(c)==job) p(c).edit().remove("active_job")
+             .remove("active_job_at").putLong("next_allowed_at",
+               System.currentTimeMillis()+90000L).commit();
+    }
+    public static long nextAllowed(Context c) {return p(c).getLong("next_allowed_at",0L);}
+    public static boolean paused(Context c) {return p(c).getBoolean("paused",false);}
+    public static String pauseReason(Context c) {return p(c).getString("pause_reason","");}
+    public static void pause(Context c,String reason) {
+        p(c).edit().putBoolean("paused",true).putString("pause_reason",reason).commit();
+    }
+    public static void unpause(Context c) {
+        p(c).edit().putBoolean("paused",false).remove("pause_reason").commit();
     }
 }
