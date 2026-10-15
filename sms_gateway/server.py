@@ -292,11 +292,16 @@ def native_health(x_sms_gateway_token: str = Header(default="")):
 
 
 @app.get("/v2/jobs/next")
-def native_next(device_id: str, x_sms_gateway_token: str = Header(default="")):
+def native_next(device_id: str, test_phone: str = "", x_sms_gateway_token: str = Header(default="")):
     _native_require(x_sms_gateway_token)
     device_id = (device_id or "").strip()
     if not 1 <= len(device_id) <= 128:
         raise HTTPException(status_code=400, detail="device_id")
+    # Release is intentionally test-only: filter on the server BEFORE claiming.
+    # Older clients without test_phone are rejected rather than consuming jobs.
+    import re
+    if not re.fullmatch(r"09[0-9]{9}", test_phone or ""):
+        raise HTTPException(status_code=400, detail="valid test_phone required")
     with db_conn() as conn:
         with conn.transaction():
             with conn.cursor() as cur:
@@ -306,7 +311,7 @@ def native_next(device_id: str, x_sms_gateway_token: str = Header(default="")):
                 cur.execute("""
                   WITH next AS (
                     SELECT id FROM native_sms_v2_jobs
-                    WHERE status='queued'
+                    WHERE status='queued' AND phone=%s
                       AND NOT EXISTS (
                         SELECT 1 FROM native_sms_v2_jobs
                         WHERE status IN ('claimed','attempting','failed','uncertain')
@@ -321,7 +326,7 @@ def native_next(device_id: str, x_sms_gateway_token: str = Header(default="")):
                    claimed_at=NOW(), device_id=%s,updated_at=NOW()
                   FROM next WHERE j.id=next.id
                   RETURNING j.id,j.phone,j.message
-                """, (device_id,))
+                """, (test_phone, device_id))
                 row=cur.fetchone()
     return dict(row) if row else Response(status_code=204)
 
