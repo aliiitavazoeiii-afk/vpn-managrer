@@ -6,12 +6,14 @@ on:
       - sms-app
       - android-sms-safe-v2
       - google-messages-manual-handoff
+      - manual-sms-batch-operator-open
     paths:
       - "android-sms-gateway/**"
       - "sms_gateway/server.py"
       - "patches/sms_native_v2.py"
       - "scripts/install_native_sms_v2_safe.sh"
       - "scripts/install_sent_sms_confirmation.sh"
+      - "scripts/install_batch_operator_open.sh"
       - ".github/workflows/build-sms-apk.yml"
   workflow_dispatch:
 
@@ -48,32 +50,35 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      - name: Verify manual handoff has no SMS modem access
+      - name: Verify batch handoff and operator-click semantics
         shell: bash
         run: |
           python3 -m py_compile sms_gateway/server.py patches/sms_native_v2.py
-          bash -n scripts/install_sent_sms_confirmation.sh
+          bash -n scripts/install_batch_operator_open.sh
           python3 - <<'PY'
           from pathlib import Path
           root=Path("android-sms-gateway/app/src/main/java/ir/filmjadiid/hesabsms")
           manifest=Path("android-sms-gateway/app/src/main/AndroidManifest.xml").read_text()
           activity=(root/"MainActivity.java").read_text()
-          worker=(root/"GatewayService.java").read_text()
           api=(root/"ApiClient.java").read_text()
           server=Path("sms_gateway/server.py").read_text()
+          page=Path("patches/sms_native_v2.py").read_text()
           assert "android.permission.SEND_SMS" not in manifest
-          assert "android.permission.READ_SMS" in manifest
-          assert "SmsSender.send(" not in worker
-          assert "ApiClient.pollDraft(" in worker
+          assert "android.permission.READ_SMS" not in manifest
+          assert "GatewayService" not in manifest
+          assert not (root/"GatewayService.java").exists()
+          assert not (root/"SentSmsVerifier.java").exists()
+          assert "setContentView(screen);" in activity
           assert "Intent.ACTION_SENDTO" in activity and '"sms_body"' in activity
-          assert "SentSmsVerifier.matchingSentSms" in worker
-          assert "Prefs.clearDraft(this);" not in activity.split("private void openDraft()",1)[1].split("private void updateStatus()",1)[0]
-          assert "Telephony.Sms.Sent.CONTENT_URI" in (root/"SentSmsVerifier.java").read_text()
-          assert "verified-sent" in server and "followup_waiting" in server
-          assert "setContentView(scroll);" in activity, "MainActivity must attach view, otherwise app launches blank"
-          assert "/v3/drafts/next" in server
-          assert "/v3/drafts/next" in api
-          print("PASS: manual handoff, no modem send")
+          assert "ApiClient.pending(" in activity
+          assert "REFRESH_MS=4000L" in activity
+          assert "ApiClient.operatorOpened" in activity
+          assert "/v4/drafts/pending" in server and "/v4/drafts/{job_id}/operator-open" in server
+          assert "operator_opened" in server and "followup_waiting" in server
+          assert "sent_confirmed" in server and "False" in server
+          assert "درخواست به صف گوشی اضافه شد" in page
+          assert "/v4/drafts/pending" in api
+          print("PASS: no telephony permission, batch queue, operator-click transition")
           PY
 
       - name: Build debug APK
