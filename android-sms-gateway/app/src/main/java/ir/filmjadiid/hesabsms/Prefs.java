@@ -147,4 +147,17 @@ public final class Prefs {
         p(c).edit().remove("draft_id").remove("draft_phone")
             .remove("draft_message").remove("draft_opened_at").commit();
     }
+
+    // One durable pending server acknowledgement. Never send SMS from this app.
+    public static long pendingOperatorJob(Context c) {
+        return p(c).getLong("pending_operator_open",-1L);
+    }
+    public static boolean storePendingOperatorJob(Context c,long jobId) {
+        if(jobId<=0 || pendingOperatorJob(c)>0L)return false;
+        return p(c).edit().putLong("pending_operator_open",jobId).commit();
+    }
+    public static void clearPendingOperatorJob(Context c,long jobId) {
+        if(pendingOperatorJob(c)==jobId)
+            p(c).edit().remove("pending_operator_open").commit();
+    }
 }
