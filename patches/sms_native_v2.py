@@ -183,37 +183,20 @@ _NS_SCRIPT = r"""<script>
     busy=true;
     const btn=f.querySelector("button[type=submit]");
     if(btn)btn.disabled=true;
-    let sent=false;
     try {
       const r=await fetch("/sms/debt-send",{
         method:"POST",body:new FormData(f),credentials:"same-origin",
         headers:{"Accept":"application/json","X-Requested-With":"XMLHttpRequest"}});
       const a=await r.json();
       if(!r.ok || !a.ok){notice("پیامک ثبت نشد: "+(a.code||r.status),true);return}
-      notice("در صف ارسال از سیم‌کارت؛ تا تأیید Android منتقل نمی‌شود.",false);
-      for(let k=0;k<100;k++){
-        await new Promise(resolve=>setTimeout(resolve,3000));
-        const z=await fetch("/sms/native-v2/status?job_id="+encodeURIComponent(a.job_id),
-          {credentials:"same-origin",cache:"no-store"});
-        if(!z.ok) continue;
-        const s=await z.json();
-        if(["sent","delivered"].includes(s.status)){
-          sent=true;
-          notice("پیامک به شبکه تحویل شد؛ در انتظار ثبت شد. تحویل به گیرنده هنوز قطعی نیست.",false);
-          setTimeout(()=>location.reload(),1000);
-          return;
-        }
-        if(["failed","uncertain"].includes(s.status)){
-          notice("ارسال متوقف شد: "+s.status+" (کد "+s.result_code+"). اپ را بررسی کن؛ تکرار نکن.",true);
-          return;
-        }
-      }
-      notice("هنوز نتیجه ارسال دریافت نشده؛ از اپ و تاریخچه پیامک بررسی کن. دوباره نزن.",true);
+      notice("متن و شماره به صف گوشی منتقل شد. اعلان گوشی را لمس کن، در Google Messages بررسی کن و خودت Send را بزن.",false);
+      // A draft is not sent. Do not change the debt/waiting state.
+      return;
     } catch (_) {
       notice("نتیجه ثبت قطعی نیست؛ پیش از هر ارسال مجدد وضعیت را بررسی کن.",true);
     } finally {
       busy=false;
-      if(btn&&!sent)btn.disabled=false;
+      if(btn)btn.disabled=false;
     }
   }, true);
 })();
@@ -233,7 +216,7 @@ if _sms_page:
     _sms_page=_sms_page.replace(
         '{% if request.query_params.get("queued") %}',
         """{% if request.query_params.get("native_queued") %}
-        <div class="sms-banner ok">درخواست در صف جدید ثبت شد. وضعیت ارسال از گوشی را در اپ بررسی کن.</div>
+        <div class="sms-banner ok">درخواست برای بازکردن Google Messages در گوشی ثبت شد؛ ارسال نهایی دستی است.</div>
         {% endif %}
         {% if request.query_params.get("native_error") %}
         <div class="sms-banner bad">پیامک ثبت نشد: {{ request.query_params.get("native_error") }}</div>
