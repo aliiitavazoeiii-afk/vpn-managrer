@@ -130,12 +130,21 @@ public final class Prefs {
         if(id<=0 || phone==null || !phone.matches("09[0-9]{9}") || message==null || message.isEmpty())
             return false;
         return p(c).edit().putLong("draft_id",id).putString("draft_phone",phone)
-            .putString("draft_message",message).commit();
+            .putString("draft_message",message).remove("draft_opened_at").commit();
     }
     public static long draftId(Context c){return p(c).getLong("draft_id",-1);}
     public static String draftPhone(Context c){return p(c).getString("draft_phone","");}
     public static String draftMessage(Context c){return p(c).getString("draft_message","");}
+    // The draft remains on disk after Google Messages opens. Opening is not sending.
+    public static long draftOpenedAt(Context c) {
+        return p(c).getLong("draft_opened_at",0L);
+    }
+    public static boolean markDraftOpenedLocally(Context c,long jobId,long at) {
+        return p(c).getLong("draft_id",-1L)==jobId
+                && p(c).edit().putLong("draft_opened_at",at).commit();
+    }
     public static void clearDraft(Context c) {
-        p(c).edit().remove("draft_id").remove("draft_phone").remove("draft_message").commit();
+        p(c).edit().remove("draft_id").remove("draft_phone")
+            .remove("draft_message").remove("draft_opened_at").commit();
     }
 }
