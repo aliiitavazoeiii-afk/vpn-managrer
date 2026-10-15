@@ -20,7 +20,7 @@ class Input {
   constructor(value) { this.value = value; this.disabled = false; }
 }
 
-function readFixture({id, submitted = "", local = null, external = null, fields = {}, linked = null}) {
+function readFixture({id = "", submitted = "", local = null, external = null, fields = {}, linked = null, isDebt = false, groupFields = null}) {
   const named = fields.message || null;
   const form = {
     id,
@@ -30,7 +30,13 @@ function readFixture({id, submitted = "", local = null, external = null, fields 
       if (selector.includes('[name="message"]')) return local;
       return null;
     },
+    hasAttribute(name) {return name === "data-debt-sms-form" && isDebt;},
     closest(selector) {
+      if (selector === "[data-debt-group]") {
+        return groupFields === null ? null : {
+          querySelectorAll() {return groupFields;},
+        };
+      }
       if (selector !== ".debt-message-actions" || !linked) return null;
       return {querySelector() {
         return {getAttribute(name) {return name === "data-copy-target" ? linked : null;}};
@@ -78,4 +84,24 @@ test("only the exact matching debt index is read", () => {
     id:"debt-sms-form-7", linked:"debt-message-7",
     fields:{"debt-message-7":new Textarea("برای همین مشتری")}
   }), "برای همین مشتری");
+});
+
+test("header button without id reads one textarea from its own debt group", () => {
+  assert.equal(readFixture({isDebt:true, groupFields:[new Textarea("سلام، پیام گروه چهار")] }), "سلام، پیام گروه چهار");
+});
+
+test("header button with two group message fields rejects ambiguity", () => {
+  assert.equal(readFixture({isDebt:true, groupFields:[
+    new Textarea("مشتری اول"), new Textarea("مشتری دوم")
+  ]}), "");
+});
+
+test("header button never searches other debtor groups", () => {
+  assert.equal(readFixture({isDebt:true, groupFields:[],
+    fields:{"debt-message-2":new Textarea("متن گروه دیگر")}}), "");
+});
+
+test("legacy debt form still resolves indexed textarea", () => {
+  assert.equal(readFixture({id:"debt-sms-form-3",isDebt:true,
+    fields:{"debt-message-3":new Textarea("یادآوری گروه ۳")}}), "یادآوری گروه ۳");
 });
