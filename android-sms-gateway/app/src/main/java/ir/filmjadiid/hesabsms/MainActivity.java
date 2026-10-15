@@ -2,430 +2,126 @@ package ir.filmjadiid.hesabsms;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.PowerManager;
-import android.provider.Settings;
-import android.telephony.SubscriptionInfo;
-import android.telephony.SubscriptionManager;
 import android.text.InputType;
 import android.view.Gravity;
-import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.ArrayList;
-import java.util.List;
-
-public class MainActivity extends Activity {
-    private static final int REQ_PERMS = 701;
-
-    private EditText baseUrl;
-    private EditText token;
-    private EditText testPhone;
-    private EditText deviceName;
-    private EditText pollSeconds;
-    private Spinner simSpinner;
+public final class MainActivity extends Activity {
+    private EditText baseUrl, token;
     private TextView status;
-    private final ArrayList<Integer> simIds = new ArrayList<>();
 
-    private int dp(int n) {
-        return Math.round(n * getResources().getDisplayMetrics().density);
-    }
-
-    @Override
-    protected void onCreate(Bundle state) {
-        super.onCreate(state);
-
-        ScrollView scroll = new ScrollView(this);
+    @Override protected void onCreate(Bundle bundle) {
+        super.onCreate(bundle);
+        ScrollView scroll=new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackgroundColor(Color.rgb(8, 13, 22));
-
-        LinearLayout root = new LinearLayout(this);
+        scroll.setBackgroundColor(Color.rgb(10,18,31));
+        LinearLayout root=new LinearLayout(this);
+        root.setPadding(32,44,32,38);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(20), dp(28), dp(20), dp(32));
-        scroll.addView(root, new ScrollView.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
-
-        TextView kicker = text("HESAB  •  PERSONAL SMS GATEWAY", 11, Color.rgb(125, 170, 255));
-        kicker.setLetterSpacing(.10f);
-        root.addView(kicker);
-
-        TextView title = text("ارسال پیامک از خط خودت", 27, Color.WHITE);
-        title.setGravity(Gravity.RIGHT);
-        title.setPadding(0, dp(10), 0, dp(4));
-        root.addView(title);
-
-        TextView intro = text(
-                "سایت درخواست را در صف می‌گذارد؛ این گوشی آن را می‌گیرد و مستقیماً با سیم‌کارت انتخابی SMS می‌فرستد.",
-                13,
-                Color.rgb(145, 156, 174)
-        );
-        intro.setGravity(Gravity.RIGHT);
-        intro.setLineSpacing(0, 1.35f);
-        root.addView(intro);
-
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(16), dp(16), dp(16), dp(16));
-        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        );
-        cardLp.topMargin = dp(22);
-        card.setBackground(roundRect(Color.rgb(15, 23, 36), Color.rgb(35, 48, 67), 18));
-        root.addView(card, cardLp);
-
-        addLabel(card, "آدرس سرور");
-        baseUrl = input(Prefs.baseUrl(this), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        baseUrl.setTextDirection(View.TEXT_DIRECTION_LTR);
-        card.addView(baseUrl);
-
-        addLabel(card, "Gateway Token");
-        token = input(Prefs.token(this), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        token.setTextDirection(View.TEXT_DIRECTION_LTR);
-        card.addView(token);
-
-        addLabel(card, "شماره آزمایشی مجاز (فقط خط خودت)");
-        testPhone = input(Prefs.testPhone(this), InputType.TYPE_CLASS_PHONE);
-        testPhone.setTextDirection(View.TEXT_DIRECTION_LTR);
-        card.addView(testPhone);
-
-        addLabel(card, "نام این گوشی");
-        deviceName = input(Prefs.deviceName(this), InputType.TYPE_CLASS_TEXT);
-        card.addView(deviceName);
-
-        addLabel(card, "سیم‌کارت ارسال");
-        simSpinner = new Spinner(this);
-        simSpinner.setPadding(dp(8), dp(3), dp(8), dp(3));
-        LinearLayout.LayoutParams spinnerLp = fieldLp();
-        card.addView(simSpinner, spinnerLp);
-
-        addLabel(card, "فاصله بررسی صف (ثانیه)");
-        pollSeconds = input(String.valueOf(Prefs.pollSeconds(this)), InputType.TYPE_CLASS_NUMBER);
-        card.addView(pollSeconds);
-
-        status = text("", 12, Color.rgb(170, 180, 195));
-        status.setGravity(Gravity.RIGHT);
-        LinearLayout.LayoutParams statusLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        );
-        statusLp.topMargin = dp(14);
-        card.addView(status, statusLp);
-
-        Button start = button("شروع Gateway آزمایشی", Color.rgb(235, 240, 247), Color.rgb(15, 23, 36));
-        LinearLayout.LayoutParams buttonLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(48)
-        );
-        buttonLp.topMargin = dp(16);
-        card.addView(start, buttonLp);
-
-        Button stop = button("توقف Gateway", Color.rgb(35, 45, 61), Color.rgb(235, 240, 247));
-        LinearLayout.LayoutParams stopLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(46)
-        );
-        stopLp.topMargin = dp(9);
-        card.addView(stop, stopLp);
-
-        Button test = button("تست اتصال به سایت", Color.rgb(20, 43, 75), Color.rgb(174, 205, 255));
-        LinearLayout.LayoutParams testLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(46)
-        );
-        testLp.topMargin = dp(9);
-        card.addView(test, testLp);
-
-        Button battery = button("اجازه فعالیت دائمی در پس‌زمینه", Color.rgb(31, 39, 53), Color.rgb(196, 205, 220));
-        LinearLayout.LayoutParams batteryLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(46)
-        );
-        batteryLp.topMargin = dp(9);
-        card.addView(battery, batteryLp);
-
-        TextView note = text(
-                "نسخه آزمایشی فقط اجازه ارسال به شماره تأییدشده بالا را دارد. بین پیام‌ها حداقل ۹۰ ثانیه فاصله است. در خطا یا نتیجه نامشخص ارسال خودکار متوقف می‌شود.",
-                11,
-                Color.rgb(110, 124, 145)
-        );
-        note.setGravity(Gravity.RIGHT);
-        note.setLineSpacing(0, 1.4f);
-        LinearLayout.LayoutParams noteLp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        );
-        noteLp.topMargin = dp(18);
-        root.addView(note, noteLp);
-
-        start.setOnClickListener(v -> startGateway());
-        stop.setOnClickListener(v -> stopGateway());
-        test.setOnClickListener(v -> testConnection());
-        battery.setOnClickListener(v -> requestBatteryExemption());
-
-        ensurePermissions(false);
-        loadSims();
-        refreshStatus();
-        setContentView(scroll);
+        scroll.addView(root);
+        title(root,"حساب VPN · ارسال دستی",26);
+        title(root,"درخواست سایت به این گوشی می‌رسد. با لمس اعلان، متن در Google Messages آماده می‌شود؛ ارسال فقط با لمس دکمه Send توسط شماست.",15);
+        title(root,"آدرس حساب",14);
+        baseUrl=field(root,Prefs.baseUrl(this),false);
+        title(root,"Gateway Token",14);
+        token=field(root,Prefs.token(this),true);
+        Button save=button(root,"ذخیره و شروع دریافت پیام‌ها");
+        save.setOnClickListener(v->{
+            String url=baseUrl.getText().toString().trim();
+            if(!url.startsWith("https://")){toast("آدرس باید HTTPS باشد");return;}
+            if(token.getText().toString().trim().length()<24){toast("توکن معتبر وارد کن");return;}
+            Prefs.setBaseUrl(this,url);
+            Prefs.setToken(this,token.getText().toString());
+            Prefs.setEnabled(this,true);
+            if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                    !=PackageManager.PERMISSION_GRANTED)
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},101);
+            Intent service=new Intent(this,GatewayService.class).setAction(GatewayService.ACTION_START);
+            if(Build.VERSION.SDK_INT>=26)startForegroundService(service);else startService(service);
+            toast("دریافت درخواست فعال شد؛ هیچ SMS خودکاری ارسال نمی‌شود");
+            updateStatus();
+        });
+        Button open=button(root,"بازکردن پیام آماده در Google Messages");
+        open.setOnClickListener(v->openDraft());
+        Button stop=button(root,"توقف دریافت درخواست‌ها");
+        stop.setOnClickListener(v->{
+            Prefs.setEnabled(this,false);
+            stopService(new Intent(this,GatewayService.class));
+            updateStatus();
+        });
+        Button test=button(root,"آزمایش اتصال به سرور");
+        test.setOnClickListener(v->new Thread(()->{
+            boolean ok=ApiClient.ping(this);
+            runOnUiThread(()->toast(ok?"اتصال برقرار است":"اتصال V2 برقرار نیست؛ سرور را بررسی کن"));
+        }).start());
+        status=new TextView(this);
+        status.setTextColor(Color.WHITE);
+        status.setTextSize(14);
+        root.addView(status);
+        updateStatus();
+        processIncoming(getIntent());
     }
-
-    private void addLabel(LinearLayout parent, String s) {
-        TextView label = text(s, 11, Color.rgb(132, 145, 164));
-        label.setGravity(Gravity.RIGHT);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        );
-        lp.topMargin = dp(13);
-        lp.bottomMargin = dp(6);
-        parent.addView(label, lp);
+    @Override protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);setIntent(i);processIncoming(i);
     }
-
-    private EditText input(String value, int type) {
-        EditText e = new EditText(this);
-        e.setText(value);
-        e.setTextColor(Color.WHITE);
-        e.setHintTextColor(Color.rgb(95, 108, 128));
-        e.setTextSize(13);
+    @Override protected void onResume(){super.onResume();if(status!=null)updateStatus();}
+    private void processIncoming(Intent i){
+        if(i!=null && "ir.filmjadiid.hesabsms.OPEN_DRAFT".equals(i.getAction()))openDraft();
+    }
+    private void openDraft(){
+        if(!Prefs.hasDraft(this)){toast("پیام آماده‌ای وجود ندارد");return;}
+        String phone=Prefs.draftPhone(this);
+        String message=Prefs.draftMessage(this);
+        if(!phone.matches("09[0-9]{9}") || message.isEmpty()){toast("شماره یا پیام نامعتبر است");return;}
+        // ACTION_SENDTO delegates composition AND final human send to the SMS app.
+        Intent compose=new Intent(Intent.ACTION_SENDTO,Uri.parse("smsto:"+phone));
+        compose.putExtra("sms_body",message);
+        try{
+            startActivity(compose);
+            Prefs.clearDraft(this);
+            getSystemService(NotificationManager.class).cancel(4108);
+            updateStatus();
+        }catch(Exception ex){toast("برنامه پیامک پیدا نشد؛ Google Messages را پیش‌فرض کن");}
+    }
+    private void updateStatus(){
+        if(status!=null)status.setText((Prefs.enabled(this)?"دریافت درخواست فعال":"دریافت درخواست خاموش")
+                +(Prefs.hasDraft(this)?"\nیک پیام آماده بازکردن وجود دارد":"\nپیام آماده‌ای نیست")
+                +"\nDevice ID: "+Prefs.deviceId(this));
+    }
+    private void title(LinearLayout root,String t,int size){
+        TextView v=new TextView(this);
+        v.setText(t);v.setTextColor(Color.WHITE);v.setTextSize(size);
+        v.setGravity(Gravity.RIGHT);
+        v.setPadding(0,18,0,14);
+        root.addView(v);
+    }
+    private EditText field(LinearLayout root,String initial,boolean secret){
+        EditText e=new EditText(this);
+        e.setText(initial);e.setTextColor(Color.WHITE);
+        e.setTextDirection(android.view.View.TEXT_DIRECTION_LTR);
         e.setSingleLine(true);
-        e.setInputType(type);
-        e.setPadding(dp(12), 0, dp(12), 0);
-        e.setBackground(roundRect(Color.rgb(9, 15, 25), Color.rgb(42, 55, 74), 11));
-        e.setLayoutParams(fieldLp());
+        e.setInputType(secret?InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD:
+                InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
+        root.addView(e,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,110));
         return e;
     }
-
-    private LinearLayout.LayoutParams fieldLp() {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(46)
-        );
-        return lp;
-    }
-
-    private TextView text(String s, int sp, int color) {
-        TextView t = new TextView(this);
-        t.setText(s);
-        t.setTextSize(sp);
-        t.setTextColor(color);
-        return t;
-    }
-
-    private Button button(String s, int bg, int fg) {
-        Button b = new Button(this);
-        b.setText(s);
-        b.setAllCaps(false);
-        b.setTextSize(12);
-        b.setTextColor(fg);
-        b.setBackground(roundRect(bg, bg, 12));
+    private Button button(LinearLayout root,String caption){
+        Button b=new Button(this);b.setText(caption);b.setAllCaps(false);
+        root.addView(b,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,125));
         return b;
     }
-
-    private GradientDrawable roundRect(int fill, int stroke, int radiusDp) {
-        GradientDrawable g = new GradientDrawable();
-        g.setColor(fill);
-        g.setCornerRadius(dp(radiusDp));
-        g.setStroke(dp(1), stroke);
-        return g;
-    }
-
-    private boolean hasCorePermissions() {
-        return checkSelfPermission(Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
-                && checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void ensurePermissions(boolean force) {
-        ArrayList<String> needed = new ArrayList<>();
-        if (checkSelfPermission(Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED)
-            needed.add(Manifest.permission.SEND_SMS);
-        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED)
-            needed.add(Manifest.permission.READ_PHONE_STATE);
-        if (Build.VERSION.SDK_INT >= 33
-                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
-            needed.add(Manifest.permission.POST_NOTIFICATIONS);
-
-        if (!needed.isEmpty() && force) {
-            requestPermissions(needed.toArray(new String[0]), REQ_PERMS);
-        }
-    }
-
-    private void saveSettings() {
-        Prefs.setBaseUrl(this, baseUrl.getText().toString());
-        Prefs.setToken(this, token.getText().toString());
-        Prefs.setDeviceName(this, deviceName.getText().toString());
-        Prefs.setTestPhone(this, testPhone.getText().toString());
-
-        int seconds = 15;
-        try { seconds = Integer.parseInt(pollSeconds.getText().toString().trim()); }
-        catch (Exception ignored) {}
-        Prefs.setPollSeconds(this, seconds);
-
-        int pos = simSpinner.getSelectedItemPosition();
-        int simId = pos >= 0 && pos < simIds.size() ? simIds.get(pos) : -1;
-        Prefs.setSimId(this, simId);
-    }
-
-    private void startGateway() {
-        String url = baseUrl.getText().toString().trim();
-        String tok = token.getText().toString().trim();
-        if (!url.startsWith("https://")) {
-            toast("آدرس باید با https:// شروع شود.");
-            return;
-        }
-        if (tok.length() < 24) {
-            toast("Gateway Token را از سرور وارد کن.");
-            return;
-        }
-        if (!Prefs.validTestPhone(testPhone.getText().toString().trim())) {
-            toast("برای تست، شماره مجاز ۱۱ رقمی با 09 ثبت کن.");
-            return;
-        }
-        if (Prefs.paused(this) || Prefs.inFlight(this) >= 0L) {
-            toast("تلاش قبلی نیاز به بررسی دارد. ارسال خودکار فعال نمی‌شود.");
-            refreshStatus();
-            return;
-        }
-        if (!hasCorePermissions()) {
-            ensurePermissions(true);
-            toast("مجوزها را تأیید کن و دوباره «شروع Gateway» را بزن.");
-            return;
-        }
-
-        saveSettings();
-        Prefs.setEnabled(this, true);
-        Intent i = new Intent(this, GatewayService.class).setAction(GatewayService.ACTION_START);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(i);
-        else startService(i);
-        refreshStatus();
-        toast("Gateway فقط برای شماره آزمایشی فعال شد.");
-    }
-
-    private void stopGateway() {
-        Prefs.setEnabled(this, false);
-        Intent i = new Intent(this, GatewayService.class).setAction(GatewayService.ACTION_STOP);
-        startService(i);
-        stopService(new Intent(this, GatewayService.class));
-        refreshStatus();
-        toast("Gateway متوقف شد.");
-    }
-
-    private void testConnection() {
-        saveSettings();
-        status.setText("در حال تست اتصال…");
-        new Thread(() -> {
-            boolean ok = ApiClient.ping(this);
-            if (ok && Prefs.token(this).length() >= 24) ok = ApiClient.heartbeat(this);
-            final boolean result = ok;
-            runOnUiThread(() -> {
-                status.setText(result
-                        ? "● اتصال به hesab.filmjadiid.ir برقرار است"
-                        : "● اتصال برقرار نشد؛ آدرس، Token و مسیر سرور را بررسی کن");
-                status.setTextColor(result ? Color.rgb(94, 219, 132) : Color.rgb(248, 113, 113));
-            });
-        }, "gateway-test").start();
-    }
-
-    @SuppressWarnings("deprecation")
-    private void loadSims() {
-        ArrayList<String> labels = new ArrayList<>();
-        simIds.clear();
-        labels.add("SIM پیش‌فرض گوشی");
-        simIds.add(-1);
-
-        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
-            try {
-                SubscriptionManager sm = getSystemService(SubscriptionManager.class);
-                List<SubscriptionInfo> infos = sm.getActiveSubscriptionInfoList();
-                if (infos != null) {
-                    for (SubscriptionInfo info : infos) {
-                        String carrier = info.getCarrierName() == null ? "SIM" : info.getCarrierName().toString();
-                        labels.add("SIM " + (info.getSimSlotIndex() + 1) + " · " + carrier);
-                        simIds.add(info.getSubscriptionId());
-                    }
-                }
-            } catch (Exception ignored) {}
-        }
-
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this,
-                android.R.layout.simple_spinner_item,
-                labels
-        );
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        simSpinner.setAdapter(adapter);
-
-        int saved = Prefs.simId(this);
-        int index = simIds.indexOf(saved);
-        if (index >= 0) simSpinner.setSelection(index);
-    }
-
-    private void requestBatteryExemption() {
-        try {
-            PowerManager pm = getSystemService(PowerManager.class);
-            if (pm.isIgnoringBatteryOptimizations(getPackageName())) {
-                toast("Battery optimization برای این اپ غیرفعال است.");
-                return;
-            }
-            Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
-            i.setData(Uri.parse("package:" + getPackageName()));
-            startActivity(i);
-        } catch (Exception e) {
-            startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
-        }
-    }
-
-    private void refreshStatus() {
-        if (status == null) return;
-        boolean on = Prefs.enabled(this);
-        String detail = on ? "● Gateway آزمایشی روشن" : "● Gateway خاموش";
-        if (Prefs.paused(this)) {
-            detail += "\n⛔ توقف ایمنی: " + Prefs.pauseReason(this);
-        } else if (Prefs.inFlight(this) >= 0L) {
-            detail += "\nدر انتظار نتیجه job=" + Prefs.inFlight(this);
-        } else if (!Prefs.validTestPhone(Prefs.testPhone(this))) {
-            detail += "\nشماره آزمایشی ثبت نشده است";
-        } else {
-            detail += "\nمجاز فقط برای " + Prefs.testPhone(this);
-        }
-        detail += "\nDevice ID: " + Prefs.deviceId(this);
-        status.setText(detail);
-        status.setTextColor(Prefs.paused(this) ? Color.rgb(248, 113, 113)
-                : on ? Color.rgb(94, 219, 132) : Color.rgb(148, 163, 184));
-    }
-
-    private void toast(String s) {
-        Toast.makeText(this, s, Toast.LENGTH_LONG).show();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if (simSpinner != null) loadSims();
-        refreshStatus();
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQ_PERMS) {
-            loadSims();
-            refreshStatus();
-        }
-    }
+    private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
 }
