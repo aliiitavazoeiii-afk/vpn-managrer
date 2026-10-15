@@ -11,8 +11,6 @@
     .replace(/[٠-٩]/g, c => String("٠١٢٣٤٥٦٧٨٩".indexOf(c)))
     .replace(/[\s\-()]/g, "");
   let inFlight = false;
-  let lastFingerprint = "";
-  let lastAttemptTime = 0;
 
   function toast(message, kind = "info", form) {
     let banner = document.getElementById("hesab-gm-bridge-status");
@@ -118,6 +116,30 @@
     return {phone: "+98" + phone.slice(1), message:body};
   }
 
+  async function postToBridge(path, payload) {
+    let response;
+    try {
+      response = await fetch(path, {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-Hesab-Browser-Sms": "v1"
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (_error) {
+      return {ok:false,code:"HESAB_SERVER_UNAVAILABLE"};
+    }
+    let data;
+    try { data = await response.json(); }
+    catch (_) { return {ok:false,code:"BRIDGE_BACKEND_NOT_INSTALLED"}; }
+    return response.ok ? data :
+      {ok:false,code:data?.code || "SERVER_REJECTED_REQUEST"};
+  }
+
   function postToExtension(request) {
     return new Promise(resolve => {
       let done = false;
@@ -168,36 +190,61 @@
     try { fields = getFields(form); }
     catch (error) { toast(error.message, "error", form); return; }
 
-    const fingerprint = fields.phone + "\u0000" + fields.message;
-    if (lastFingerprint === fingerprint && Date.now() - lastAttemptTime < 120000) {
-      toast("برای این شماره و متن اخیراً درخواست ارسال داده‌ای. برای جلوگیری از تکرار، دوباره ارسال نشد. مکالمه Google Messages را بررسی کن.", "error", form);
-      return;
-    }
-
     inFlight = true;
-    lastFingerprint = fingerprint;
-    lastAttemptTime = Date.now();
-    toast("در حال انتقال پیام به Google Messages Web…\nهیچ موردی در صف قدیمی Gateway ثبت نمی‌شود.", "info", form);
-
+    toast("در حال بررسی درخواست با پنل حساب…\nهنوز هیچ پیامکی ارسال یا به صف اندروید اضافه نشده است.", "info", form);
     try {
+      const source = pathname === "/sms/debt-send" ? "debt" : "manual";
+      const intent = await postToBridge("/sms/browser/begin", {
+        phone:fields.phone,message:fields.message,source
+      });
+      if (!intent.ok) {
+        toast("درخواست جدید ثبت نشد: " + (intent.code || "SERVER_ERROR") +
+          "\nبرای جلوگیری از ارسال تکراری، سوابق همان مخاطب را بررسی کن. هیچ پیامکی از این کلیک ارسال نشد.",
+          "error", form);
+        return;
+      }
+      // Server supplies the canonical reminder body. Never silently rely on
+      // a potentially stale or modified frontend textarea for debt SMS.
+      toast("در حال ارسال پیام از Google Messages…\nتا مشخص‌شدن نتیجه، دوباره کلیک نکن.", "info", form);
       const result = await postToExtension({
-        type:"HESAB_SEND_IN_GOOGLE_MESSAGES", phone:fields.phone,
-        message:fields.message, source: pathname === "/sms/debt-send" ? "debt" : "manual"
+        type:"HESAB_SEND_IN_GOOGLE_MESSAGES",
+        phone:intent.phone, message:intent.message, source
       });
       if (result.ok && result.code === "SUBMITTED") {
-        toast("درخواست ارسال در Google Messages Web ثبت شد.\nاین تأیید تحویل به گیرنده نیست؛ مکالمه را بررسی کن.\nوضعیت بدهی در پنل به‌طور خودکار تغییر نکرد.", "ok", form);
-      } else if (result.ok && result.code === "DRAFT_READY") {
-        toast("گیرنده و متن در Google Messages آماده شد.\nبرای ارسال نهایی روی دکمه Send در همان تب بزن.\nوضعیت بدهی در پنل به‌طور خودکار تغییر نکرد.", "ok", form);
-      } else if (result.ok && result.code === "DRAFT_READY_REVIEW_RECIPIENT") {
-        toast("متن فارسی در چت Google Messages آماده شد.\nانتخاب مخاطب از روی شماره تأیید خودکار نشده؛ شماره را دقیق بررسی کن و فقط خودت روی Send بزن.\nوضعیت بدهی تغییر نکرد.", "info", form);
-      } else if (result.code === "MANUAL_RECIPIENT") {
-        toast("Google Messages باز شد، اما انتخاب دقیق گیرنده به تأیید دستی نیاز دارد.\nگیرنده را انتخاب کن؛ سپس پیام را در Google Messages بفرست.\nفرم قدیمی حساب در صف قرار نگرفت.", "info", form);
-      } else if (result.code === "AMBIGUOUS_SEND") {
-        toast("وضعیت دکمه ارسال نامشخص است. به هیچ وجه دوباره کلیک نکن؛ ابتدا مکالمه Google Messages را بررسی کن.", "error", form);
+        // A browser-composer UI submission is NOT a verified delivery receipt.
+        // Only this guarded server transition can move eligible debt accounts.
+        const receipt = await postToBridge("/sms/browser/finish", {
+          id:intent.id,token:intent.token,result:"SUBMITTED"
+        });
+        if (receipt.ok && receipt.status === "browser_submitted") {
+          toast("Google Messages ارسال را در رابط خود ثبت کرد؛ تحویل به گیرنده هنوز تأیید نشده." +
+            (source === "debt" ? "\n" + receipt.moved + " حساب به «در انتظار» منتقل شد." : ""),
+            "ok", form);
+          if (source === "debt" && receipt.moved > 0) {
+            setTimeout(() => location.reload(), 1600);
+          }
+        } else {
+          toast("در Google Messages دکمه ارسال اجرا شد، اما ثبت حسابداری قطعی نیست: " +
+            (receipt.code || "UNKNOWN") +
+            "\nپیام را دوباره ارسال نکن. ابتدا سوابق Google Messages و وضعیت حساب را بررسی کن.",
+            "error", form);
+        }
       } else {
-        toast("ارسال خودکار انجام نشد: " + (result.message || result.code || "خطای نامشخص") +
-          "\nهیچ پیامکی در صف قدیمی ایجاد نشد. برای جلوگیری از تکرار، اول تب Google Messages را بررسی کن.", "error", form);
+        // We deliberately do NOT claim success or transition a debt on a draft,
+        // a failed action, or a possibly successful but unconfirmed click.
+        if (result.code === "AMBIGUOUS_SEND" || result.code === "TIMEOUT") {
+          await postToBridge("/sms/browser/finish", {
+            id:intent.id,token:intent.token,result:"UNKNOWN"
+          });
+        }
+        const details = result.message || result.code || "نتیجه نامشخص";
+        toast("ارسال خودکار تکمیل نشد: " + details +
+          "\nممکن است پیش‌نویس آماده شده باشد. شماره را بررسی کن." +
+          "\nبرای جلوگیری از تکرار، پیش از ارسال دوباره یا تغییر وضعیت، مکالمه را بررسی کن." +
+          "\nدرخواست مرورگری ثبت شده، ولی هیچ رکوردی در صف اندروید نرفته است.",
+          "error", form);
       }
+
     } finally { inFlight = false; }
   }, true);
 
