@@ -479,3 +479,93 @@ def manual_draft_opened(job_id: int, body: ManualDraftResult,
     if not matched:
         raise HTTPException(409,"draft already opened or not owned by device")
     return {"ok":True,"status":"opened","sent":False,"delivered":False}
+
+
+# GOOGLE_MESSAGES_SENT_FOLDER_V1
+# The companion Android app reports only a verified matching entry in
+# Telephony.Sms.Sent; opening the compose intent never calls this endpoint.
+# The sent folder is not a recipient delivery receipt.
+@app.post("/v3/drafts/{job_id}/verified-sent")
+def manual_draft_verified_sent(job_id: int, body: ManualDraftResult,
+                               x_sms_gateway_token: str = Header(default="")):
+    require_token(x_sms_gateway_token)
+    if job_id<=0:
+        raise HTTPException(400,"invalid job")
+    with db_conn() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                _native_setup(cur)
+                cur.execute("""
+                  SELECT id,phone,source,account_ids,status,device_id
+                  FROM native_sms_v2_jobs WHERE id=%s FOR UPDATE
+                """,(job_id,))
+                row=cur.fetchone()
+                if not row or row["device_id"]!=body.device_id:
+                    raise HTTPException(409,"unknown job/device")
+                if row["status"]=="sent":
+                    return {"ok":True,"status":"sent","duplicate":True,"moved":0}
+                if row["status"] not in ("claimed","opened"):
+                    raise HTTPException(409,"not an open manual draft")
+                cur.execute("""
+                  UPDATE native_sms_v2_jobs
+                  SET status='sent',sent_at=COALESCE(sent_at,NOW()),
+                      updated_at=NOW(),error=NULL
+                  WHERE id=%s
+                """,(job_id,))
+                moved=0
+                if row["source"]=="debt":
+                    # Never transition accounts that were paid, archived, or
+                    # already advanced while the compose window was open.
+                    from datetime import date as _date
+                    for sid in row["account_ids"]:
+                        cur.execute("""
+                          SELECT id,phone,is_free,expiry_date
+                          FROM subscriptions WHERE id=%s FOR UPDATE
+                        """,(int(sid),))
+                        sub=cur.fetchone()
+                        if (not sub or sub["phone"]!=row["phone"] or
+                            sub["is_free"] or sub["expiry_date"] is None or
+                            sub["expiry_date"] > _date.today()):
+                            continue
+                        cur.execute("""
+                          SELECT kind FROM audit_events
+                          WHERE kind IN ('followup_waiting','followup_cut','followup_clear')
+                            AND message LIKE %s
+                          ORDER BY id DESC LIMIT 1
+                        """,(f"sid={int(sid)};%",))
+                        latest=cur.fetchone()
+                        if latest and latest["kind"] in ("followup_waiting","followup_cut"):
+                            continue
+                        cur.execute("""
+                          INSERT INTO audit_events(kind,message,created_at)
+                          VALUES ('followup_waiting',%s,NOW())
+                        """,(f"sid={int(sid)}; verified Google Messages sent-folder; "
+                             f"job={job_id}; recipient delivery not confirmed",))
+                        moved+=1
+                cur.execute("""
+                  INSERT INTO audit_events(kind,message,created_at)
+                  VALUES ('sms_manual_sent_verified',%s,NOW())
+                """,(f"job={job_id}; sent-folder confirmed; moved={moved}; "
+                     "no receipt of delivery",))
+    return {"ok":True,"status":"sent","moved":moved,
+            "delivery_confirmed":False}
+
+
+@app.post("/v3/drafts/{job_id}/cancel")
+def manual_draft_cancel(job_id: int, body: ManualDraftResult,
+                        x_sms_gateway_token: str = Header(default="")):
+    require_token(x_sms_gateway_token)
+    with db_conn() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                _native_setup(cur)
+                cur.execute("""
+                UPDATE native_sms_v2_jobs
+                SET status='cancelled',updated_at=NOW()
+                WHERE id=%s AND device_id=%s AND status IN ('claimed','opened')
+                RETURNING id
+                """,(job_id,body.device_id))
+                matched=cur.fetchone()
+    if not matched:
+        raise HTTPException(409,"cannot cancel this draft")
+    return {"ok":True,"status":"cancelled","sent":False}
