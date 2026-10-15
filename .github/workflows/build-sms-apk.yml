@@ -62,7 +62,7 @@ jobs:
           assert "Prefs.allowedTestRecipient(c, phone)" in sender
           assert 'putBoolean("enabled",false)' in preferences
           assert '"&test_phone=" + phone' in api
-          assert "WHERE status='queued' AND phone=%s" in backend
+          assert "WHERE status='queued' AND phone=%s AND source='manual'" in backend
           print("PASS: native V2 test-only and no-retry contracts")
           PY
 
