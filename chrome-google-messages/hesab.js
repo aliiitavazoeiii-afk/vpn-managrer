@@ -79,6 +79,20 @@
       }
     }
 
+    // The header send button added by sms_nojump.py has NO form id.
+    // Its message textarea is elsewhere in the SAME debtor group. Restrict
+    // lookup to that group; multiple candidate textareas are ambiguous and
+    // must NEVER result in sending a different customer's reminder.
+    if (form.hasAttribute("data-debt-sms-form")) {
+      const group = form.closest("[data-debt-group]");
+      if (group) {
+        const groupMessages = [...group.querySelectorAll(
+          'textarea[id^="debt-message-"], textarea[form^="debt-sms-form-"]'
+        )].filter((node, idx, list) => list.indexOf(node) === idx);
+        if (groupMessages.length === 1) add(groupMessages[0]);
+      }
+    }
+
     const found = candidates.find(field =>
       !field.disabled && typeof field.value === "string" && field.value.trim()
     );
