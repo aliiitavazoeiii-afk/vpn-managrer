@@ -220,6 +220,13 @@
           toast("Google Messages ارسال را در رابط خود ثبت کرد؛ تحویل به گیرنده هنوز تأیید نشده." +
             (source === "debt" ? "\n" + receipt.moved + " حساب به «در انتظار» منتقل شد." : ""),
             "ok", form);
+          // Bring the operator back to Hesab after a positive server
+          // acknowledgement; leave the Google tab available for verification.
+          try {
+            chrome.runtime.sendMessage({type:"HESAB_FOCUS_ORIGINAL"}, () => {
+              void chrome.runtime.lastError;
+            });
+          } catch (_) {}
           if (source === "debt" && receipt.moved > 0) {
             setTimeout(() => location.reload(), 1600);
           }
