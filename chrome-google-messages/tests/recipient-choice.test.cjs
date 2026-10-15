@@ -27,14 +27,14 @@ function makeRow(text, {tag = "MWS-CONTACT-LIST-ITEM", role = "", children = []}
   return row;
 }
 
-function identify(rows, input = "+989123456789") {
+function identify(rows, input = "+989123456789", target = input) {
   const recipientInput = {value:input};
   const f = vm.runInNewContext(helper + "\nfindMatchingRecipientOption;", {
     document: {querySelectorAll() {return rows;}},
     recipientInput,
     visible() {return true;},
     digits,
-    expected:digits(input).slice(-10),
+    expected:digits(target).slice(-10),
   });
   return f();
 }
@@ -91,9 +91,9 @@ test("without a visible candidate nothing is clicked", () => {
   assert.equal(identify([]), null);
 });
 
-test("a name-only suggestion cannot bypass original phone input check", () => {
+test("name-only suggestion is not selected if input does not match requested phone", () => {
   const row = makeRow("مخاطب من", {tag:"DIV",role:"option"});
-  assert.equal(identify([row], "09128887766").verified, false);
+  assert.equal(identify([row], "+989128887766", "+989123456789"), null);
 });
 
 test("unverified recipient must block automatic sending", () => {
