@@ -28,6 +28,9 @@ jobs:
           node --check chrome-google-messages/background.js
           node --check chrome-google-messages/popup.js
 
+      - name: Test safe form field extraction
+        run: node --test chrome-google-messages/tests/read-message.test.cjs
+
       - name: Check manifest and narrow scopes
         run: |
           node - <<'JS'
