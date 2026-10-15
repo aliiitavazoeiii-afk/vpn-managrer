@@ -128,23 +128,67 @@ async function prepareGoogleCompose(phone, body, autoSend) {
   }
 
   nativeSet(recipientInput, phone);
-  await sleep(1000);
 
-  const matchingOption = [...document.querySelectorAll(
-      'mws-contact-list-item, mw-contact-list-item, [role="option"], ' +
-      '[role="listitem"], mat-option, [data-e2e-contact-list-item]'
-    )].filter(visible).filter(el => {
-      const raw = digits(el.innerText || el.textContent);
-      return raw.endsWith(expected) && raw.length >= 10 && raw.length < 35;
-    });
-  if (matchingOption.length === 1) {
-    matchingOption[0].click();
-  } else {
-    // An Enter key can choose an unrelated contact when multiple suggestions
-    // are shown. Never pick an unverified person automatically.
-    return {ok:false,code:"MANUAL_RECIPIENT",
-      message:"Choose the matching number in the Google Messages tab manually"};
-  }
+  // Google Messages contact suggestions are asynchronous, and their custom
+  // element/role layout may differ between releases. The old one-second
+  // snapshot frequently missed an otherwise correct, visible suggestion.
+  const findMatchingRecipientOption = () => {
+    const selector = [
+      "mws-contact-list-item", "mw-contact-list-item", "mat-option",
+      '[data-e2e-contact-list-item]', '[role="option"]',
+      '[role="listitem"]', '[class*="contact-list-item"]',
+      '[class*="contact-result"]'
+    ].join(", ");
+    const rows = [...document.querySelectorAll(selector)].filter(visible)
+      .filter(el => !el.contains(recipientInput));
+
+    const numbersIn = el => {
+      const raw = (el.innerText || el.textContent || "") + " " +
+        (el.getAttribute("aria-label") || "");
+      const latin = String(raw)
+        .replace(/[۰-۹]/g, c => String("۰۱۲۳۴۵۶۷۸۹".indexOf(c)))
+        .replace(/[٠-٩]/g, c => String("٠١٢٣٤٥٦٧٨٩".indexOf(c)));
+      const matches = latin.match(/(?:\+?\s*98|0)?\s*9(?:[\s().-]*\d){9}(?!\d)/g) || [];
+      return [...new Set(matches.map(value => digits(value).slice(-10)))];
+    };
+    const leafRows = rowsToReduce => rowsToReduce.filter(el =>
+      !rowsToReduce.some(other => other !== el && el.contains(other))
+    );
+
+    // Highest confidence: a UNIQUE selectable row explicitly displays
+    // exactly the requested phone, and no different phone.
+    const verified = leafRows(rows.filter(el => {
+      const phones = numbersIn(el);
+      return phones.length === 1 && phones[0] === expected;
+    }));
+    if (verified.length === 1) return {el:verified[0], verified:true};
+    if (verified.length > 1) return null;
+
+    // Some Google releases display only a contact name. A sole explicit
+    // contact suggestion may be opened as DRAFT ONLY; the phone is then
+    // unverified and auto-send will be blocked even if enabled in the popup.
+    const contactRows = leafRows(rows.filter(el => {
+      const tag = el.tagName.toLowerCase();
+      return tag.includes("contact") || tag === "mat-option" ||
+        el.getAttribute("role") === "option" ||
+        el.hasAttribute("data-e2e-contact-list-item");
+    }));
+    if (contactRows.length === 1 &&
+        numbersIn(contactRows[0]).length === 0 &&
+        digits(recipientInput.value).slice(-10) === expected) {
+      return {el:contactRows[0], verified:false};
+    }
+    return null;
+  };
+
+  // Wait for Google's asynchronously rendered suggestions.
+  const selection = await waitFor(findMatchingRecipientOption, 9000);
+  if (selection) selection.el.click();
+
+  // If the selector cannot recognize a row, allow the operator to click the
+  // correct suggestion manually. Continue waiting and automatically populate
+  // the Persian draft once the chat composer becomes available. Never send
+  // automatically when the recipient was not verified from a phone-number row.
 
   const composer = await waitFor(() => {
     const candidates = [...document.querySelectorAll(
