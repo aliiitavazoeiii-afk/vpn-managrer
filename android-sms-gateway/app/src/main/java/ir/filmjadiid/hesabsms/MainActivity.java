@@ -395,15 +395,15 @@ public class MainActivity extends Activity {
         boolean on = Prefs.enabled(this);
         String detail = on ? "● Gateway آزمایشی روشن" : "● Gateway خاموش";
         if (Prefs.paused(this)) {
-            detail += "\\n⛔ توقف ایمنی: " + Prefs.pauseReason(this);
+            detail += "\n⛔ توقف ایمنی: " + Prefs.pauseReason(this);
         } else if (Prefs.inFlight(this) >= 0L) {
-            detail += "\\nدر انتظار نتیجه job=" + Prefs.inFlight(this);
+            detail += "\nدر انتظار نتیجه job=" + Prefs.inFlight(this);
         } else if (!Prefs.validTestPhone(Prefs.testPhone(this))) {
-            detail += "\\nشماره آزمایشی ثبت نشده است";
+            detail += "\nشماره آزمایشی ثبت نشده است";
         } else {
-            detail += "\\nمجاز فقط برای " + Prefs.testPhone(this);
+            detail += "\nمجاز فقط برای " + Prefs.testPhone(this);
         }
-        detail += "\\nDevice ID: " + Prefs.deviceId(this);
+        detail += "\nDevice ID: " + Prefs.deviceId(this);
         status.setText(detail);
         status.setTextColor(Prefs.paused(this) ? Color.rgb(248, 113, 113)
                 : on ? Color.rgb(94, 219, 132) : Color.rgb(148, 163, 184));
