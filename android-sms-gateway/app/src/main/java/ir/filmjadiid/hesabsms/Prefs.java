@@ -92,7 +92,10 @@ public final class Prefs {
     public static void finish(Context c,long job) {
         if (inFlight(c)==job) p(c).edit().remove("active_job")
              .remove("active_job_at").putLong("next_allowed_at",
-               System.currentTimeMillis()+90000L).commit();
+               System.currentTimeMillis()+90000L)
+             // A single operator-started test can produce at most one SMS.
+             // A new test requires an explicit Start in the activity.
+             .putBoolean("enabled",false).commit();
     }
     public static long nextAllowed(Context c) {return p(c).getLong("next_allowed_at",0L);}
     public static boolean paused(Context c) {return p(c).getBoolean("paused",false);}
