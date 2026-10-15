@@ -148,6 +148,11 @@ async def _bs_begin(request: _bs_Request, db: _bs_Session = _bs_Depends(get_db))
         if len(canonical) > 1000:
             db.rollback()
             return _bs_fail("CANONICAL_MESSAGE_TOO_LONG", 400)
+        # Refuse a different on-screen reminder. The operator must not click
+        # expecting one body while the server silently sends another.
+        if requested_body.strip() != canonical.strip():
+            db.rollback()
+            return _bs_fail("DEBT_MESSAGE_CHANGED_REVIEW_REQUIRED")
         body = canonical
         older = db.execute(_bs_text("""
           SELECT id,status FROM sms_browser_intents
