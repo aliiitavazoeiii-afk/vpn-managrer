@@ -99,6 +99,26 @@ public final class ApiClient {
         return new SmsJob(j.getLong("id"),j.getString("phone"),j.getString("message"));
     }
 
+    private static boolean draftAction(Context c,long jobId,String action) {
+        try {
+            JSONObject j=new JSONObject();
+            j.put("device_id",Prefs.deviceId(c));
+            Resp r=request(c,"POST","/sms-gateway/v3/drafts/"+jobId+"/"+action,j,true);
+            return r.code==200;
+        }catch(Exception e){
+            android.util.Log.w("HesabDraft","Draft action did not receive acknowledgement: "+action);
+            return false;
+        }
+    }
+
+    public static boolean markVerifiedSent(Context c,long jobId) {
+        return draftAction(c,jobId,"verified-sent");
+    }
+
+    public static boolean cancelDraft(Context c,long jobId) {
+        return draftAction(c,jobId,"cancel");
+    }
+
     public static boolean markDraftOpened(Context c,long jobId) {
         try {
             JSONObject j=new JSONObject();
