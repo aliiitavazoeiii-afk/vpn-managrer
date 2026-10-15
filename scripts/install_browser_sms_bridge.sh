@@ -48,6 +48,7 @@ rollback() {
   exit 1
 }
 trap rollback ERR
+modified=1
 python3 - "$SOURCE" <<'PY'
 from pathlib import Path
 import sys
@@ -73,7 +74,6 @@ compile(source, str(target), "exec")
 target.write_text(source, encoding="utf-8")
 compose.write_text(text, encoding="utf-8")
 PY
-modified=1
 c config -q
 echo "Recreating only the app service; no database or gateway restarts..."
 c up -d --no-deps --no-build --force-recreate app
