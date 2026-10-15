@@ -5,6 +5,7 @@ on:
     branches:
       - sms-app
       - android-sms-safe-v2
+      - google-messages-manual-handoff
     paths:
       - "android-sms-gateway/**"
       - "sms_gateway/server.py"
@@ -46,28 +47,25 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      - name: Verify SMS V2 fail-closed source contracts
+      - name: Verify manual handoff has no SMS modem access
         shell: bash
         run: |
           python3 -m py_compile sms_gateway/server.py patches/sms_native_v2.py
-          bash -n scripts/install_native_sms_v2_safe.sh
           python3 - <<'PY'
           from pathlib import Path
           root=Path("android-sms-gateway/app/src/main/java/ir/filmjadiid/hesabsms")
+          manifest=Path("android-sms-gateway/app/src/main/AndroidManifest.xml").read_text()
+          activity=(root/"MainActivity.java").read_text()
           worker=(root/"GatewayService.java").read_text()
-          sender=(root/"SmsSender.java").read_text()
-          preferences=(root/"Prefs.java").read_text()
           api=(root/"ApiClient.java").read_text()
-          backend=Path("sms_gateway/server.py").read_text()
-          assert "ApiClient.markAttempting" in worker
-          assert 'reportStatus(this, job.id, "dispatching"' not in worker
-          assert "Prefs.begin(this, job.id)" in worker
-          assert "Prefs.allowedTestRecipient(this, job.phone)" in worker
-          assert "Prefs.allowedTestRecipient(c, phone)" in sender
-          assert 'putBoolean("enabled",false)' in preferences
-          assert '"&test_phone=" + phone' in api
-          assert "WHERE status='queued' AND phone=%s AND source='manual'" in backend
-          print("PASS: native V2 test-only and no-retry contracts")
+          server=Path("sms_gateway/server.py").read_text()
+          assert "android.permission.SEND_SMS" not in manifest
+          assert "SmsSender.send(" not in worker
+          assert "ApiClient.pollDraft(" in worker
+          assert "Intent.ACTION_SENDTO" in activity and '"sms_body"' in activity
+          assert "/v3/drafts/next" in server
+          assert "/v3/drafts/next" in api
+          print("PASS: manual handoff, no modem send")
           PY
 
       - name: Build debug APK
