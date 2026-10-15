@@ -6,6 +6,8 @@ on:
       - google-messages-chrome-bridge
     paths:
       - "chrome-google-messages/**"
+      - "patches/sms_browser_bridge.py"
+      - "scripts/fix_browser_sms_history_block.sh"
       - ".github/workflows/build-google-messages-bridge.yml"
   workflow_dispatch:
 
@@ -38,6 +40,7 @@ jobs:
         run: |
           python3 -m py_compile patches/sms_browser_bridge.py
           bash -n scripts/install_browser_sms_bridge.sh
+          bash -n scripts/fix_browser_sms_history_block.sh
           python3 - <<'PY'
           from pathlib import Path
           p=Path("patches/sms_browser_bridge.py").read_text()
@@ -48,6 +51,10 @@ jobs:
           assert 'DEBT_MESSAGE_CHANGED_REVIEW_REQUIRED' in p
           assert 'BROWSER_BRIDGE_REQUIRED_NO_GATEWAY_QUEUE' in p
           assert 'INSERT INTO sms_jobs' not in p
+          assert "message=:body" in p
+          assert "status IN ('sent','delivered','operator_confirmed')" in p
+          assert "EXISTING_LEGACY_SMS_CHECK_HISTORY" not in p
+          assert "created_at >= :jalali_start" not in p
           assert 'status=\'delivered\'' not in p
           print("Safe browser intent backend and installer compiled")
           PY
