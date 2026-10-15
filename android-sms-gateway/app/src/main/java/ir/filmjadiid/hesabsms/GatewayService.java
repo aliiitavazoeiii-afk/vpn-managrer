@@ -29,14 +29,31 @@ public final class GatewayService extends Service {
             Prefs.setEnabled(this,false); running=false;stopForeground(STOP_FOREGROUND_REMOVE);stopSelf();
             return START_NOT_STICKY;
         }
-        startForeground(4107,notification("در انتظار درخواست سایت",null));
+        startForeground(4107,notification("دریافت پیش‌نویس‌های سایت",null));
         if(!running){
             running=true;
             executor.execute(()->{
                 while(running && Prefs.enabled(this)){
                     try{
                         // Only one unprocessed draft at a time; no network request can send SMS.
-                        if(!Prefs.hasDraft(this)){
+                        if(Prefs.hasDraft(this)){
+                            // No implicit success when the SMS composer opens.
+                            // Only a matching row in Android's sent-SMS provider
+                            // can transition debt to waiting.
+                            if(Prefs.draftOpenedAt(this)>0L && SentSmsVerifier.permitted(this)) {
+                                if(SentSmsVerifier.matchingSentSms(this)){
+                                    long idToAck=Prefs.draftId(this);
+                                    if(ApiClient.markVerifiedSent(this,idToAck)){
+                                        Prefs.clearDraft(this);
+                                        getSystemService(NotificationManager.class).cancel(4108);
+                                        getSystemService(NotificationManager.class).notify(
+                                          4109,notification("پیام ارسالی تأیید شد؛ سایت به‌روزرسانی شد",null));
+                                    }
+                                    // If HTTP acknowledgement fails, keep pending
+                                    // and resend ONLY the acknowledgement, never SMS.
+                                }
+                            }
+                        }else{
                             ApiClient.SmsJob job=ApiClient.pollDraft(this);
                             if(job!=null){
                                 if(Prefs.saveDraft(this,job.id,job.phone,job.message)){
