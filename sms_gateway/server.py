@@ -428,3 +428,54 @@ def native_report(job_id: int, body: NativeStatus,
                      f"moved={moved}",))
     return {"ok":True,"status":body.status,"moved":moved,
             "delivery_confirmed":body.status=="delivered"}
+
+
+# GOOGLE_MESSAGES_MANUAL_HANDOFF_V1
+# Uses only native_sms_v2_jobs, never the legacy sms_jobs or modem APIs.
+# Claim is for showing a compose draft, NOT evidence of carrier submission.
+@app.get("/v3/drafts/next")
+def next_manual_draft(device_id: str, x_sms_gateway_token: str = Header(default="")):
+    require_token(x_sms_gateway_token)
+    if not (device_id and 1 <= len(device_id) <= 128):
+        raise HTTPException(400, "device_id required")
+    with db_conn() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                _native_setup(cur)
+                cur.execute("""
+                WITH picked AS (
+                  SELECT id FROM native_sms_v2_jobs
+                  WHERE status='queued'
+                  ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1
+                )
+                UPDATE native_sms_v2_jobs j
+                   SET status='claimed',device_id=%s,claimed_at=NOW(),updated_at=NOW()
+                  FROM picked WHERE j.id=picked.id
+                RETURNING j.id,j.phone,j.message
+                """,(device_id,))
+                row=cur.fetchone()
+    return dict(row) if row else Response(status_code=204)
+
+
+class ManualDraftResult(_NModel):
+    device_id: str = _NField(min_length=1,max_length=128)
+
+
+@app.post("/v3/drafts/{job_id}/opened")
+def manual_draft_opened(job_id: int, body: ManualDraftResult,
+                        x_sms_gateway_token: str = Header(default="")):
+    require_token(x_sms_gateway_token)
+    with db_conn() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                _native_setup(cur)
+                cur.execute("""
+                UPDATE native_sms_v2_jobs
+                SET status='opened',updated_at=NOW()
+                WHERE id=%s AND device_id=%s AND status='claimed'
+                RETURNING id
+                """,(job_id,body.device_id))
+                matched=cur.fetchone()
+    if not matched:
+        raise HTTPException(409,"draft already opened or not owned by device")
+    return {"ok":True,"status":"opened","sent":False,"delivered":False}
