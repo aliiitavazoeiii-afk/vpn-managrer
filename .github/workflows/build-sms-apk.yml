@@ -60,9 +60,14 @@ jobs:
           api=(root/"ApiClient.java").read_text()
           server=Path("sms_gateway/server.py").read_text()
           assert "android.permission.SEND_SMS" not in manifest
+          assert "android.permission.READ_SMS" in manifest
           assert "SmsSender.send(" not in worker
           assert "ApiClient.pollDraft(" in worker
           assert "Intent.ACTION_SENDTO" in activity and '"sms_body"' in activity
+          assert "SentSmsVerifier.matchingSentSms" in worker
+          assert "Prefs.clearDraft(this);" not in activity.split("private void openDraft()",1)[1].split("private void updateStatus()",1)[0]
+          assert "Telephony.Sms.Sent.CONTENT_URI" in (root/"SentSmsVerifier.java").read_text()
+          assert "verified-sent" in server and "followup_waiting" in server
           assert "setContentView(scroll);" in activity, "MainActivity must attach view, otherwise app launches blank"
           assert "/v3/drafts/next" in server
           assert "/v3/drafts/next" in api
