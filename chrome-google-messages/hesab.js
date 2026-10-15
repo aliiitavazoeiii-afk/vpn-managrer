@@ -37,16 +37,58 @@
     banner.textContent = message;
   }
 
+  // Debt message textareas may sit outside their submit forms; some deployed
+  // templates omit name=/form=. Select only the textarea for THIS customer.
+  function readMessage(form, params) {
+    const submitted = params.get("message");
+    if (typeof submitted === "string" && submitted.trim()) {
+      return submitted.trim();
+    }
+
+    const candidates = [];
+    const add = field => {
+      if ((field instanceof HTMLTextAreaElement ||
+           field instanceof HTMLInputElement) && !candidates.includes(field)) {
+        candidates.push(field);
+      }
+    };
+
+    add(form.elements.namedItem("message"));
+    add(form.querySelector('textarea[name="message"], input[name="message"]'));
+
+    if (form.id === "sms-form") {
+      add(form.querySelector("#sms-message"));
+    }
+
+    if (form.id) {
+      add(document.querySelector(
+        'textarea[form="' + CSS.escape(form.id) + '"]'
+      ));
+    }
+
+    // Index-based lookup also works if the debt textarea is unassociated.
+    const debtId = /^debt-sms-form-(\d+)$/.exec(form.id || "");
+    if (debtId) {
+      const expectedId = "debt-message-" + debtId[1];
+      add(document.getElementById(expectedId));
+      // The adjacent copy button is constrained to the same indexed field.
+      const copy = form.closest(".debt-message-actions")
+        ?.querySelector("[data-copy-target]");
+      if (copy?.getAttribute("data-copy-target") === expectedId) {
+        add(document.getElementById(expectedId));
+      }
+    }
+
+    const found = candidates.find(field =>
+      !field.disabled && typeof field.value === "string" && field.value.trim()
+    );
+    return found ? found.value.trim() : "";
+  }
+
   function getFields(form) {
     const params = new FormData(form);
     let phone = normalize(params.get("phone"));
-    let body = String(params.get("message") || "").trim();
-    if (!body && form.id) {
-      // Debt textarea may live outside the form and reference its id.
-      body = String(document.querySelector(
-        'textarea[form="' + CSS.escape(form.id) + '"]'
-      )?.value || "").trim();
-    }
+    let body = readMessage(form, params);
     if (phone.startsWith("0098")) phone = "0" + phone.slice(4);
     else if (phone.startsWith("98") && phone.length === 12) phone = "0" + phone.slice(2);
     else if (phone.startsWith("+98")) phone = "0" + phone.slice(3);
@@ -55,7 +97,9 @@
       throw new Error("شماره موبایل ایرانی معتبر نیست.");
     }
     if (!body || body.length > 1000) {
-      throw new Error("متن پیامک خالی است یا بیشتر از ۱۰۰۰ کاراکتر دارد.");
+      throw new Error(!body
+        ? "متن پیامک این فرم پیدا نشد. هیچ پیامکی ارسال نشده؛ ساختار کادر متن را بررسی کن."
+        : "متن پیامک بیشتر از ۱۰۰۰ کاراکتر دارد؛ هیچ پیامکی ارسال نشده.");
     }
     return {phone: "+98" + phone.slice(1), message:body};
   }
