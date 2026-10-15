@@ -79,20 +79,23 @@ def _bs_lock(db, normalized):
     )
 
 
-def _bs_existing_legacy_debt(db, phone, cycle, now):
-    # Existing gateway requests are NEVER resumed, reused, or resent.
-    # Block a new browser send in this billing cycle / current Jalali month.
+def _bs_existing_legacy_debt(db, phone, body):
+    # A previous job in the current Jalali month is NOT evidence that the
+    # CURRENT reminder was already sent. The old broad month check prevented
+    # nearly every debtor from using the new browser flow.
+    #
+    # Block only when the same exact reminder body was previously recorded
+    # as successfully submitted/confirmed by the old workflow. "Failed" may
+    # have been delivered despite error (an old gateway failure mode), so
+    # operators must still check the Google conversation before resending
+    # a reminder they know was already received. No old job is ever replayed.
     found = db.execute(_bs_text("""
-      SELECT id, status FROM sms_jobs
+      SELECT id FROM sms_jobs
       WHERE phone=:phone AND source LIKE 'debt:%'
-        AND status <> 'cancelled'
-        AND (source=:cycle OR created_at >= :jalali_start)
+        AND message=:body
+        AND status IN ('sent','delivered','operator_confirmed')
       ORDER BY id DESC LIMIT 1
-    """), {
-      "phone": phone,
-      "cycle": "debt:" + cycle,
-      "jalali_start": _b_month_start(now),
-    }).mappings().first()
+    """), {"phone": phone, "body": body}).first()
     return found is not None
 
 
@@ -141,9 +144,6 @@ async def _bs_begin(request: _bs_Request, db: _bs_Session = _bs_Depends(get_db))
             db.rollback()
             return _bs_fail("NO_ACTIONABLE_DEBT")
         cycle = min(s.expiry_date for s in eligible).isoformat()
-        if _bs_existing_legacy_debt(db, phone, cycle, now):
-            db.rollback()
-            return _bs_fail("EXISTING_LEGACY_SMS_CHECK_HISTORY")
         canonical = _ABAN_SMS_PATTERN.format(expiry=jdate(min(s.expiry_date for s in eligible)))
         if len(canonical) > 1000:
             db.rollback()
@@ -154,6 +154,9 @@ async def _bs_begin(request: _bs_Request, db: _bs_Session = _bs_Depends(get_db))
             db.rollback()
             return _bs_fail("DEBT_MESSAGE_CHANGED_REVIEW_REQUIRED")
         body = canonical
+        if _bs_existing_legacy_debt(db, phone, body):
+            db.rollback()
+            return _bs_fail("EXISTING_IDENTICAL_CONFIRMED_SMS")
         older = db.execute(_bs_text("""
           SELECT id,status FROM sms_browser_intents
           WHERE phone=:phone AND source='debt' AND cycle_key=:cycle
