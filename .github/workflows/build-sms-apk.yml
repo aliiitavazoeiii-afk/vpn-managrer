@@ -73,7 +73,7 @@ jobs:
           tail=patch.split('_ws_tpl = TEMPLATES.get',1)[1]
           exec('_ws_tpl = TEMPLATES.get'+tail,scope)
           page=scope["TEMPLATES"]["followups.html"]
-          assert page.count("data-waiting-sms-reminder-box")==1
+          assert page.count('<div class="waiting-sms-reminder-box" data-waiting-sms-reminder-box>')==1
           assert "سلام وقت بخیر، اکانتتون تمدید بشه؟" in page
           assert "/followups/sms-reminder" in page
           assert "type=\"button\"" in page
