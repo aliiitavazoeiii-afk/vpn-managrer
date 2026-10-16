@@ -229,3 +229,160 @@ app.router.routes[:]=[
 app.add_api_route("/sms/debt-send",_ns_debt_send,methods=["POST"])
 app.add_api_route("/sms/send",_ns_manual_send,methods=["POST"])
 app.add_api_route("/sms/native-v2/status",_ns_status,methods=["GET"])
+
+
+# HESAB_WAITING_RENEWAL_SMS_V1
+# Inject one manual-reminder action alongside full settlement and restore-all.
+# Does NOT pay, clear a debt, update followup states, or transmit an SMS.
+from fastapi import Form as _wr_Form, Depends as _wr_Depends
+from fastapi.responses import JSONResponse as _wr_JSON
+from sqlalchemy.orm import Session as _wr_Session
+
+_WR_MESSAGE = "سلام وقت بخیر، اکانتتون تمدید بشه؟"
+
+def _wr_queue(
+    phone: str = _wr_Form(""),
+    db: _wr_Session = _wr_Depends(get_db),
+):
+    normalized = _ns_clean_phone(phone)
+    if not normalized:
+        return _wr_JSON({"ok":False,"code":"INVALID_PHONE"},status_code=400)
+    # Do not create reminder drafts for users no longer in waiting.
+    states = _followup_states(db)
+    subs = db.query(Subscription).filter(
+        Subscription.phone == normalized, Subscription.is_free.is_(False)
+    ).all()
+    today = today_local()
+    waiting = any(
+        states.get(int(sub.id)) == "waiting"
+        and sub.expiry_date is not None
+        and current_debt_for(sub, today)>0
+        for sub in subs
+    )
+    if not waiting:
+        return _wr_JSON({"ok":False,"code":"NOT_WAITING"},status_code=409)
+    job_id, error = _ns_enqueue(db,normalized,"manual",_WR_MESSAGE)
+    if error:
+        return _wr_JSON({"ok":False,"code":error},status_code=409)
+    return {"ok":True,"status":"queued","job_id":job_id,
+            "sent":False,"followup_changed":False}
+
+if not any(getattr(route,"path",None)=="/sms/waiting-renewal"
+           for route in app.router.routes):
+    app.add_api_route("/sms/waiting-renewal", _wr_queue,methods=["POST"])
+
+_WR_FORM = r"""
+        <form method="post" action="/sms/waiting-renewal"
+              class="waiting-renewal-form" data-waiting-renewal-form>
+          <input type="hidden" name="phone" value="{{ g.phone or '' }}">
+          {% if g.phone %}
+          <button type="submit" class="waiting-renewal-btn"
+            title="سلام وقت بخیر، اکانتتون تمدید بشه؟">✉ پیامک تمدید</button>
+          {% else %}
+          <button type="button" class="waiting-renewal-btn" disabled
+            title="شماره همراه موجود نیست">بدون شماره</button>
+          {% endif %}
+        </form>
+"""
+_WR_STYLE_SCRIPT = r"""
+<style>
+.waiting-renewal-form{display:inline-flex;align-items:center;margin:0;min-width:0}
+.waiting-renewal-btn{min-height:34px;padding:6px 12px;border-radius:9px;
+ background:rgba(105,168,255,.12);border:1px solid rgba(105,168,255,.45);
+ color:#c5deff;font:inherit;font-size:11px;font-weight:800;
+ cursor:pointer;white-space:nowrap}
+.waiting-renewal-btn:hover{background:rgba(105,168,255,.22)}
+.waiting-renewal-btn:disabled{opacity:.5;cursor:not-allowed}
+.waiting-renewal-feedback{position:fixed;bottom:20px;right:20px;z-index:30000;
+ background:#15334c;color:#e6f4ff;border:1px solid #396f9d;
+ border-radius:12px;padding:12px 17px;max-width:min(430px,calc(100vw - 40px));
+ font-size:12px;line-height:1.8;box-shadow:0 12px 35px #0006}
+.waiting-renewal-feedback.error{background:#48222c;border-color:#bb6674;color:#fff0f0}
+@media(max-width:780px){.waiting-renewal-form{flex:1 1 auto}.waiting-renewal-btn{width:100%}}
+</style>
+<script>
+(function(){
+  "use strict";
+  if(window.__hesabWaitingRenewalSms)return;
+  window.__hesabWaitingRenewalSms=true;
+  let timer=0;
+  function flash(text,error){
+    let el=document.getElementById("waiting-renewal-feedback");
+    if(!el){
+      el=document.createElement("div");
+      el.id="waiting-renewal-feedback";
+      el.className="waiting-renewal-feedback";
+      el.setAttribute("role","status");
+      document.body.append(el);
+    }
+    el.classList.toggle("error",!!error);
+    el.textContent=text;
+    clearTimeout(timer);
+    timer=setTimeout(()=>el.remove(),6500);
+  }
+  // Capture before waiting_live's generic POST listener, so a reminder
+  // cannot accidentally trigger its financial/payment UI logic.
+  document.addEventListener("submit",async function(event){
+    const form=event.target;
+    if(!(form instanceof HTMLFormElement) ||
+       !form.matches('form[data-waiting-renewal-form]'))return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if(form.dataset.sending==="1")return;
+    form.dataset.sending="1";
+    const btn=form.querySelector("button[type=submit]");
+    if(btn)btn.disabled=true;
+    try{
+      const response=await fetch("/sms/waiting-renewal",{
+        method:"POST",body:new FormData(form),credentials:"same-origin",
+        cache:"no-store",headers:{"Accept":"application/json",
+        "X-Requested-With":"XMLHttpRequest"}});
+      const data=await response.json();
+      if(!response.ok || !data.ok){
+        if(data.code==="IDENTICAL_SMS_ALREADY_REGISTERED"){
+          flash("این پیام تمدید قبلاً برای این شماره در ۲۴ ساعت گذشته ثبت شده است.",true);
+        }else{
+          flash("درخواست پیامک ثبت نشد: "+(data.code||response.status),true);
+        }
+        return;
+      }
+      flash("پیامک تمدید به صف اپ اضافه شد؛ در گوشی آن را باز کن و دستی بفرست.",false);
+      btn.textContent="✓ در صف گوشی";
+      btn.disabled=true;
+      form.dataset.queued="1";
+    }catch(_){
+      flash("وضعیت درخواست نامشخص است؛ قبل از تکرار، صف گوشی را بررسی کن.",true);
+    }finally{
+      form.dataset.sending="0";
+      if(btn && form.dataset.queued!=="1")btn.disabled=false;
+    }
+  },true);
+})();
+</script>
+"""
+_wr_tpl = TEMPLATES.get("followups.html","")
+if not _wr_tpl:
+    raise RuntimeError("Waiting renewal SMS: followups template missing")
+if "data-waiting-renewal-form" not in _wr_tpl:
+    # The final settled header contains payment, actual amount, restore-all;
+    # insert before its closing div, immediately beside those controls.
+    _wr_re = _ns_re.compile(
+      r'(<div class="waiting-head-pay waiting-pay-tools">[\s\S]*?)'
+      r'(</div>\s*(?=<span class="waiting-chevron">))',
+      _ns_re.S
+    )
+    _wr_tpl, _wr_count = _wr_re.subn(
+        lambda m:m.group(1)+_WR_FORM+m.group(2),
+        _wr_tpl, count=1
+    )
+    if _wr_count!=1:
+        raise RuntimeError("Waiting renewal SMS: group-action header not found")
+    # Must remain within the last content block and be independent of
+    # the waiting page's existing payment handlers.
+    _wr_end=_wr_tpl.rfind("{% endblock %}")
+    if _wr_end < 0:
+        raise RuntimeError("Waiting renewal SMS: template block not found")
+    _wr_tpl=_wr_tpl[:_wr_end]+_WR_STYLE_SCRIPT+"\n"+_wr_tpl[_wr_end:]
+    TEMPLATES["followups.html"]=_wr_tpl
+    if hasattr(env.loader,"mapping"):
+        env.loader.mapping.update(TEMPLATES)
