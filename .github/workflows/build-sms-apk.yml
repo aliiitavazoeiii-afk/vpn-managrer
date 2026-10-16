@@ -14,6 +14,7 @@ on:
       - "scripts/install_native_sms_v2_safe.sh"
       - "scripts/install_sent_sms_confirmation.sh"
       - "scripts/install_batch_operator_open.sh"
+      - "scripts/install_waiting_renewal_sms.sh"
       - "patches/waiting_sms_reminder.py"
       - "scripts/install_waiting_sms_reminder.sh"
       - ".github/workflows/build-sms-apk.yml"
@@ -57,6 +58,7 @@ jobs:
         run: |
           python3 -m py_compile sms_gateway/server.py patches/sms_native_v2.py
           bash -n scripts/install_batch_operator_open.sh
+          bash -n scripts/install_waiting_renewal_sms.sh
           bash -n scripts/install_waiting_sms_reminder.sh
           python3 -m py_compile patches/waiting_sms_reminder.py
           python3 - <<'PY'
@@ -103,6 +105,14 @@ jobs:
           assert "operator_opened" in server and "followup_waiting" in server
           assert "sent_confirmed" in server and "False" in server
           assert "درخواست به صف گوشی اضافه شد" in page
+          assert "HESAB_WAITING_RENEWAL_SMS_V1" in page
+          assert 'سلام وقت بخیر، اکانتتون تمدید بشه؟' in page
+          assert 'waiting-head-pay waiting-pay-tools' in page
+          assert 'data-waiting-renewal-form' in page
+          assert '/sms/waiting-renewal' in page
+          assert 'source=="debt"' not in page.split("HESAB_WAITING_RENEWAL_SMS_V1",1)[1]
+          assert 'event.stopImmediatePropagation()' in page
+
           assert "/v4/drafts/pending" in api
           print("PASS: no telephony permission, batch queue, operator-click transition")
           PY
