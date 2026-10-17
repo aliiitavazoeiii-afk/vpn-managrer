@@ -145,6 +145,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Hesab-WhatsApp-Manual
-          path: android-sms-gateway/app/build/outputs/apk/debug/Hesab-SMS-Gateway.apk
+          path: android-sms-gateway/app/build/outputs/apk/debug/Hesab-WhatsApp-Manual.apk
           if-no-files-found: error
           retention-days: 30
