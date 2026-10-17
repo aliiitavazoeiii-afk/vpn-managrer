@@ -1,4 +1,4 @@
-name: Build Hesab SMS Gateway APK
+name: Build Hesab WhatsApp Manual APK
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
       - android-sms-safe-v2
       - google-messages-manual-handoff
       - manual-sms-batch-operator-open
+      - whatsapp-manual-operator-open
     paths:
       - "android-sms-gateway/**"
       - "sms_gateway/server.py"
@@ -53,7 +54,7 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      - name: Verify batch handoff and operator-click semantics
+      - name: Verify WhatsApp composer and unchanged site queue contract
         shell: bash
         run: |
           python3 -m py_compile sms_gateway/server.py patches/sms_native_v2.py
@@ -97,7 +98,13 @@ jobs:
           assert not (root/"GatewayService.java").exists()
           assert not (root/"SentSmsVerifier.java").exists()
           assert "setContentView(screen);" in activity
-          assert "Intent.ACTION_SENDTO" in activity and '"sms_body"' in activity
+          helper=(root/"WhatsAppLink.java").read_text()
+          assert "Intent.ACTION_VIEW" in activity and "WhatsAppLink.link" in activity
+          assert "com.whatsapp" in activity and "com.whatsapp.w4b" in activity
+          assert "Intent.ACTION_SENDTO" not in activity and '"sms_body"' not in activity
+          assert "smsto:" not in activity and "Google Messages" not in activity
+          assert "https://wa.me/" in helper and "whatsapp://send" in helper
+          assert '"98" + phone.substring(1)' in helper
           assert "ApiClient.pending(" in activity
           assert "REFRESH_MS=4000L" in activity
           assert "ApiClient.operatorOpened" in activity
@@ -114,20 +121,30 @@ jobs:
           assert 'event.stopImmediatePropagation()' in page
 
           assert "/v4/drafts/pending" in api
-          print("PASS: no telephony permission, batch queue, operator-click transition")
+          print("PASS: WhatsApp manual compose, no SMS send, same batch queue/operator-open transition")
           PY
+
+      - name: Run WhatsApp link unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$(mktemp -d)"
+          javac -encoding UTF-8 -d "$OUT" \
+            android-sms-gateway/app/src/main/java/ir/filmjadiid/hesabsms/WhatsAppLink.java \
+            android-sms-gateway/tests/WhatsAppLinkTest.java
+          java -cp "$OUT" WhatsAppLinkTest
 
       - name: Build debug APK
         run: gradle -p android-sms-gateway :app:assembleDebug --stacktrace
 
       - name: Rename APK
         run: |
-          cp android-sms-gateway/app/build/outputs/apk/debug/app-debug.apk              android-sms-gateway/app/build/outputs/apk/debug/Hesab-SMS-Gateway.apk
+          cp android-sms-gateway/app/build/outputs/apk/debug/app-debug.apk              android-sms-gateway/app/build/outputs/apk/debug/Hesab-WhatsApp-Manual.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Hesab-SMS-Gateway
+          name: Hesab-WhatsApp-Manual
           path: android-sms-gateway/app/build/outputs/apk/debug/Hesab-SMS-Gateway.apk
           if-no-files-found: error
           retention-days: 30
