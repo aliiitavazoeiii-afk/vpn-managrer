@@ -14,8 +14,8 @@ android {
         applicationId "ir.filmjadiid.hesabsms"
         minSdk 26
         targetSdk 34
-        versionCode 6
-        versionName "4.0.0-batch-manual"
+        versionCode 7
+        versionName "4.1.0-whatsapp-manual"
     }
 
     buildTypes {
