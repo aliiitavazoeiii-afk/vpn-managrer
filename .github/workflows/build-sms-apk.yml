@@ -100,11 +100,12 @@ jobs:
           end=src.index('def _ews_queue_impl(',start)
           exec(src[start:end],globals_)
           result=globals_['_ews_message'](date(2026,9,28))
-          assert result==(
-              "سلام اکانت شما ۶ مهر تمام شده.\\n"
-              "برای تمدید با شماره همراه خودتون وارد این سایت بشید و نسبت به پرداخت اقدام فرمایید.\\n\\n"
+          assert result.splitlines()==[
+              "سلام اکانت شما ۶ مهر تمام شده.",
+              "برای تمدید با شماره همراه خودتون وارد این سایت بشید و نسبت به پرداخت اقدام فرمایید.",
+              "",
               "usersmanager.ir"
-          ).replace('\\n','\n')
+          ]
           # A different expiry produces a different month/day, not fixed 6 Mehr.
           assert globals_['_ews_message'](date(2026,10,1))!=result
           print("PASS: Jalali expiry inserted into exact user-requested reminder")
