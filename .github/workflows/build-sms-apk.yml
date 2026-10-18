@@ -17,6 +17,8 @@ on:
       - "scripts/install_waiting_renewal_sms.sh"
       - "patches/waiting_sms_reminder.py"
       - "scripts/install_waiting_sms_reminder.sh"
+      - "patches/waiting_expiry_sms_v2.py"
+      - "scripts/install_waiting_expiry_sms_v2.sh"
       - ".github/workflows/build-sms-apk.yml"
   workflow_dispatch:
 
@@ -60,6 +62,8 @@ jobs:
           bash -n scripts/install_batch_operator_open.sh
           bash -n scripts/install_waiting_renewal_sms.sh
           bash -n scripts/install_waiting_sms_reminder.sh
+          bash -n scripts/install_waiting_expiry_sms_v2.sh
+          python3 -m py_compile patches/waiting_expiry_sms_v2.py
           python3 -m py_compile patches/waiting_sms_reminder.py
           python3 - <<'PY'
           from pathlib import Path
@@ -82,6 +86,28 @@ jobs:
           assert 'current_debt_for(s,now)>0' in patch
           assert '_ns_enqueue(db,normalized,"manual",_WS_BODY)' in patch
           print("PASS: waiting box renders into existing group without changing payments")
+          PY
+          python3 - <<'PY'
+          from pathlib import Path
+          from datetime import date
+          src=Path("patches/waiting_expiry_sms_v2.py").read_text()
+          assert '# HESAB_WAITING_EXPIRY_SMS_V2' in src
+          assert 'usersmanager.ir' in src
+          assert 'followup_state_unchanged' in src
+          assert 'g.first_expiry|ews_message' in src
+          globals_={'__name__':'_smoke'}
+          start=src.index('_EWS_MONTHS = (')
+          end=src.index('def _ews_queue_impl(',start)
+          exec(src[start:end],globals_)
+          result=globals_['_ews_message'](date(2026,9,28))
+          assert result==(
+              "سلام اکانت شما ۶ مهر تمام شده.\\n"
+              "برای تمدید با شماره همراه خودتون وارد این سایت بشید و نسبت به پرداخت اقدام فرمایید.\\n\\n"
+              "usersmanager.ir"
+          ).replace('\\n','\n')
+          # A different expiry produces a different month/day, not fixed 6 Mehr.
+          assert globals_['_ews_message'](date(2026,10,1))!=result
+          print("PASS: Jalali expiry inserted into exact user-requested reminder")
           PY
           python3 - <<'PY'
           from pathlib import Path
