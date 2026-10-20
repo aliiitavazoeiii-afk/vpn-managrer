@@ -24,6 +24,18 @@ def config():
  return json.loads(CFG.read_text())
 class NoRedirect(urllib.request.HTTPRedirectHandler):
  def redirect_request(self,*a,**kw):return None
+def panel_base(raw_url):
+ # Operators often copy the dashboard URL ending in /panel/.
+ # 3x-ui login is at BASE/login and its inbound API at BASE/panel/api.
+ # Strip ONLY the exact trailing UI segment; never mutate hostname/TLS.
+ value=str(raw_url or "").strip().rstrip("/")
+ parsed=urllib.parse.urlsplit(value)
+ if (parsed.scheme!="https" or not parsed.netloc or parsed.username or
+     parsed.password or parsed.query or parsed.fragment):
+  stop("Valid HTTPS 3x-ui panel URL required")
+ if parsed.path.endswith("/panel"):
+  value=value[:-len("/panel")]
+ return value.rstrip("/")
 def request_json(opener,url,payload=None,headers=None):
  # HTTPS only, don't follow a redirect carrying a session or secret.
  h={"Accept":"application/json",**(headers or {})}
@@ -45,9 +57,8 @@ def request_json(opener,url,payload=None,headers=None):
   stop("X-UI rejected API request")
  return doc
 def pull(name,details):
- url=details["url"]
- if not url.startswith("https://"):stop("TLS/HTTPS required")
- base=url.rstrip("/")+"/"
+ url=panel_base(details["url"])
+ base=url+"/"
  endpoint=base+"panel/api/inbounds/list"
  cookiejar=http.cookiejar.CookieJar()
  opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookiejar),NoRedirect)
@@ -152,10 +163,8 @@ def main():
  action=sys.argv[1];name=sys.argv[2] if len(sys.argv)>2 else None
  if action=="configure":
   if name not in SERVERS:stop("Specify maya1, maya-s3 or maya4")
-  url=input("HTTPS 3x-ui panel base URL (include custom web path): ").strip().rstrip("/")
-  p=urllib.parse.urlsplit(url)
-  if p.scheme!="https" or not p.netloc or p.username or p.password or p.query or p.fragment:
-   stop("Valid HTTPS URL without credentials required")
+  url=panel_base(input("3x-ui HTTPS URL (dashboard /panel/ is accepted): "))
+  print("Panel URL accepted; using its base path for /login and /panel/api (credentials remain hidden).")
   auth=input("Auth: [L] panel username/password or [T] API bearer token? ").strip().lower() or "l"
   if auth=="l":
    username=input("Panel username: ").strip()
