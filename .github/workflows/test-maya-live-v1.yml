@@ -72,7 +72,7 @@ jobs:
               state["calls"].append((url,payload))
               if url.endswith("/bulkEnable"):
                   if state["old"]:
-                      raise ValueError("X-UI API returned HTTP 404")
+                      raise RuntimeError("X-UI API returned HTTP 404")
                   assert payload=={"emails":[email]}
                   state["enabled"]=True
                   return {"success":True}
