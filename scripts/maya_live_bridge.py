@@ -100,7 +100,7 @@ def send_enable(server,details,email,expected,target):
         value=reply.get("obj")
         if isinstance(value,dict) and (value.get("failed") or value.get("skipped")):
             fail("Panel reports incomplete client toggle")
-    except ValueError as ex:
+    except (ValueError,RuntimeError) as ex:
         # Only an explicit 404 permits a second, *different* compatibility
         # path. No retry after timeout, connection drop, 403 or 5xx.
         if "returned HTTP 404" not in str(ex):
