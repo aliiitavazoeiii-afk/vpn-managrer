@@ -59,7 +59,7 @@ for i in $(seq 1 30); do
 from app.main import TEMPLATES
 assert "HESAB_MAYA_EXTRA_DASHBOARD_V1" in open("/app/app/main.py").read()
 assert "maya_extra_reports" in TEMPLATES["control_room.html"]
-assert "مایا S3" in TEMPLATES["control_room.html"]
+assert "سرورهای جدید مایا" in TEMPLATES["control_room.html"]
 PY
  then READY=1;break;fi
  sleep 2
