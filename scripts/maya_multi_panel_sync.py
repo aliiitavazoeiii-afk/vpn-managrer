@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """HESAB_MAYA_EXTRA_RO_V1. Read-only 3x-ui API: Maya S3, Maya4. No client writes."""
-import csv,getpass,io,json,os,subprocess,sys,tempfile,urllib.parse,urllib.request,urllib.error,http.cookiejar
+import csv,getpass,io,json,os,subprocess,sys,tempfile,urllib.parse,urllib.request,urllib.error,http.cookiejar,ipaddress,socket,time
+from contextlib import contextmanager
 from collections import defaultdict
 from datetime import datetime,timezone
 from pathlib import Path
@@ -36,6 +37,78 @@ def panel_base(raw_url):
  if parsed.path.endswith("/panel"):
   value=value[:-len("/panel")]
  return value.rstrip("/")
+@contextmanager
+def panel_connection(details):
+ # For public HTTPS, enforce certificate verification (urllib default).
+ # For plain HTTP x-ui, credentials travel ONLY through a verified SSH tunnel
+ # to its loopback port. Never connect directly to public HTTP.
+ mode=details.get("transport","https")
+ process=None
+ if mode=="https":
+  base=panel_base(details["url"])+"/"
+ elif mode=="ssh":
+  host=str(details["ssh_host"])
+  ipaddress.ip_address(host)
+  remote_port=int(details["remote_port"])
+  ssh_port=int(details.get("ssh_port",22))
+  if not (1<=remote_port<=65535 and 1<=ssh_port<=65535):
+   stop("Invalid SSH/X-UI port")
+  path=str(details["panel_path"])
+  if not path.startswith("/") or "//" in path or ".." in path or len(path)>190:
+   stop("Invalid x-ui panel base path")
+  key="/root/.ssh/hesab_"+str(details["server"]).replace("-","_")+"_tunnel"
+  if not os.path.isfile(key):stop("SSH key missing: "+key+"; run SSH tunnel bootstrap first")
+  port_socket=socket.socket()
+  port_socket.bind(("127.0.0.1",0))
+  local_port=port_socket.getsockname()[1]
+  port_socket.close()
+  args=["ssh","-N","-T","-i",key,"-o","IdentitiesOnly=yes","-o","BatchMode=yes",
+        "-o","StrictHostKeyChecking=yes","-o","ExitOnForwardFailure=yes",
+        "-o","ConnectTimeout=8","-o","ServerAliveInterval=5","-o","ServerAliveCountMax=2",
+        "-p",str(ssh_port),"-L",f"127.0.0.1:{local_port}:127.0.0.1:{remote_port}",
+        str(details.get("ssh_user") or "root")+"@"+host]
+  process=subprocess.Popen(args,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
+  for i in range(35):
+   if process.poll() is not None:stop("SSH tunnel failed; check key, host fingerprint and remote SSH")
+   with socket.socket() as test:
+    test.settimeout(.2)
+    if test.connect_ex(("127.0.0.1",local_port))==0:break
+   time.sleep(.15)
+  else:stop("SSH tunnel local forward did not open")
+  base="http://127.0.0.1:"+str(local_port)+"/"+path.strip("/")+"/"
+ else:stop("Unsupported panel transport")
+ try:
+  jar=http.cookiejar.CookieJar()
+  opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),
+          urllib.request.HTTPCookieProcessor(jar),NoRedirect)
+  if details.get("mode")=="login":
+   data=urllib.parse.urlencode({
+    "username":details["username"],"password":details["password"]}).encode("utf8")
+   req=urllib.request.Request(base+"login",data=data,headers={
+      "Accept":"application/json","Content-Type":"application/x-www-form-urlencoded"})
+   try:
+    with opener.open(req,timeout=15) as r:
+     answer=json.loads(r.read(65536))
+    if not isinstance(answer,dict) or answer.get("success") is not True:
+     stop("Panel rejected login")
+   except (urllib.error.HTTPError,ValueError):
+    request_json(opener,base+"login",{
+     "username":details["username"],"password":details["password"]})
+   if not list(jar):stop("Panel did not set session cookie")
+   headers={}
+  elif details.get("mode") in ("token",None):
+   headers={"Authorization":"Bearer "+details["token"]}
+  else:stop("Invalid panel authentication mode")
+  yield opener,base,headers
+ finally:
+  if process is not None:
+   process.terminate()
+   try:process.wait(timeout=5)
+   except subprocess.TimeoutExpired:
+    process.kill()
+    process.wait(timeout=5)
+
 def request_json(opener,url,payload=None,headers=None):
  # HTTPS only, don't follow a redirect carrying a session or secret.
  h={"Accept":"application/json",**(headers or {})}
@@ -57,31 +130,8 @@ def request_json(opener,url,payload=None,headers=None):
   stop("X-UI rejected API request")
  return doc
 def pull(name,details):
- url=panel_base(details["url"])
- base=url+"/"
- endpoint=base+"panel/api/inbounds/list"
- cookiejar=http.cookiejar.CookieJar()
- opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookiejar),NoRedirect)
- if details.get("mode")=="login":
-  # Legacy 3x-ui uses form body, newer builds may accept JSON.
-  # Only send credentials to the configured HTTPS panel, with redirects blocked.
-  form=urllib.parse.urlencode({"username":details["username"],"password":details["password"]}).encode("utf8")
-  req=urllib.request.Request(base+"login",data=form,headers={
-   "Accept":"application/json","Content-Type":"application/x-www-form-urlencoded"})
-  try:
-   with opener.open(req,timeout=15) as response:
-    result=json.loads(response.read(65536))
-   if not isinstance(result,dict) or result.get("success") is not True:
-    raise ValueError("Panel rejected login")
-  except (urllib.error.HTTPError,ValueError):
-   request_json(opener,base+"login",{
-    "username":details["username"],"password":details["password"]})
-  if not any(True for _ in cookiejar):stop("Panel login returned no session cookie")
-  headers={}
- elif details.get("mode") in (None,"token"):
-  headers={"Authorization":"Bearer "+details["token"]}
- else:stop("Unrecognized authentication mode")
- doc=request_json(opener,endpoint,headers=headers)
+ with panel_connection(details) as (opener,base,headers):
+  doc=request_json(opener,base+"panel/api/inbounds/list",headers=headers)
  if not isinstance(doc.get("obj"),list):stop("Unrecognized panel/API result")
  users={}
  for inbound in doc["obj"]:
@@ -163,18 +213,36 @@ def main():
  action=sys.argv[1];name=sys.argv[2] if len(sys.argv)>2 else None
  if action=="configure":
   if name not in SERVERS:stop("Specify maya1, maya-s3 or maya4")
-  url=panel_base(input("3x-ui HTTPS URL (dashboard /panel/ is accepted): "))
-  print("Panel URL accepted; using its base path for /login and /panel/api (credentials remain hidden).")
+  raw_url=input("3x-ui panel URL (HTTPS or HTTP over SSH): ").strip().rstrip("/")
+  parsed=urllib.parse.urlsplit(raw_url)
+  if parsed.scheme=="https":
+   url=panel_base(raw_url)
+   entry={"url":url,"transport":"https","server":name}
+   print("HTTPS panel connection with verified TLS.")
+  elif parsed.scheme=="http":
+   if (not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment
+       or parsed.port is None):
+    stop("Valid HTTP panel host and port required for SSH tunneling")
+   ipaddress.ip_address(parsed.hostname)
+   path=parsed.path.rstrip("/")
+   if path.endswith("/panel"):path=path[:-6]
+   if not path.startswith("/") or ".." in path or "//" in path:
+    stop("Invalid X-UI panel path")
+   print("HTTP panel detected: SSH encryption is REQUIRED; direct plaintext login prohibited.")
+   entry={"server":name,"transport":"ssh","ssh_host":parsed.hostname,
+          "ssh_port":22,"ssh_user":"root","remote_port":parsed.port,
+          "panel_path":path}
+  else:stop("HTTPS or SSH-wrapped HTTP required")
   auth=input("Auth: [L] panel username/password or [T] API bearer token? ").strip().lower() or "l"
   if auth=="l":
    username=input("Panel username: ").strip()
    password=getpass.getpass("Panel password (hidden): ")
    if not username or not password:stop("Missing panel credentials")
-   entry={"url":url,"mode":"login","username":username,"password":password}
+   entry.update({"mode":"login","username":username,"password":password})
   elif auth=="t":
    token=getpass.getpass("3x-ui bearer API token (hidden): ").strip()
    if len(token)<8:stop("Missing bearer token")
-   entry={"url":url,"mode":"token","token":token}
+   entry.update({"mode":"token","token":token})
   else:stop("Choose login or token")
   sync(name,entry,False) # Validate before saving. Never write a client.
   found=config();found[name]=entry
