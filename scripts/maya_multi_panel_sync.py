@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """HESAB_MAYA_EXTRA_RO_V1. Read-only 3x-ui API: Maya S3, Maya4. No client writes."""
-import csv,getpass,io,json,os,subprocess,sys,tempfile,urllib.parse,urllib.request,urllib.error
+import csv,getpass,io,json,os,subprocess,sys,tempfile,urllib.parse,urllib.request,urllib.error,http.cookiejar
 from collections import defaultdict
 from datetime import datetime,timezone
 from pathlib import Path
@@ -24,19 +24,45 @@ def config():
  return json.loads(CFG.read_text())
 class NoRedirect(urllib.request.HTTPRedirectHandler):
  def redirect_request(self,*a,**kw):return None
+def request_json(opener,url,payload=None,headers=None):
+ # HTTPS only, don't follow a redirect carrying a session or secret.
+ h={"Accept":"application/json",**(headers or {})}
+ body=json.dumps(payload).encode("utf8") if payload is not None else None
+ if body is not None:h["Content-Type"]="application/json"
+ req=urllib.request.Request(url,headers=h,data=body,method="POST" if body is not None else "GET")
+ try:
+  with opener.open(req,timeout=15) as r:
+   if r.status!=200:stop("Unexpected panel HTTP status")
+   content=r.read(6000001)
+ except urllib.error.HTTPError as ex:
+  stop("X-UI API returned HTTP "+str(ex.code)+" (verify panel path and authentication)")
+ except (urllib.error.URLError,TimeoutError) as ex:
+  stop("X-UI API connection failed ("+type(ex).__name__+")")
+ if len(content)>6000000:stop("Panel response oversized")
+ try:doc=json.loads(content)
+ except ValueError:stop("Panel returned a non-JSON response")
+ if not isinstance(doc,dict) or doc.get("success") is not True:
+  stop("X-UI rejected API request")
+ return doc
 def pull(name,details):
  url=details["url"]
  if not url.startswith("https://"):stop("TLS/HTTPS required")
- endpoint=url.rstrip("/")+"/panel/api/inbounds/list"
- req=urllib.request.Request(endpoint,headers={"Accept":"application/json","Authorization":"Bearer "+details["token"]})
- opener=urllib.request.build_opener(NoRedirect)
- try:
-  with opener.open(req,timeout=15) as r:
-   content=r.read(6000001)
- except Exception as ex:stop("Panel read failed: "+type(ex).__name__)
- if len(content)>6000000:stop("Panel response oversized")
- doc=json.loads(content)
- if doc.get("success") is not True or not isinstance(doc.get("obj"),list):stop("Unrecognized panel/API result")
+ base=url.rstrip("/")+"/"
+ endpoint=base+"panel/api/inbounds/list"
+ cookiejar=http.cookiejar.CookieJar()
+ opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookiejar),NoRedirect)
+ if details.get("mode")=="login":
+  # 3x-ui official login API establishes an in-memory cookie.
+  # The cookie is never saved to disk and is re-acquired for each sync.
+  request_json(opener,base+"login",{
+   "username":details["username"],"password":details["password"]})
+  if not any(True for _ in cookiejar):stop("Panel login returned no session cookie")
+  headers={}
+ elif details.get("mode") in (None,"token"):
+  headers={"Authorization":"Bearer "+details["token"]}
+ else:stop("Unrecognized authentication mode")
+ doc=request_json(opener,endpoint,headers=headers)
+ if not isinstance(doc.get("obj"),list):stop("Unrecognized panel/API result")
  users={}
  for inbound in doc["obj"]:
   settings=inbound.get("settings") or {}
@@ -104,9 +130,17 @@ def main():
   p=urllib.parse.urlsplit(url)
   if p.scheme!="https" or not p.netloc or p.username or p.password or p.query or p.fragment:
    stop("Valid HTTPS URL without credentials required")
-  token=getpass.getpass("3x-ui bearer API token (hidden): ").strip()
-  if len(token)<8:stop("Missing bearer token")
-  entry={"url":url,"token":token}
+  auth=input("Auth: [L] panel username/password or [T] API bearer token? ").strip().lower() or "l"
+  if auth=="l":
+   username=input("Panel username: ").strip()
+   password=getpass.getpass("Panel password (hidden): ")
+   if not username or not password:stop("Missing panel credentials")
+   entry={"url":url,"mode":"login","username":username,"password":password}
+  elif auth=="t":
+   token=getpass.getpass("3x-ui bearer API token (hidden): ").strip()
+   if len(token)<8:stop("Missing bearer token")
+   entry={"url":url,"mode":"token","token":token}
+  else:stop("Choose login or token")
   sync(name,entry,False) # Validate before saving. Never write a client.
   found=config();found[name]=entry
   CFG.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
