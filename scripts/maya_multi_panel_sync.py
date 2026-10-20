@@ -52,10 +52,19 @@ def pull(name,details):
  cookiejar=http.cookiejar.CookieJar()
  opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookiejar),NoRedirect)
  if details.get("mode")=="login":
-  # 3x-ui official login API establishes an in-memory cookie.
-  # The cookie is never saved to disk and is re-acquired for each sync.
-  request_json(opener,base+"login",{
-   "username":details["username"],"password":details["password"]})
+  # Legacy 3x-ui uses form body, newer builds may accept JSON.
+  # Only send credentials to the configured HTTPS panel, with redirects blocked.
+  form=urllib.parse.urlencode({"username":details["username"],"password":details["password"]}).encode("utf8")
+  req=urllib.request.Request(base+"login",data=form,headers={
+   "Accept":"application/json","Content-Type":"application/x-www-form-urlencoded"})
+  try:
+   with opener.open(req,timeout=15) as response:
+    result=json.loads(response.read(65536))
+   if not isinstance(result,dict) or result.get("success") is not True:
+    raise ValueError("Panel rejected login")
+  except (urllib.error.HTTPError,ValueError):
+   request_json(opener,base+"login",{
+    "username":details["username"],"password":details["password"]})
   if not any(True for _ in cookiejar):stop("Panel login returned no session cookie")
   headers={}
  elif details.get("mode") in (None,"token"):
