@@ -3,7 +3,7 @@
 Read live 3x-ui snapshots, optionally set ONE client enable bit with read-back.
 Never deletes/adds clients, changes expiration, or touches financial records.
 """
-import http.cookiejar,json,os,socketserver,sys,threading,time,urllib.parse,urllib.request,urllib.error
+import copy,http.cookiejar,json,os,re,socketserver,sys,threading,time,urllib.parse,urllib.request,urllib.error
 from datetime import datetime,timezone
 from pathlib import Path
 sys.path.insert(0,"/opt/vpn-control-center/scripts")
@@ -48,6 +48,39 @@ def snapshot(server,details):
     # Dynamic roster, no fixed count or fixed fingerprint.
     return maya.pull(server,details)
 
+def legacy_vless_toggle(opener,base,headers,email,expected,target):
+    """Old 3x-ui fallback only for ONE VLESS client; preserve complete fields.
+    Based on the already established Maya1 verified updateClient procedure.
+    Never serialize or update an entire inbound configuration.
+    """
+    source=maya.request_json(opener,base+"panel/api/inbounds/list",headers=headers)
+    hits=[]
+    for inbound in source.get("obj") or []:
+        if str(inbound.get("protocol") or "").lower()!="vless":continue
+        settings=inbound.get("settings") or {}
+        if isinstance(settings,str):settings=json.loads(settings)
+        if not isinstance(settings,dict):fail("Invalid old XUI inbound settings")
+        for c in settings.get("clients",[]):
+            if str(c.get("email") or "").strip().casefold()==email.casefold():
+                hits.append((inbound,c))
+    if len(hits)!=1:fail("Legacy XUI requires exactly one matching VLESS client")
+    inbound,client=hits[0]
+    if bool(client.get("enable",True)) is not expected:
+        fail("Legacy XUI client changed before update")
+    uuid=str(client.get("id") or "")
+    if not re.fullmatch(r"[0-9a-fA-F-]{32,40}",uuid):
+        fail("Unsupported VLESS UUID; refusing old API mutation")
+    previous=copy.deepcopy(client)
+    updated=copy.deepcopy(client)
+    updated["enable"]=target
+    payload={"id":int(inbound["id"]),
+             "settings":json.dumps({"clients":[updated]},ensure_ascii=False,separators=(",",":"))}
+    maya.request_json(opener,base+"panel/api/inbounds/updateClient/"+
+                    urllib.parse.quote(uuid,safe=""),payload,headers=headers)
+    # DO NOT assume POST means the client is changed; the outer caller will
+    # read the state again and mark success only on fresh confirmation.
+    return previous
+
 def send_enable(server,details,email,expected,target):
     before=snapshot(server,details)
     matches=[c for c in before["clients"] if c["email"].casefold()==email.casefold()]
@@ -61,18 +94,35 @@ def send_enable(server,details,email,expected,target):
     # Modern 3x-ui exposes client-scoped bulk toggle. Strictly ONE email.
     # Older panels can upgrade or use a separate locally constrained agent.
     path="panel/api/clients/bulkEnable" if target else "panel/api/clients/bulkDisable"
+    legacy_before=None
     try:
         reply=maya.request_json(opener,base+path,{"emails":[email]},headers=headers)
-    except Exception:
-        # Never automatically retry a mutation after an uncertain outcome.
-        raise
-    value=reply.get("obj")
-    if isinstance(value,dict) and (value.get("failed") or value.get("skipped")):
-        fail("Panel reports incomplete client toggle")
+        value=reply.get("obj")
+        if isinstance(value,dict) and (value.get("failed") or value.get("skipped")):
+            fail("Panel reports incomplete client toggle")
+    except ValueError as ex:
+        # Only an explicit 404 permits a second, *different* compatibility
+        # path. No retry after timeout, connection drop, 403 or 5xx.
+        if "returned HTTP 404" not in str(ex):
+            raise
+        legacy_before=legacy_vless_toggle(opener,base,headers,email,expected,target)
     after=snapshot(server,details)
     match=[c for c in after["clients"] if c["email"].casefold()==email.casefold()]
     if len(match)!=1 or match[0].get("control_ambiguous") or bool(match[0].get("client_enabled",match[0]["enabled"])) is not target:
         fail("Panel did not confirm requested state; inspect 3x-ui")
+    if legacy_before is not None:
+        # Verify every original client field survived the old updateClient call.
+        fresh=maya.request_json(opener,base+"panel/api/inbounds/list",headers=headers)
+        hits=[]
+        for inbound in fresh.get("obj") or []:
+            settings=inbound.get("settings") or {}
+            if isinstance(settings,str):settings=json.loads(settings)
+            if not isinstance(settings,dict):continue
+            for c in settings.get("clients",[]):
+                if str(c.get("email") or "").strip().casefold()==email.casefold():
+                    hits.append(c)
+        if len(hits)!=1 or any(hits[0].get(k)!=v for k,v in legacy_before.items() if k!="enable"):
+            fail("Old panel update changed unexpected fields; inspect client immediately")
     return {"ok":True,"client_enabled":target,
             "confirmed_at":datetime.now(timezone.utc).isoformat()}
 
