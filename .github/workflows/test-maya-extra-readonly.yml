@@ -35,7 +35,11 @@ jobs:
           api=Path("scripts/maya_multi_panel_sync.py").read_text()
           assert "panel/api/inbounds/list" in api
           assert "https://" in api
-          assert 'method="POST"' not in api
+          assert 'base+"login"' in api
+          assert '"Authorization":"Bearer "' in api
+          assert 'http.cookiejar.CookieJar()' in api
+          assert 'base+"panel/api/inbounds/list"' in api
+          assert 'method="POST" if body is not None else "GET"' in api
           assert "HESAB_MAYA_EXTRA_V1" in api
           assert 'sync(key,found[key]' in api
           print("PASS: XUI GET only, verified mapping, separate Maya dashboards")
