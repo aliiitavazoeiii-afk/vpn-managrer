@@ -54,6 +54,22 @@ jobs:
           print("PASS: Jinja, syntax, dynamic roster and guarded manual client toggles")
           PY
 
+      - name: Verify copied panel URL normalization
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0,"scripts")
+          import maya_multi_panel_sync as maya
+          base="https://example.invalid:2095/custompath"
+          assert maya.panel_base(base+"/panel/")==base
+          assert maya.panel_base(base+"/panel")==base
+          assert maya.panel_base(base+"/")==base
+          assert maya.panel_base(base)==base
+          assert (maya.panel_base(base+"/panel/")+"/login")==base+"/login"
+          assert (maya.panel_base(base+"/panel/")+"/panel/api/inbounds/list")==base+"/panel/api/inbounds/list"
+          print("PASS: copied 3x-ui panel path normalized once")
+          PY
+
       - name: Exercise safe API toggles with mocked panels
         run: |
           python - <<'PY'
