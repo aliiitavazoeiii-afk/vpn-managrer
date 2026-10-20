@@ -53,3 +53,55 @@ jobs:
           assert 'No X-UI clients changed during installation' in installer
           print("PASS: Jinja, syntax, dynamic roster and guarded manual client toggles")
           PY
+
+      - name: Exercise safe API toggles with mocked panels
+        run: |
+          python - <<'PY'
+          import sys,copy
+          sys.path.insert(0,"scripts")
+          import maya_live_bridge as live
+          uid="12345678-1234-1234-1234-123456789abc"
+          email="example-client"
+          details={"url":"https://panel.example.test","mode":"token","token":"stub"}
+          state={"enabled":False,"calls":[],"old":False}
+          def snapshot(server,auth):
+              assert server=="maya1"
+              return {"clients":[{"email":email,"client_enabled":state["enabled"],
+                                  "enabled":state["enabled"],"control_ambiguous":False}]}
+          def api(opener,url,payload=None,headers=None):
+              state["calls"].append((url,payload))
+              if url.endswith("/bulkEnable"):
+                  if state["old"]:
+                      raise ValueError("X-UI API returned HTTP 404")
+                  assert payload=={"emails":[email]}
+                  state["enabled"]=True
+                  return {"success":True}
+              if url.endswith("/inbounds/list"):
+                  return {"success":True,"obj":[{
+                      "id":5,"protocol":"vless",
+                      "settings":{"clients":[{"email":email,"id":uid,"enable":state["enabled"],
+                                              "flow":"xtls-rprx-vision"}]}}]}
+              if "/updateClient/" in url:
+                  assert payload["id"]==5
+                  import json
+                  c=json.loads(payload["settings"])["clients"][0]
+                  assert c["id"]==uid and c["flow"]=="xtls-rprx-vision"
+                  assert c["enable"] is True
+                  state["enabled"]=True
+                  return {"success":True}
+              raise AssertionError("Unexpected URL "+url)
+          live.snapshot=snapshot
+          live.opener_for=lambda auth:(object(),"https://panel.example.test/",{})
+          live.maya.request_json=api
+          assert live.send_enable("maya1",details,email,False,True)["client_enabled"] is True
+          assert len(state["calls"])==1
+          state.update(enabled=False,calls=[],old=True)
+          assert live.send_enable("maya1",details,email,False,True)["client_enabled"] is True
+          assert len(state["calls"])==4
+          state.update(enabled=True,calls=[],old=False)
+          try:live.send_enable("maya1",details,email,False,True)
+          except ValueError:pass
+          else:raise AssertionError("stale expected state accepted")
+          assert not state["calls"]
+          print("PASS: modern, legacy VLESS and stale-state lock tests")
+          PY
