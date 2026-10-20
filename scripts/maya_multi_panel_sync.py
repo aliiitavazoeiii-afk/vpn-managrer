@@ -7,7 +7,7 @@ from pathlib import Path
 BASE=Path("/opt/vpn-control-center")
 CFG=Path("/root/.config/hesab-maya-extra.json")
 OUT=BASE/"maya_extra_sync"/"public"
-SERVERS=("maya-s3","maya4")
+SERVERS=("maya1","maya-s3","maya4")
 def stop(s):raise RuntimeError(s)
 def write(path,obj,mode=0o640):
  path.parent.mkdir(mode=0o750,parents=True,exist_ok=True)
@@ -80,7 +80,10 @@ def pull(name,details):
    def num(x):
     try:return int(x or 0)
     except(ValueError,TypeError):return 0
-   users[key]={"email":email,"enabled":bool(inbound.get("enable",True)) and bool(c.get("enable",True)) and bool(t.get("enable",True)),
+   users[key]={"email":email,
+      "client_enabled":bool(c.get("enable",True)),
+      "inbound_enabled":bool(inbound.get("enable",True)),
+      "enabled":bool(inbound.get("enable",True)) and bool(c.get("enable",True)) and bool(t.get("enable",True)),
       "up_bytes":num(t.get("up")),"down_bytes":num(t.get("down")),
       "quota_bytes":num(t.get("total")),
       "traffic_expiry_ms":num(t.get("expiryTime")),
@@ -122,10 +125,10 @@ def sync(name,details,commit):
  print(name,"total=",len(snapshot["clients"]),"linked=",snapshot["linked"],
        "unmatched=",snapshot["unmatched"],"snapshot_saved=",commit)
 def main():
- if len(sys.argv)<2:stop("Usage: configure maya-s3|maya4 OR check|sync|status")
+ if len(sys.argv)<2:stop("Usage: configure maya1|maya-s3|maya4 OR check|sync|status")
  action=sys.argv[1];name=sys.argv[2] if len(sys.argv)>2 else None
  if action=="configure":
-  if name not in SERVERS:stop("Specify maya-s3 or maya4")
+  if name not in SERVERS:stop("Specify maya1, maya-s3 or maya4")
   url=input("HTTPS 3x-ui panel base URL (include custom web path): ").strip().rstrip("/")
   p=urllib.parse.urlsplit(url)
   if p.scheme!="https" or not p.netloc or p.username or p.password or p.query or p.fragment:
