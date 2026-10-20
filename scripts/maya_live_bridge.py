@@ -19,7 +19,7 @@ def fail(message):
     raise ValueError(message)
 
 def opener_for(details):
-    url=details.get("url","").rstrip("/")+"/"
+    url=maya.panel_base(details.get("url",""))+"/"
     if not url.startswith("https://"):fail("HTTPS panel required")
     jar=http.cookiejar.CookieJar()
     opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar),maya.NoRedirect)
