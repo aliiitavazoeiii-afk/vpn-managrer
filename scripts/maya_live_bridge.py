@@ -52,6 +52,8 @@ def send_enable(server,details,email,expected,target):
     before=snapshot(server,details)
     matches=[c for c in before["clients"] if c["email"].casefold()==email.casefold()]
     if len(matches)!=1:fail("Client missing or duplicate; no update")
+    if matches[0].get("control_ambiguous"):
+        fail("Different enabled flags across inbounds; manual X-UI review required")
     actual=bool(matches[0].get("client_enabled",matches[0]["enabled"]))
     if actual is not expected:fail("Client changed since operator display; refresh first")
     if expected is target:fail("Requested state already set")
@@ -69,7 +71,7 @@ def send_enable(server,details,email,expected,target):
         fail("Panel reports incomplete client toggle")
     after=snapshot(server,details)
     match=[c for c in after["clients"] if c["email"].casefold()==email.casefold()]
-    if len(match)!=1 or bool(match[0].get("client_enabled",match[0]["enabled"])) is not target:
+    if len(match)!=1 or match[0].get("control_ambiguous") or bool(match[0].get("client_enabled",match[0]["enabled"])) is not target:
         fail("Panel did not confirm requested state; inspect 3x-ui")
     return {"ok":True,"client_enabled":target,
             "confirmed_at":datetime.now(timezone.utc).isoformat()}
