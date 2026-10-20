@@ -84,19 +84,33 @@ def pull(name,details):
   for c in settings.get("clients",[]):
    email=str(c.get("email") or "").strip()
    key=email.casefold()
-   if not key or key in users:stop("Duplicate/invalid X-UI email")
+   if not key:stop("Empty X-UI email")
    t=stats.get(key,{})
    def num(x):
     try:return int(x or 0)
     except(ValueError,TypeError):return 0
-   users[key]={"email":email,
+   entry={"email":email,
       "client_enabled":bool(c.get("enable",True)),
       "inbound_enabled":bool(inbound.get("enable",True)),
       "enabled":bool(inbound.get("enable",True)) and bool(c.get("enable",True)) and bool(t.get("enable",True)),
       "up_bytes":num(t.get("up")),"down_bytes":num(t.get("down")),
       "quota_bytes":num(t.get("total")),
       "traffic_expiry_ms":num(t.get("expiryTime")),
-      "last_online_ms":num(t.get("lastOnline") or t.get("last_online"))}
+      "last_online_ms":num(t.get("lastOnline") or t.get("last_online")),
+      "control_ambiguous":False,"multi_inbound":False}
+   if key in users:
+    # A current 3x-ui client can be attached to multiple inbounds.
+    # Collapse by email; fail closed for toggle if enable flags disagree.
+    prev=users[key]
+    prev["multi_inbound"]=True
+    if prev["client_enabled"] != entry["client_enabled"]:
+     prev["control_ambiguous"]=True
+    prev["client_enabled"]=prev["client_enabled"] or entry["client_enabled"]
+    prev["enabled"]=prev["enabled"] or entry["enabled"]
+    prev["inbound_enabled"]=prev["inbound_enabled"] or entry["inbound_enabled"]
+    for field in ("up_bytes","down_bytes","quota_bytes","traffic_expiry_ms","last_online_ms"):
+     prev[field]=max(prev[field],entry[field])
+   else:users[key]=entry
  if len(users)<1 or len(users)>5000:stop("Unexpected client count")
  return {"format":"HESAB_MAYA_EXTRA_V1","server":name,"synced_at":datetime.now(timezone.utc).isoformat(),"clients":[users[k] for k in sorted(users)]}
 def dashboard():
