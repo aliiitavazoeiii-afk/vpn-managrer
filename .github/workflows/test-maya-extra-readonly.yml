@@ -1,0 +1,42 @@
+name: Test Maya extra read-only connectors
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - "scripts/maya_multi_panel_sync.py"
+      - "patches/maya_extra_panel.py"
+      - "scripts/install_maya_extra_readonly.sh"
+      - ".github/workflows/test-maya-extra-readonly.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m py_compile scripts/maya_multi_panel_sync.py patches/maya_extra_panel.py
+          bash -n scripts/install_maya_extra_readonly.sh
+          pip install --quiet Jinja2==3.1.6
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          from jinja2 import Environment
+          source=Path("patches/maya_extra_panel.py").read_text()
+          tree=ast.parse(source)
+          t=next(ast.literal_eval(n.value) for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(k,ast.Name) and k.id=="_MX_TEMPLATE" for k in n.targets))
+          Environment().parse(t)
+          assert "maya_extra_reports()" in t
+          assert "/users/{{ c.sid }}" in t
+          api=Path("scripts/maya_multi_panel_sync.py").read_text()
+          assert "panel/api/inbounds/list" in api
+          assert "https://" in api
+          assert 'method="POST"' not in api
+          assert "HESAB_MAYA_EXTRA_V1" in api
+          assert 'sync(key,found[key]' in api
+          print("PASS: XUI GET only, verified mapping, separate Maya dashboards")
+          PY
