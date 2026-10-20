@@ -7,6 +7,7 @@ on:
       - "scripts/maya_multi_panel_sync.py"
       - "patches/maya_live_dashboard.py"
       - "scripts/install_maya_live_v1.sh"
+      - "scripts/bootstrap_maya_ssh_tunnel.sh"
       - ".github/workflows/test-maya-live-v1.yml"
   workflow_dispatch:
 permissions: {contents: read}
@@ -70,6 +71,32 @@ jobs:
           print("PASS: copied 3x-ui panel path normalized once")
           PY
 
+      - name: Validate SSH-only tunnel transport configuration
+        run: |
+          bash -n scripts/bootstrap_maya_ssh_tunnel.sh
+          python - <<'PY'
+          import ast, pathlib, sys
+          sys.path.insert(0,"scripts")
+          import maya_multi_panel_sync as x
+          code=pathlib.Path("scripts/maya_multi_panel_sync.py").read_text()
+          assert 'transport","https"' in code
+          assert 'mode=="ssh"' in code
+          assert 'StrictHostKeyChecking=yes' in code
+          assert '127.0.0.1:{remote_port}' in code
+          assert 'ProxyHandler({})' in code
+          assert 'panel_connection(details)' in code
+          assert 'https' in x.panel_base("https://example.org:2095/path/panel/")
+          config={"transport":"ssh","ssh_host":"5.10.249.206","server":"maya-s3",
+                  "remote_port":2095,"panel_path":"/custom"}
+          # Missing SSH key must fail before HTTP authentication can occur.
+          try:
+              with x.panel_connection(config):pass
+          except RuntimeError as exc:
+              assert "SSH key missing" in str(exc)
+          else:raise AssertionError("insecure HTTP path unexpectedly accepted")
+          print("PASS: plaintext HTTP requires SSH key and verified host identity")
+          PY
+
       - name: Exercise safe API toggles with mocked panels
         run: |
           python - <<'PY'
@@ -107,7 +134,11 @@ jobs:
                   return {"success":True}
               raise AssertionError("Unexpected URL "+url)
           live.snapshot=snapshot
-          live.opener_for=lambda auth:(object(),"https://panel.example.test/",{})
+          from contextlib import contextmanager
+          @contextmanager
+          def fake_connection(details):
+              yield object(),"https://panel.example.test/",{}
+          live.maya.panel_connection=fake_connection
           live.maya.request_json=api
           assert live.send_enable("maya1",details,email,False,True)["client_enabled"] is True
           assert len(state["calls"])==1
