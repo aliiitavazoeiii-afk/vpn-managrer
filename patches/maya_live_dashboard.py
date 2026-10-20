@@ -214,7 +214,7 @@ _ML_SECTION=r'''
         const scroller=make("div",undefined,card);scroller.className="ml-scroll";
         const table=make("table",undefined,scroller);table.className="ml-table";
         const head=make("thead",undefined,table),tr=make("tr",undefined,head);
-        for(const h of ["اکانت X-UI / داشبورد","وضعیت","مصرف","کنترل"])make("th",h,tr);
+        for(const h of ["اکانت X-UI / داشبورد","وضعیت","مصرف / سهمیه","آخرین اتصال","سررسید داشبورد","کنترل"])make("th",h,tr);
         const body=make("tbody",undefined,table);
         const rows=[];
         for(const item of server.rows){
@@ -227,7 +227,10 @@ _ML_SECTION=r'''
             link.style.display="block";
           } else make("div","تطبیق تأیید نشده",cell).className="ml-note";
           make("td",!item.client_enabled?"غیرفعال":(item.enabled?"فعال":"روشن در تنظیمات / اتصال غیرفعال"),r);
-          make("td",gig(item.up+item.down),r);
+          make("td",gig(item.up+item.down)+(item.quota>0?" / "+gig(item.quota):" / نامحدود"),r);
+          const when=item.last_online>0?new Date(item.last_online).toLocaleString("fa-IR",{timeZone:"Asia/Tehran"}):"—";
+          make("td",when,r);
+          make("td",item.expiry||"—",r);
           const action=make("td",undefined,r);
           if(item.sid&&!item.control_ambiguous){
             const btn=make("button",item.client_enabled?"قطع کاربر":"وصل کاربر",action);
