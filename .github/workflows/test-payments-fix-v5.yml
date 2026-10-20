@@ -1,0 +1,39 @@
+name: Test payment history emergency fix
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - "patches/payment_history_fix_v5.py"
+      - "scripts/fix_payments_500_v5.sh"
+      - ".github/workflows/test-payments-fix-v5.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m py_compile patches/payment_history_fix_v5.py
+          bash -n scripts/fix_payments_500_v5.sh
+          pip install --quiet Jinja2==3.1.6
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          from jinja2 import Environment,DictLoader
+          tree=ast.parse(Path("patches/payment_history_fix_v5.py").read_text())
+          tmpl=next(ast.literal_eval(n.value) for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(k,ast.Name) and k.id=="_PF_TEMPLATE" for k in n.targets))
+          env=Environment(loader=DictLoader({"base.html":"{% block content %}{% endblock %}","payments.html":tmpl}))
+          env.filters.update(jdate=lambda d:str(d or ""),fa=lambda x:str(x),money=lambda x:str(x))
+          from datetime import datetime
+          p=type("Payment",(),{"id":1,"subscription_id":2,"paid_at":datetime(2026,10,20,9),"amount_toman":250000,"note":"تسویه","previous_expiry":None,"new_expiry":None})()
+          s=type("Sub",(),{"id":2,"display_name":"test-user","phone":"09123456789"})()
+          doc=env.get_template("payments.html").render(request=type("Req",(),{"query_params":{}})(),rows=[{"p":p,"s":s,"undoable":False}])
+          assert 'data-when="2026-10-20T09:00:00"' in doc
+          assert "test-user" in doc and "pf-days" in doc
+          print("Payment history template rendered successfully")
+          PY
