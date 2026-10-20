@@ -1,0 +1,55 @@
+name: Test live Maya three-server controls
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - "scripts/maya_live_bridge.py"
+      - "scripts/maya_multi_panel_sync.py"
+      - "patches/maya_live_dashboard.py"
+      - "scripts/install_maya_live_v1.sh"
+      - ".github/workflows/test-maya-live-v1.yml"
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Verify three-server live app/daemon and Jinja page
+        run: |
+          python -m py_compile scripts/maya_live_bridge.py scripts/maya_multi_panel_sync.py patches/maya_live_dashboard.py
+          bash -n scripts/install_maya_live_v1.sh
+          pip install --quiet Jinja2==3.1.6
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          from jinja2 import Environment
+          for path,label in [
+              ("patches/maya_live_dashboard.py","_ML_SECTION"),
+              ("patches/maya_extra_panel.py","_MX_TEMPLATE"),
+          ]:
+              tree=ast.parse(Path(path).read_text())
+              template=next(ast.literal_eval(node.value) for node in tree.body
+                  if isinstance(node,ast.Assign)
+                  and any(isinstance(v,ast.Name) and v.id==label for v in node.targets))
+              Environment().parse(template)
+              assert len(template)>100
+          patch=Path("patches/maya_live_dashboard.py").read_text()
+          bridge=Path("scripts/maya_live_bridge.py").read_text()
+          connector=Path("scripts/maya_multi_panel_sync.py").read_text()
+          installer=Path("scripts/install_maya_live_v1.sh").read_text()
+          assert '"maya1","maya-s3","maya4"' in patch
+          assert "maya1" in connector and 'http.cookiejar' in connector
+          assert 'client_enabled' in connector
+          assert 'bulkEnable' in bridge and 'bulkDisable' in bridge
+          assert 'get("client_enabled"' in bridge
+          assert 'app.add_api_route("/control-room/maya-live/toggle"' in patch
+          assert 'compare_digest(token,csrf)' in patch
+          assert 'source_generated_at' not in bridge
+          assert "live.sock" in installer
+          assert 'ProtectSystem=full' in installer
+          assert 'No X-UI clients changed during installation' in installer
+          print("PASS: Jinja, syntax, dynamic roster and guarded manual client toggles")
+          PY
