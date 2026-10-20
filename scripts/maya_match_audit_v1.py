@@ -18,7 +18,7 @@ SERVERS=("maya1","maya-s3","maya4")
 
 def norm(s):
     val=unicodedata.normalize("NFKC",str(s or "")).casefold()
-    return "".join(c for c in val if c.isalnum())
+    return "".join(val.split())  # Same normalization as live control-room linking
 
 def read_old():
     if not OLD.is_file():return {}
