@@ -1,0 +1,89 @@
+name: Test control room V2 and three-Maya usage reports
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - "scripts/maya_match_audit_v1.py"
+      - "scripts/maya_usage_sampler_v1.py"
+      - "patches/control_room_v2.py"
+      - "scripts/install_control_room_v2.sh"
+      - ".github/workflows/test-control-room-v2.yml"
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Syntax, theme, Jinja, JavaScript, page scope
+        run: |
+          python -m py_compile scripts/maya_match_audit_v1.py scripts/maya_usage_sampler_v1.py patches/control_room_v2.py
+          bash -n scripts/install_control_room_v2.sh
+          pip install --quiet Jinja2==3.1.6
+          python - <<'PY'
+          import ast,re
+          from pathlib import Path
+          from jinja2 import Environment
+          source=Path("patches/control_room_v2.py").read_text()
+          tree=ast.parse(source)
+          tpl=next(ast.literal_eval(n.value) for n in tree.body if isinstance(n,ast.Assign)
+                   and any(isinstance(t,ast.Name) and t.id=="_CR2_TEMPLATE" for t in n.targets))
+          Environment().parse(tpl)
+          assert 'id="c2-cards"' in tpl and 'id="c2-users"' in tpl
+          assert 'id="c2-top-today"' in tpl and 'id="c2-top-30"' in tpl
+          assert 'iran_servers' not in tpl and 'foreign_servers' not in tpl
+          assert 'var(--ref-card' in tpl and 'var(--ref-purple' in tpl
+          assert 'font-family:inherit' in tpl
+          assert 'id="c2-search"' in tpl
+          assert "/control-room/maya-live/toggle" in tpl
+          assert 'setInterval(refresh,20000)' in tpl
+          assert '_cr2_secrets.token_urlsafe' in source
+          assert '"/control-room/v2/data"' in source
+          assert 'getattr(r,"path",None)=="/control-room"' in source
+          assert 'TEMPLATES["dashboard.html"]' not in source
+          assert 'خارج' not in tpl and 'ایران' not in tpl
+          match=re.search(r'<script>([\s\S]*?)</script>',tpl)
+          assert match
+          Path("/tmp/control-room-v2.js").write_text(match.group(1))
+          print("PASS: theme vars, Jinja, functional control room only")
+          PY
+          node --check /tmp/control-room-v2.js
+      - name: Verify sampler baseline, deltas and counter reset
+        run: |
+          python - <<'PY'
+          import sqlite3,sys
+          from datetime import datetime,timezone
+          sys.path.insert(0,"scripts")
+          import maya_usage_sampler_v1 as sm
+          con=sqlite3.connect(":memory:")
+          con.executescript(sm.DDL)
+          now=int(datetime.now(timezone.utc).timestamp())-500
+          def client(up,down):
+              return [{"email":"alice","up_bytes":up,"down_bytes":down}]
+          assert sm.record(con,"maya1",client(500,100),now)==1
+          assert con.execute("select sum(up+down) from daily_usage").fetchone()[0]==0
+          sm.record(con,"maya1",client(700,500),now+300)
+          assert con.execute("select sum(up+down) from daily_usage").fetchone()[0]==600
+          sm.record(con,"maya1",client(20,10),now+400)
+          assert con.execute("select sum(up+down) from daily_usage").fetchone()[0]==630
+          assert con.execute("select rate_bps from client_state").fetchone()[0]>0
+          print("PASS: no lifetime-as-today usage, incremental usage and reset handling")
+          PY
+      - name: Check audit stays read-only and installer limits scope
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          audit=Path("scripts/maya_match_audit_v1.py").read_text()
+          installer=Path("scripts/install_control_room_v2.sh").read_text()
+          assert 'connector.dashboard()' in audit
+          assert 'snapshot(server)' in audit
+          assert 'writer.writeheader();writer.writerows(items)' in audit
+          assert 'set_client' not in audit and 'toggle' not in audit
+          assert 'c up -d --no-deps --no-build --force-recreate app' in installer
+          assert 'docker compose down' not in installer
+          assert 'NO 22:00 automation enabled' in installer
+          assert 'scripts/maya_usage_sampler_v1.py' in installer
+          print("PASS: no user writes, automation is disabled, admin-only recreate")
+          PY
