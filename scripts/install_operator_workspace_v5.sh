@@ -58,9 +58,9 @@ assert current.count(anchor)==1, "STOP: source of debt SMS changed; do not modif
 assert current.count("# HESAB_OPERATOR_WORKSPACE_V5")==0
 assert source.count("# HESAB_OPERATOR_WORKSPACE_V5")==1
 assert "_op_sms_render(db,\"debt\",earliest)" not in current
-combined=current.replace(anchor,'message=_op_sms_render(db,"debt",earliest)')+"\n\n"+source
+combined=current.replace(anchor,'message=_op_sms_render(db,"debt",earliest,min(eligible,key=lambda s:(s.expiry_date,s.id)).display_name)')+"\n\n"+source
 compile(combined,"sms_native_v2.py","exec")
-assert combined.count('message=_op_sms_render(db,"debt",earliest)')==1
+assert combined.count('message=_op_sms_render(db,"debt",earliest,min(eligible,key=lambda s:(s.expiry_date,s.id)).display_name)')==1
 for label in ('/sms/templates/save','/payments','/users','/user-status','/add-user'):
   assert label in combined
 print("PASS: isolated SMS-render substitution and templates compile")
@@ -95,7 +95,7 @@ source=(Path(sys.argv[1])/"patches/operator_workspace_v5.py").read_text()
 current=p.read_text()
 anchor="message=_ABAN_SMS_PATTERN.format(expiry=jdate(earliest))"
 assert current.count(anchor)==1
-merged=current.replace(anchor,'message=_op_sms_render(db,"debt",earliest)')
+merged=current.replace(anchor,'message=_op_sms_render(db,"debt",earliest,min(eligible,key=lambda s:(s.expiry_date,s.id)).display_name)')
 merged+="\n\n"+source
 compile(merged,str(p),"exec")
 p.write_text(merged)
