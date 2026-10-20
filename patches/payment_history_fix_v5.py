@@ -34,7 +34,7 @@ _PF_TEMPLATE = r'''{% extends "base.html" %}
 {% for item in rows %}{% set p=item.p %}{% set s=item.s %}
 <div class="pf-row" data-pf-row
      data-when="{{ p.paid_at.isoformat() if p.paid_at else '' }}"
-     data-search="{{ (((s.display_name or '') ~ ' ' ~ (s.phone or '') ~ ' ' ~ s.id) if s else ('حذف شده ' ~ p.subscription_id) }} {{ p.amount_toman }} {{ p.note or '' }}">
+     data-search="{% if s %}{{ s.display_name }} {{ s.phone or '' }} {{ s.id }}{% else %}{{ p.subscription_id }}{% endif %} {{ p.amount_toman }} {{ p.note or '' }}">
 <div>{% if s %}<a href="/users/{{ s.id }}">{{ s.display_name }}</a>
 <small>{{ s.phone or 'بدون شماره' }} · شناسه {{ s.id|fa }}</small>{% else %}اکانت حذف‌شده{% endif %}
 <small>{{ p.note or '' }}</small></div>
