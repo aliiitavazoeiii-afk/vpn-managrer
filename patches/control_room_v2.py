@@ -4,6 +4,8 @@
 import json as _cr2_json
 import secrets as _cr2_secrets
 import sqlite3 as _cr2_sqlite
+import threading as _cr2_threading
+import time as _cr2_time
 from datetime import datetime as _cr2_datetime,timedelta as _cr2_timedelta
 from pathlib import Path as _cr2_Path
 from zoneinfo import ZoneInfo as _cr2_ZoneInfo
@@ -13,6 +15,8 @@ from sqlalchemy.orm import Session as _cr2_Session
 
 _CR2_DB=_cr2_Path("/srv/maya-live/usage_v1.sqlite3")
 _CR2_TZ=_cr2_ZoneInfo("Asia/Tehran")
+_CR2_RATE_LOCK=_cr2_threading.Lock()
+_CR2_RATE_CACHE={}  # Per-process rolling 20s snapshots; no accounts are changed.
 
 def _cr2_usage(server,records):
     empty={"today":0,"last30":0,"rate":None,"sampled":False}
@@ -46,14 +50,31 @@ def _cr2_usage(server,records):
 def _cr2_one(server,db):
     report=_ml_one(server,db)
     sample=_cr2_usage(server,report["rows"])
-    for row in report["rows"]:
-        usage=sample.get(str(row["email"]).casefold(),{})
-        row.update({
-         "today_bytes":usage.get("today",0),
-         "last30_bytes":usage.get("last30",0),
-         "rate_bps":usage.get("rate"),
-         "usage_sampled":usage.get("sampled",False)
-        })
+    now=_cr2_time.monotonic()
+    with _CR2_RATE_LOCK:
+        previous=_CR2_RATE_CACHE.get(server,{})
+        current={}
+        for row in report["rows"]:
+            key=str(row["email"]).casefold()
+            total=max(0,int(row["up"]))+max(0,int(row["down"]))
+            before=previous.get(key)
+            # Throughput is an observed 20-second difference, not a claim
+            # that enable=True means actively online.
+            rate=None
+            if before:
+                prev_time,prev_total=before
+                gap=now-prev_time
+                if 5<=gap<=90 and total>=prev_total:
+                    rate=(total-prev_total)/gap
+            current[key]=(now,total)
+            usage=sample.get(key,{})
+            row.update({
+             "today_bytes":usage.get("today",0),
+             "last30_bytes":usage.get("last30",0),
+             "rate_bps":rate,
+             "usage_sampled":usage.get("sampled",False)
+            })
+        _CR2_RATE_CACHE[server]=current
     report["today_total"]=sum(r["today_bytes"] for r in report["rows"])
     report["last30_total"]=sum(r["last30_bytes"] for r in report["rows"])
     report["sampled"]=any(r["usage_sampled"] for r in report["rows"])
@@ -181,7 +202,7 @@ _CR2_TEMPLATE=r'''{% extends "base.html" %}
   <table><thead><tr>
     <th>اکانت X-UI</th><th>حساب VPN</th><th>وضعیت</th>
     <th>مصرف کل</th><th>امروز</th><th>۳۰ روز</th>
-    <th>نرخ اخیر</th><th>آخرین اتصال</th><th>کنترل</th>
+    <th>نرخ ۲۰ ثانیه‌ای</th><th>آخرین اتصال</th><th>کنترل</th>
   </tr></thead><tbody id="c2-users"></tbody></table>
  </div>
  <div class="c2-reports">
