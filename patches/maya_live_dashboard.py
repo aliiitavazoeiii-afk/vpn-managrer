@@ -92,6 +92,7 @@ def _ml_resolve(server,clients,db):
           "finance_state":(states.get(sid) or "normal") if sub else "",
           "expiry":sub.expiry_date.isoformat() if sub and sub.expiry_date else "",
           "reason":reason,
+          "control_ambiguous":bool(c.get("control_ambiguous",False)),
           "client_enabled":bool(c.get("client_enabled",c.get("enabled",False))),
           "enabled":bool(c.get("enabled",False)),
           "up":intval(c.get("up_bytes")),"down":intval(c.get("down_bytes")),
@@ -145,7 +146,7 @@ def _ml_toggle(
     try:
         live=_ml_one(server,db)
         matched=[r for r in live["rows"] if r["email"].casefold()==email.casefold()]
-        if (len(matched)!=1 or matched[0]["sid"]!=sid
+        if (len(matched)!=1 or matched[0]["sid"]!=sid or matched[0]["control_ambiguous"]
             or matched[0]["client_enabled"] is not bool(expected)):
             return _ml_JSON({"ok":False,"error":"وضعیت یا اتصال کاربر تغییر کرده؛ صفحه را به‌روز کن."},status_code=409)
         # One exact client and a verified expected state. No automatic retry.
@@ -225,10 +226,10 @@ _ML_SECTION=r'''
             link.href="/users/"+encodeURIComponent(item.sid);
             link.style.display="block";
           } else make("div","تطبیق تأیید نشده",cell).className="ml-note";
-          make("td",item.client_enabled?"فعال":"غیرفعال",r);
+          make("td",!item.client_enabled?"غیرفعال":(item.enabled?"فعال":"روشن در تنظیمات / اتصال غیرفعال"),r);
           make("td",gig(item.up+item.down),r);
           const action=make("td",undefined,r);
-          if(item.sid){
+          if(item.sid&&!item.control_ambiguous){
             const btn=make("button",item.client_enabled?"قطع کاربر":"وصل کاربر",action);
             btn.type="button";btn.className="ml-btn "+(item.client_enabled?"off":"on");
             btn.onclick=async()=>{
@@ -243,7 +244,7 @@ _ML_SECTION=r'''
               }catch(err){status.textContent="عملیات نامطمئن: "+err.message+"؛ پیش از تکرار پنل را بررسی کن."}
               finally{sending=false;await refresh();}
             };
-          } else make("span","نیازمند تطبیق",action).className="ml-note";
+          } else make("span",item.control_ambiguous?"تعارض در چند ورودی؛ بررسی در پنل":"نیازمند تطبیق",action).className="ml-note";
           const q=normalize([item.email,item.name,item.sid||""].join(" "));
           rows.push({r,q});
         }
