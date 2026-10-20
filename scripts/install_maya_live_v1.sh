@@ -27,19 +27,26 @@ grep -Fq 'maya1_sync' docker-compose.sms.yml || {
 if grep -Fq '# HESAB_MAYA_LIVE_DASHBOARD_V1' patches/maya1_control.py; then
  echo 'ALREADY_INSTALLED: live Maya dashboard exists.'; exit 0
 fi
-python3 - "$SRC" <<'PY'
+# Do not require Jinja2 on the Ubuntu host. Validate the template using
+# the existing running app container where the production Jinja version lives.
+# The host performs file/route checks and pipes ONLY the template source.
+python3 - "$SRC" <<'PY' | c exec -T app python -c '
 import sys
-from pathlib import Path
 from jinja2 import Environment
+text=sys.stdin.read()
+assert text.strip(), "Empty dashboard template"
+Environment().parse(text)
+print("PASS: live dashboard Jinja template validated inside app container")
+'
+import sys,re
+from pathlib import Path
 source=Path(sys.argv[1])
-p=(source/"patches/maya_live_dashboard.py").read_text()
-import re
+p=(source/"patches/maya_live_dashboard.py").read_text(encoding="utf-8")
 m=re.search(r"_ML_SECTION=r'''([\s\S]*?)'''",p)
-assert m
-Environment().parse(m.group(1))
+assert m, "Dashboard section not found"
 assert "app.add_api_route" in p and "maya-live/toggle" in p
 assert "maya1" in (source/"scripts/maya_multi_panel_sync.py").read_text()
-print("PASS: 3-server UI and control routes validated")
+sys.stdout.write(m.group(1))
 PY
 BACKUP="/opt/hesab-backups/maya-live-$(date +%Y%m%d-%H%M%S)-$$"
 mkdir -p "$BACKUP"
