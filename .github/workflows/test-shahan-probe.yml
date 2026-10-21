@@ -4,6 +4,8 @@ on:
     branches: [manual-sms-batch-operator-open]
     paths:
       - scripts/shahan_probe_v1.py
+      - scripts/shahan_match_review_v1.py
+      - scripts/shahan_auth_readonly_probe_v1.py
       - .github/workflows/test-shahan-probe.yml
   workflow_dispatch:
 permissions: {contents: read}
@@ -16,7 +18,7 @@ jobs:
         with: {python-version: "3.12"}
       - name: Syntax and static safe-read constraints
         run: |
-          python -m py_compile scripts/shahan_probe_v1.py
+          python -m py_compile scripts/shahan_probe_v1.py scripts/shahan_match_review_v1.py scripts/shahan_auth_readonly_probe_v1.py
           python - <<'PY'
           from pathlib import Path
           code=Path("scripts/shahan_probe_v1.py").read_text()
@@ -26,4 +28,22 @@ jobs:
           assert "INFORMATION_SCHEMA.COLUMNS" in code
           assert "0o600" in code
           print("PASS: syntax, bounded local read-only DB snapshot, no panel polling")
+          PY
+
+      - name: Protect private identifiers and DB on match review
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          a=Path("scripts/shahan_match_review_v1.py").read_text()
+          b=Path("scripts/shahan_auth_readonly_probe_v1.py").read_text()
+          assert 'source.dashboard()' in a
+          assert 'state"]!="removed"' in a
+          assert 'operator_confirmed_sid' in a
+          assert '0o600' in a
+          assert 'passwd","-S"' in b
+          assert 'systemctl","is-active"' in b
+          for src in (a,b):
+              for bad in ('DELETE FROM', 'UPDATE subscriptions', 'usermod -L ', 'userdel ', 'systemctl restart ', 'mysql -p'):
+                  assert bad not in src
+          print("PASS: Shahan matching is read-only; SSH safety probe does not mutate auth or DB")
           PY
