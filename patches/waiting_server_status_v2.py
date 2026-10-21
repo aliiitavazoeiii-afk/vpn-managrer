@@ -10,7 +10,7 @@ _WSV2_STYLE=r'''
 .waiting-v2-filters button{
   border:1px solid rgba(143,151,191,.23);background:rgba(107,91,169,.085);
   color:#bac2dc;border-radius:10px;padding:8px 13px;min-height:37px;
-  font:750 12px/1.25 inherit;cursor:pointer;white-space:nowrap
+  font-family:inherit;font-size:12px;font-weight:750;line-height:1.25;cursor:pointer;white-space:nowrap
 }
 .waiting-v2-filters button[aria-pressed="true"]{
   color:#e9e4ff;border-color:rgba(155,127,245,.64);
@@ -29,7 +29,7 @@ _WSV2_STYLE=r'''
   max-width:220px;min-height:38px;padding:0 11px;white-space:nowrap;
   border:1px solid rgba(151,134,222,.38);border-radius:10px;
   background:rgba(116,95,181,.12);color:#dcd5f7;
-  font:750 11px/1.35 inherit;cursor:pointer
+  font-family:inherit;font-size:11px;font-weight:750;line-height:1.35;cursor:pointer
 }
 .waiting-v2-server-btn:hover,.waiting-v2-server-btn[aria-expanded="true"]{
   border-color:rgba(183,161,255,.67);background:rgba(116,95,181,.22)
