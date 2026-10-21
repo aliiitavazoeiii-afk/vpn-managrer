@@ -225,7 +225,7 @@ _WSS_JS=r'''
 _wss_tpl=TEMPLATES.get("followups.html","")
 if _wss_tpl.count('<div class="waiting-head-name">')!=1:
     raise RuntimeError("Waiting compact name cell missing or changed")
-if _wss_tpl.count('<div class="waiting-service')!=1:
+if _wss_tpl.count('<div class="waiting-service"')!=1:
     raise RuntimeError("Waiting child row marker missing")
 if _wss_tpl.count('<span>انقضا {{ s.expiry_date|jdate }}</span>')!=1:
     raise RuntimeError("Waiting child expiry marker missing")
@@ -236,8 +236,8 @@ _wss_tpl=_wss_tpl.replace(
 if '<span class="wss-summary"' not in _wss_tpl:
     raise RuntimeError("Waiting summary anchor missing")
 _wss_tpl=_wss_tpl.replace(
-  '<div class="waiting-service',
-  '<div data-wss-sid="{{ s.id }}" class="waiting-service',1)
+  '<div class="waiting-service"',
+  '<div data-wss-sid="{{ s.id }}" class="waiting-service"',1)
 _wss_tpl=_wss_tpl.replace(
   '<span>انقضا {{ s.expiry_date|jdate }}</span>',
   '<span>انقضا {{ s.expiry_date|jdate }} <span class="wss-child"></span></span>',1)
