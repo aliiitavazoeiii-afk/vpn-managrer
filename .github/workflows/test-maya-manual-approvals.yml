@@ -6,6 +6,7 @@ on:
       - patches/maya_manual_links_v1.py
       - scripts/maya_apply_manual_links_v1.py
       - scripts/install_maya_manual_links_v1.sh
+      - scripts/finish_maya_manual_links_v1.py
       - .github/workflows/test-maya-manual-approvals.yml
   workflow_dispatch:
 permissions: {contents: read}
@@ -18,7 +19,7 @@ jobs:
         with: {python-version: "3.12"}
       - name: Python and bash syntax
         run: |
-          python -m py_compile patches/maya_manual_links_v1.py scripts/maya_apply_manual_links_v1.py
+          python -m py_compile patches/maya_manual_links_v1.py scripts/maya_apply_manual_links_v1.py scripts/finish_maya_manual_links_v1.py
           bash -n scripts/install_maya_manual_links_v1.sh
       - name: Check precedence, explicit exclusion, vanished and archived IDs
         run: |
