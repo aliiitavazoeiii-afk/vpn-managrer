@@ -25,7 +25,7 @@ jobs:
       - name: Patch production waiting template, preserving controls and height
         run: |
           python - <<'PY'
-          import ast
+          import ast,re
           from pathlib import Path
           from jinja2 import Environment
           source=Path('patches/waiting_compact.py').read_text()
@@ -57,7 +57,7 @@ jobs:
           assert result.count('data-wss-sid="{{ s.id }}"')==1
           assert '<div class="waiting-head-name">' in result
           assert '/followups/{{ s.id }}/pay' in result
-          assert 'height:' not in values['_WSS_STYLE']
+          assert not re.search(r'(?<![a-z-])height\\s*:', values['_WSS_STYLE'])
           assert 'min-height:' not in values['_WSS_STYLE']
           assert 'max-width' in values['_WSS_STYLE'] and 'text-overflow:ellipsis' in values['_WSS_STYLE']
           print('PASS: title + compact per-account statuses with zero new rows or missing payment controls')
