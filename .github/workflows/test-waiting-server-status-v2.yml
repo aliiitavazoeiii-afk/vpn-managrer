@@ -81,7 +81,7 @@ jobs:
           Environment().parse(final)
           assert 'class="wss-summary"' not in final
           assert 'class="wss-child"' not in final
-          assert final.count('data-waiting-v2-status-btn')==1
+          assert final.count('class="waiting-v2-server-btn" data-waiting-v2-status-btn')==1
           assert final.count('data-waiting-v2-filter="blocked"')==1
           assert final.count('data-waiting-v2-filter="active"')==1
           assert final.count('data-waiting-v2-filter="unknown"')==1
