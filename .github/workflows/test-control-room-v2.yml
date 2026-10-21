@@ -85,5 +85,11 @@ jobs:
           assert 'docker compose down' not in installer
           assert 'NO 22:00 automation enabled' in installer
           assert 'scripts/maya_usage_sampler_v1.py' in installer
-          print("PASS: no user writes, automation is disabled, admin-only recreate")
+          assert 'ALREADY_PRESENT=1' in installer
+          assert 'if [[ "$ALREADY_PRESENT" == 0 ]]; then' in installer
+          assert 'if [[ ! -s maya_extra_sync/usage_v1.sqlite3 ]]; then' in installer
+          assert "RESUME: control-room patch present" in installer
+          assert "ALREADY_INSTALLED: no files modified" not in installer
+          assert "STOP: control-room runtime check did not pass" in installer
+          print("PASS: no user writes, safe interrupted-install resume, admin-only recreate")
           PY
