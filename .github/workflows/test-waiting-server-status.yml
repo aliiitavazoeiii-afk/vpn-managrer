@@ -1,0 +1,107 @@
+name: Test waiting server status without Shahan load
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/waiting_server_status_v1.py
+      - scripts/maya_usage_sampler_v1.py
+      - scripts/build_shahan_waiting_status_v1.py
+      - scripts/install_waiting_server_status_v1.sh
+      - .github/workflows/test-waiting-server-status.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Preflight
+        run: |
+          python -m pip install --quiet jinja2
+          python -m py_compile patches/waiting_server_status_v1.py scripts/maya_usage_sampler_v1.py scripts/build_shahan_waiting_status_v1.py
+          bash -n scripts/install_waiting_server_status_v1.sh
+      - name: Patch production waiting template, preserving controls and height
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          from jinja2 import Environment
+          source=Path('patches/waiting_compact.py').read_text()
+          root=ast.parse(source)
+          template=ast.literal_eval(next(n.value for n in root.body
+              if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='WAITING_COMPACT_TEMPLATE' for t in n.targets)))
+          template=template.replace('<div class="waiting-service">','<div class="waiting-service" data-service-id="{{ s.id }}">')
+          overlay=ast.parse(Path('patches/waiting_server_status_v1.py').read_text())
+          # Execute only Jinja template modifications; keep testing free from
+          # FastAPI/SQLAlchemy production dependencies.
+          start=next(i for i,n in enumerate(overlay.body)
+                     if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='_wss_tpl' for t in n.targets))
+          extract=[n for n in overlay.body if isinstance(n,(ast.Assign,ast.If,ast.Expr,ast.FunctionDef)) and
+                  not isinstance(n,ast.Expr)]  # use code from raw tail instead below
+          space={'TEMPLATES':{'followups.html':template},
+                 'env':type('E',(),{'loader':type('L',(),{'mapping':{}})()})()}
+          values={}
+          for n in overlay.body:
+              if isinstance(n,ast.Assign):
+                  for t in n.targets:
+                      if isinstance(t,ast.Name) and t.id in ('_WSS_STYLE','_WSS_JS'):
+                          values[t.id]=ast.literal_eval(n.value)
+          space.update(values)
+          exec(compile(ast.Module(body=overlay.body[start:],type_ignores=[]),'template_overlay','exec'),space)
+          result=space['TEMPLATES']['followups.html']
+          Environment().parse(result)
+          assert result.count('class="wss-summary"')==1
+          assert result.count('class="wss-child"')==1
+          assert result.count('data-wss-sid="{{ s.id }}"')==1
+          assert '<div class="waiting-head-name">' in result
+          assert '/followups/{{ s.id }}/pay' in result
+          assert 'height:' not in values['_WSS_STYLE']
+          assert 'min-height:' not in values['_WSS_STYLE']
+          assert 'max-width' in values['_WSS_STYLE'] and 'text-overflow:ellipsis' in values['_WSS_STYLE']
+          print('PASS: title + compact per-account statuses with zero new rows or missing payment controls')
+          PY
+      - name: Verify Maya status samples share usage-sampler traffic
+        run: |
+          python - <<'PY'
+          import importlib.util,sqlite3,tempfile,time
+          from pathlib import Path
+          p='scripts/maya_usage_sampler_v1.py'
+          s=importlib.util.spec_from_file_location('m',p)
+          m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
+          with tempfile.TemporaryDirectory() as d:
+              db=sqlite3.connect(':memory:')
+              db.executescript(m.DDL)
+              client={'email':'a@example.org','client_enabled':False,'inbound_enabled':True,
+                      'enabled':False,'quota_bytes':12345,'up_bytes':100,'down_bytes':500,
+                      'traffic_expiry_ms':0}
+              assert m.record(db,'maya-s3',[client],int(time.time()))==1
+              row=db.execute('select client_enabled,effective_enabled,used_bytes from client_access_state').fetchone()
+              assert row==(0,0,600),row
+              client['client_enabled']=True
+              client['enabled']=True
+              assert m.record(db,'maya-s3',[client],int(time.time())+300)==1
+              row=db.execute('select client_enabled,effective_enabled from client_access_state').fetchone()
+              assert row==(1,1)
+              print('PASS: no additional XUI requests, status from existing 5-minute sampler')
+          PY
+      - name: Verify no SSH changes and no new cron
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          overlay=Path('patches/waiting_server_status_v1.py').read_text()
+          status=Path('scripts/build_shahan_waiting_status_v1.py').read_text()
+          installer=Path('scripts/install_waiting_server_status_v1.sh').read_text()
+          assert '_ml_one(' not in overlay.split('_WSS_STYLE=')[0]
+          assert 'live.sock' not in overlay
+          assert '/srv/maya-live/usage_v1.sqlite3' in overlay
+          assert 'shahan_waiting_status_v1.json' in overlay
+          assert 'source.dashboard()' in status
+          assert 'amirkhanisis' in status and '"moshefi":139' in status
+          assert 'cron.d/hesab-maya-usage' in installer
+          assert 'systemctl restart' not in installer
+          assert 'docker compose down' not in installer
+          assert 'userdel' not in status and 'usermod' not in status
+          print('PASS: no Shahan connections, no SSH toggles, no billing writes')
+          PY
