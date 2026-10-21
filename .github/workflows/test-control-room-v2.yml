@@ -86,6 +86,15 @@ jobs:
           assert 'NO 22:00 automation enabled' in installer
           assert 'scripts/maya_usage_sampler_v1.py' in installer
           assert 'ALREADY_PRESENT=1' in installer
+          assert 'getattr(r,"methods",set())' in installer
+          assert '(r.methods or set())' not in installer
+          class StaticMount:
+              path="/static"
+          class AdminRoute:
+              path="/control-room"
+              methods={"GET"}
+          routes=[StaticMount(),AdminRoute()]
+          assert sum(r.path=="/control-room" and "GET" in (getattr(r,"methods",set()) or set()) for r in routes)==1
           assert 'if [[ "$ALREADY_PRESENT" == 0 ]]; then' in installer
           assert 'if [[ ! -s maya_extra_sync/usage_v1.sqlite3 ]]; then' in installer
           assert "RESUME: control-room patch present" in installer
