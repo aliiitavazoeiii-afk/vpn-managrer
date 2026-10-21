@@ -61,7 +61,8 @@ jobs:
           tpl=tpl.replace('<span>انقضا {{ s.expiry_date|jdate }}</span>',
               '<span>انقضا {{ s.expiry_date|jdate }} <span class="wss-child"></span></span>',1)
           tpl=tpl.replace('{% block content %}','{% block content %}'+old_css,1)
-          tpl=tpl.replace('{% endblock %}',old_js+'{% endblock %}') if tpl.count('{% endblock %}')==1 else tpl
+          pre,post=tpl.rsplit('{% endblock %}',1)
+          tpl=pre+old_js+'\n{% endblock %}'+post
           anchor='<span class="waiting-chevron">⌄</span>'
           controls='<div class="waiting-head-pay waiting-pay-tools"><button type="button" data-waiting-renewal-form>پیامک تمدید</button><form action="/followups/pay-group"><button>تسویه کامل</button></form><form action="/followups/restore-group"><button>برگردان همه</button></form></div>'
           tpl=tpl.replace(anchor,controls+anchor,1)
