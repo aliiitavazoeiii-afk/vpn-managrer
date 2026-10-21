@@ -16,8 +16,12 @@ grep -Fq 'HESAB_MAYA_LIVE_DASHBOARD_V1' patches/maya1_control.py || {
 grep -Fq '/srv/maya-live:ro' docker-compose.sms.yml || {
  echo 'STOP: required Maya live data mount missing; no changes';exit 3;
 }
+# Presence of the patch marker does not imply post-install steps completed:
+# operator may have interrupted during app smoke tests or before cron setup.
+ALREADY_PRESENT=0
 if grep -Fq 'HESAB_MAYA_CONTROL_ROOM_V2' patches/maya1_control.py; then
- echo 'ALREADY_INSTALLED: no files modified';exit 0;
+ ALREADY_PRESENT=1
+ echo 'RESUME: control-room patch present; checking runtime and missing usage setup.'
 fi
 for file in patches/control_room_v2.py scripts/maya_usage_sampler_v1.py; do
  test -s "$SRC/$file" || { echo "STOP: missing $SRC/$file";exit 3; }
@@ -58,20 +62,24 @@ rollback(){
  exit 1
 }
 trap rollback ERR
-CHANGED=1
 mkdir -p scripts maya_extra_sync
 chmod 750 maya_extra_sync
 cp "$SRC/scripts/maya_usage_sampler_v1.py" scripts/maya_usage_sampler_v1.py
 chmod 700 scripts/maya_usage_sampler_v1.py
 # First confirm live paths without touching usage DB.
 python3 scripts/maya_usage_sampler_v1.py --check
-printf '\n\n' >> patches/maya1_control.py
-cat "$SRC/patches/control_room_v2.py" >> patches/maya1_control.py
-python3 -m py_compile patches/maya1_control.py
-# Recreate ONLY admin web, not DB/SMS/customer portal/other services.
-c up -d --no-deps --no-build --force-recreate app
+if [[ "$ALREADY_PRESENT" == 0 ]]; then
+ CHANGED=1
+ printf '\n\n' >> patches/maya1_control.py
+ cat "$SRC/patches/control_room_v2.py" >> patches/maya1_control.py
+ python3 -m py_compile patches/maya1_control.py
+ # Recreate ONLY admin web, not DB/SMS/customer portal/other services.
+ c up -d --no-deps --no-build --force-recreate app
+else
+ python3 -m py_compile patches/maya1_control.py
+fi
 READY=0
-for i in $(seq 1 35); do
+for i in $(seq 1 6); do
  if c exec -T app python - <<'PY' >/dev/null 2>&1
 from app.main import app,TEMPLATES
 from jinja2 import Environment
@@ -89,18 +97,28 @@ PY
  then READY=1;break;fi
  sleep 2
 done
-test "$READY" == 1
-# First two observations create the daily traffic baseline; never treat
-# historical lifetime counters as today's traffic.
-python3 scripts/maya_usage_sampler_v1.py
+if [[ "$READY" != 1 ]]; then
+ echo 'STOP: control-room runtime check did not pass; NO usage cron installed.'
+ echo 'Check: docker compose -f docker-compose.yml -f docker-compose.sms.yml logs --tail=70 app'
+ exit 4
+fi
+# Make the initial usage baseline only if this has not yet been completed.
+# A repeated run must not overwrite or reset previously collected usage.
+if [[ ! -s maya_extra_sync/usage_v1.sqlite3 ]]; then
+ python3 scripts/maya_usage_sampler_v1.py
+else
+ echo 'RESUME: existing usage history preserved.'
+fi
 cat >/etc/cron.d/hesab-maya-usage <<'CRON'
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 */5 * * * * root /usr/bin/python3 /opt/vpn-control-center/scripts/maya_usage_sampler_v1.py >> /var/log/hesab-maya-usage.log 2>&1
 CRON
 chmod 644 /etc/cron.d/hesab-maya-usage
+# Validate cron content on re-run as well. No XUI writes.
+grep -Fq 'maya_usage_sampler_v1.py' /etc/cron.d/hesab-maya-usage
 trap - ERR
-echo 'SUCCESS: Control Room V2 installed with live Maya cards and sampled usage.'
+echo 'SUCCESS: Control Room V2 verified, usage baseline/cron ready.'
 echo 'ONLY /control-room template and GET/data endpoints changed; home dashboard unchanged.'
 echo 'No XUI clients toggled; NO 22:00 automation enabled.'
 echo "Backup: $BACKUP"
