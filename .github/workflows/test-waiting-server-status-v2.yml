@@ -66,8 +66,8 @@ jobs:
           anchor='<span class="waiting-chevron">⌄</span>'
           controls='<div class="waiting-head-pay waiting-pay-tools"><button type="button" data-waiting-renewal-form>پیامک تمدید</button><form action="/followups/pay-group"><button>تسویه کامل</button></form><form action="/followups/restore-group"><button>برگردان همه</button></form></div>'
           tpl=tpl.replace(anchor,controls+anchor,1)
-          tpl=tpl.replace('<div class="waiting-services">',
-              '<div data-waiting-sms-reminder-box class="waiting-services">',1)
+          tpl=tpl.replace('<div class="waiting-services" data-waiting-panel="{{ loop.index0 }}" hidden>',
+              '<div class="waiting-services" data-waiting-panel="{{ loop.index0 }}" hidden data-waiting-sms-reminder-box>',1)
           overlay=ast.parse(Path('patches/waiting_server_status_v2.py').read_text())
           space={'_WSS_STYLE':old_css,'_WSS_JS':old_js,
               'TEMPLATES':{'followups.html':tpl},
