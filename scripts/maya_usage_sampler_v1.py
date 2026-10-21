@@ -47,6 +47,16 @@ CREATE TABLE IF NOT EXISTS daily_usage(
  PRIMARY KEY(server,email,local_day)
 );
 CREATE INDEX IF NOT EXISTS daily_usage_by_day ON daily_usage(server,local_day);
+CREATE TABLE IF NOT EXISTS client_access_state(
+ server TEXT NOT NULL, email TEXT NOT NULL,
+ client_enabled INTEGER NOT NULL, inbound_enabled INTEGER NOT NULL,
+ effective_enabled INTEGER NOT NULL, quota_bytes INTEGER NOT NULL,
+ used_bytes INTEGER NOT NULL, traffic_expiry_ms INTEGER NOT NULL,
+ sampled_at INTEGER NOT NULL,
+ PRIMARY KEY(server,email)
+);
+CREATE INDEX IF NOT EXISTS client_access_sample_by_server
+  ON client_access_state(server,sampled_at);
 """
 
 def record(con,server,clients,now):
@@ -80,6 +90,26 @@ def record(con,server,clients,now):
           VALUES(?,?,?,?,?,1) ON CONFLICT(server,email,local_day) DO UPDATE SET
           up=daily_usage.up+excluded.up,down=daily_usage.down+excluded.down,
           sample_count=daily_usage.sample_count+1""",(server,email,day,du,dd))
+        # Same snapshot already pulled for usage: ZERO extra XUI requests.
+        # Access-state samples are observational; the billing workflow is never mutated.
+        con.execute("""INSERT INTO client_access_state(
+          server,email,client_enabled,inbound_enabled,effective_enabled,
+          quota_bytes,used_bytes,traffic_expiry_ms,sampled_at)
+          VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(server,email) DO UPDATE SET
+          client_enabled=excluded.client_enabled,
+          inbound_enabled=excluded.inbound_enabled,
+          effective_enabled=excluded.effective_enabled,
+          quota_bytes=excluded.quota_bytes,
+          used_bytes=excluded.used_bytes,
+          traffic_expiry_ms=excluded.traffic_expiry_ms,
+          sampled_at=excluded.sampled_at""",(
+            server,email,
+            int(bool(c.get("client_enabled",c.get("enabled",False)))),
+            int(bool(c.get("inbound_enabled",True))),
+            int(bool(c.get("enabled",False))),
+            max(0,int(c.get("quota_bytes") or 0)),
+            up+down,
+            max(0,int(c.get("traffic_expiry_ms") or 0)),now))
         count+=1
     return count
 
@@ -107,6 +137,9 @@ def main():
             ts=int(time.time())
             with con:
                 for name,clients in snaps.items():
+                    # A vanished XUI username is no longer an active connection.
+                    # Remove its old status rows before recording the current roster.
+                    con.execute("DELETE FROM client_access_state WHERE server=?",(name,))
                     print(name,"RECORDED",record(con,name,clients,ts))
                 cutoff=(datetime.fromtimestamp(ts,timezone.utc).astimezone(TEHRAN).date()-
                         timedelta(days=45)).isoformat()
