@@ -7,6 +7,8 @@ on:
       - scripts/maya_apply_manual_links_v1.py
       - scripts/install_maya_manual_links_v1.sh
       - scripts/finish_maya_manual_links_v1.py
+      - patches/maya_live_exclusion_counts_v1.py
+      - scripts/install_maya_live_exclusion_counts_v1.sh
       - .github/workflows/test-maya-manual-approvals.yml
   workflow_dispatch:
 permissions: {contents: read}
@@ -19,7 +21,8 @@ jobs:
         with: {python-version: "3.12"}
       - name: Python and bash syntax
         run: |
-          python -m py_compile patches/maya_manual_links_v1.py scripts/maya_apply_manual_links_v1.py scripts/finish_maya_manual_links_v1.py
+          python -m py_compile patches/maya_manual_links_v1.py scripts/maya_apply_manual_links_v1.py scripts/finish_maya_manual_links_v1.py patches/maya_live_exclusion_counts_v1.py
+          bash -n scripts/install_maya_live_exclusion_counts_v1.sh
           bash -n scripts/install_maya_manual_links_v1.sh
       - name: Check precedence, explicit exclusion, vanished and archived IDs
         run: |
@@ -82,4 +85,32 @@ jobs:
           assert "docker compose down" not in installer
           assert 'maya1_control.py' in installer
           print("PASS: only server-side mapping file is updated")
+          PY
+
+      - name: Test excluded users are not counted as unresolved
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          src=Path("patches/maya_live_exclusion_counts_v1.py").read_text()
+          template=Path("patches/control_room_v2.py").read_text()
+          rows=[
+           {"sid":24,"reason":"manual_approved"},
+           {"sid":None,"reason":"manual_excluded"},
+           {"sid":None,"reason":"legacy_excluded"},
+           {"sid":None,"reason":"unmatched_review"},
+          ]
+          def one(server,db):
+              return {"rows":rows,"linked":1,"unmatched":3}
+          env={"_ml_one":one,"TEMPLATES":{"control_room.html":template},
+               "env":type("E",(),{"loader":type("L",(),{"mapping":{}})()})()}
+          exec(compile(src,"status_overlay","exec"),env)
+          report=env["_ml_one"]("maya1",None)
+          assert report["linked"]==1
+          assert report["excluded"]==2
+          assert report["unmatched"]==1
+          page=env["TEMPLATES"]["control_room.html"]
+          assert 'count(data.excluded||0)+" مستثنا' in page
+          assert '"بدون نیاز"' in page
+          assert "تطبیق نشده" in page
+          print("PASS: excluded users separated from real unresolved clients")
           PY
