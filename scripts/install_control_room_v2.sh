@@ -100,7 +100,8 @@ done
 if [[ "$READY" != 1 ]]; then
  echo 'STOP: control-room runtime check did not pass; NO usage cron installed.'
  echo 'Check: docker compose -f docker-compose.yml -f docker-compose.sms.yml logs --tail=70 app'
- exit 4
+ # Trigger rollback for a new install; preserve existing patch when resuming.
+ false
 fi
 # Make the initial usage baseline only if this has not yet been completed.
 # A repeated run must not overwrite or reset previously collected usage.
