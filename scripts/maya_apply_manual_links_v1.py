@@ -4,7 +4,7 @@
 No changes to PostgreSQL, financial accounting, XUI clients, or scheduled controls.
 Never print full customer database. Plan is provided locally on production host.
 """
-import argparse,json,os,socket,stat,sys,tempfile
+import argparse,json,os,socket,stat,sys,tempfile,time
 from pathlib import Path
 sys.path.insert(0,"/opt/vpn-control-center/scripts")
 import maya_multi_panel_sync as source
@@ -74,6 +74,11 @@ def main():
     args=parser.parse_args()
     if os.geteuid()!=0:stop("Run with sudo/root")
     new=check_plan(args.file)
+    if args.apply:
+        patched=Path("/opt/vpn-control-center/patches/maya1_control.py")
+        if (not patched.is_file() or
+            "HESAB_MAYA_MANUAL_LINKS_V1" not in patched.read_text(encoding="utf8")):
+            stop("Manual link resolver must be installed before applying approvals")
     old=get_existing()
     merged={server:dict(items) for server,items in old.items()}
     for server,items in new.items():
@@ -125,9 +130,8 @@ def main():
             f.flush();os.fsync(f.fileno())
         os.chmod(tmp,0o600)
         if DEST.exists():
-            bak=DEST.parent/("approved_links.backup.json")
-            if bak.exists():stop("Old approval backup exists; refusing overwrite")
-            # hardlink preserves previous bytes securely, atomic replace is below
+            bak=DEST.parent/("approved_links.backup."+str(time.time_ns())+".json")
+            # versioned hard link preserves previous bytes, 0600, before replacement
             os.link(DEST,bak)
             os.chmod(bak,0o600)
         os.replace(tmp,DEST)
