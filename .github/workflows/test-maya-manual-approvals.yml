@@ -9,6 +9,10 @@ on:
       - scripts/finish_maya_manual_links_v1.py
       - patches/maya_live_exclusion_counts_v1.py
       - scripts/install_maya_live_exclusion_counts_v1.sh
+      - patches/maya_archived_link_readonly_v1.py
+      - scripts/install_maya_archived_link_readonly_v1.sh
+      - scripts/fix_maya_davari_afrogh_v1.py
+      - scripts/diagnose_maya_paid_375_v1.py
       - .github/workflows/test-maya-manual-approvals.yml
   workflow_dispatch:
 permissions: {contents: read}
@@ -21,7 +25,8 @@ jobs:
         with: {python-version: "3.12"}
       - name: Python and bash syntax
         run: |
-          python -m py_compile patches/maya_manual_links_v1.py scripts/maya_apply_manual_links_v1.py scripts/finish_maya_manual_links_v1.py patches/maya_live_exclusion_counts_v1.py
+          python -m py_compile patches/maya_manual_links_v1.py scripts/maya_apply_manual_links_v1.py scripts/finish_maya_manual_links_v1.py patches/maya_live_exclusion_counts_v1.py patches/maya_archived_link_readonly_v1.py scripts/fix_maya_davari_afrogh_v1.py scripts/diagnose_maya_paid_375_v1.py
+          bash -n scripts/install_maya_archived_link_readonly_v1.sh
           bash -n scripts/install_maya_live_exclusion_counts_v1.sh
           bash -n scripts/install_maya_manual_links_v1.sh
       - name: Check precedence, explicit exclusion, vanished and archived IDs
@@ -113,4 +118,40 @@ jobs:
           assert '"بدون نیاز"' in page
           assert "تطبیق نشده" in page
           print("PASS: excluded users separated from real unresolved clients")
+          PY
+
+      - name: Test user-approved archived identity stays read-only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          src=Path("patches/maya_archived_link_readonly_v1.py").read_text()
+          tpl=Path("patches/maya_live_exclusion_counts_v1.py").read_text()
+          original='item.control_ambiguous?"تعارض ورودی"'
+          assert original in tpl, "exclusion overlay source must expose toggle label"
+          class Sub:
+              display_name="afroghhouman"
+              expiry_date=None
+          class DB:
+              def get(self,cls,ident):return Sub() if ident==24 else None
+          def old(server,clients,db):
+              return [{"sid":None,"email":"afrogh hooman","reason":"approved_account_not_active",
+                  "control_ambiguous":False,"name":"","finance_state":"","expiry":""}]
+          env={"_ml_resolve":old,
+              "_ma_approved":lambda:{"maya1":{"afrogh hooman":{"sid":24}}},
+              "_followup_states":lambda db:{24:"cut"},
+              "Subscription":Sub,
+              "TEMPLATES":{"control_room.html":original},
+              "env":type("E",(),{"loader":type("L",(),{"mapping":{}})()})()}
+          exec(compile(src,"archive_overlay","exec"),env)
+          user=env["_ml_resolve"]("maya1",[],DB())[0]
+          assert user["sid"]==24 and user["finance_state"]=="cut"
+          assert user["control_ambiguous"] is True
+          assert user["reason"]=="approved_archived_read_only"
+          env["_ma_approved"]=lambda:{"maya1":{"afrogh hooman":{"exclude":True}}}
+          assert env["_ml_resolve"]("maya1",[],DB())[0]["sid"] is None
+          env["_ma_approved"]=lambda:{"maya1":{"afrogh hooman":{"sid":24}}}
+          env["_followup_states"]=lambda db:{}
+          assert env["_ml_resolve"]("maya1",[],DB())[0]["sid"] is None
+          assert "آرشیوشده · فقط نمایش" in env["TEMPLATES"]["control_room.html"]
+          print("PASS: exact archived #24 read-only, explicit approval required")
           PY
