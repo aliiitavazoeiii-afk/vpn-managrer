@@ -1,0 +1,84 @@
+name: Test Maya manual approved links
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/maya_manual_links_v1.py
+      - scripts/maya_apply_manual_links_v1.py
+      - scripts/install_maya_manual_links_v1.sh
+      - .github/workflows/test-maya-manual-approvals.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Python and bash syntax
+        run: |
+          python -m py_compile patches/maya_manual_links_v1.py scripts/maya_apply_manual_links_v1.py
+          bash -n scripts/install_maya_manual_links_v1.sh
+      - name: Check precedence, explicit exclusion, vanished and archived IDs
+        run: |
+          python - <<'PY'
+          import json,tempfile,types,unicodedata
+          from pathlib import Path
+          code=Path("patches/maya_manual_links_v1.py").read_text()
+          class Sub:
+              def __init__(self,ident,name):
+                  self.id=ident
+                  self.display_name=name
+                  self.expiry_date=None
+          subs={1:Sub(1,"one"),2:Sub(2,"two"),3:Sub(3,"alpha")}
+          def normalize(v):return "".join(unicodedata.normalize("NFKC",str(v)).casefold().split())
+          def financial(db):
+              return ({normalize(s.display_name):[s] for s in subs.values()},
+                      subs,{"old":{"id":2,"reason":"confirmed"},"excluded_old":{"id":None,"reason":"default"}},
+                      {})
+          space={"_ML_SERVERS":("maya1","maya-s3","maya4"),
+                 "_ml_normalize":normalize,"_ml_financial_mapping":financial}
+          exec(compile(code,"patches/maya_manual_links_v1.py","exec"),space)
+          with tempfile.TemporaryDirectory() as d:
+              p=Path(d)/"approved.json"
+              p.write_text(json.dumps({"format":"HESAB_MAYA_APPROVALS_V1","servers":{
+                  "maya1":{"old":{"sid":1},"personal":{"exclude":True}},
+                  "maya-s3":{"alpha":{"sid":2},"removed":{"sid":999},
+                             "private":{"exclude":True}}}}))
+              p.chmod(0o600)
+              space["_MA_FILE"]=p
+              def client(x):return {"email":x,"client_enabled":False,"up_bytes":0,"down_bytes":0}
+              r=space["_ml_resolve"]("maya1",list(map(client,["one","old","personal","excluded_old"])),None)
+              by={x["email"]:x for x in r}
+              assert by["old"]["sid"]==1 and by["old"]["reason"]=="manual_approved"
+              assert by["one"]["sid"] is None, "Approved ID must outrank earlier exact name"
+              assert by["personal"]["sid"] is None and by["personal"]["reason"]=="manual_excluded"
+              assert by["excluded_old"]["reason"]=="legacy_excluded"
+              r=space["_ml_resolve"]("maya-s3",list(map(client,["alpha","two","removed","private"])),None)
+              by={x["email"]:x for x in r}
+              assert by["alpha"]["sid"]==2
+              assert by["two"]["sid"] is None
+              assert by["removed"]["sid"] is None and by["removed"]["reason"]=="approved_account_not_active"
+              assert by["private"]["sid"] is None
+              p.write_text('{"format":"BAD","servers":{}}')
+              try:space["_ma_approved"]();assert False,"Accepted invalid format"
+              except ValueError:pass
+              print("PASS: manual priority, exclusions, archived fail closed, approved no toggles")
+          PY
+      - name: Check safe local importer does not ship user data or auto toggle
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          importer=Path("scripts/maya_apply_manual_links_v1.py").read_text()
+          installer=Path("scripts/install_maya_manual_links_v1.sh").read_text()
+          overlay=Path("patches/maya_manual_links_v1.py").read_text()
+          assert "live.sock" in importer
+          assert "source.dashboard()" in importer
+          assert "No finance records changed" in importer
+          assert "toggle" not in overlay and "UPDATE subscriptions" not in overlay
+          assert "c up -d --no-deps --no-build --force-recreate app" in installer
+          assert "docker compose down" not in installer
+          assert 'maya1_control.py' in installer
+          print("PASS: only server-side mapping file is updated")
+          PY
