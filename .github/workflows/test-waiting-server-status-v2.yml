@@ -1,0 +1,95 @@
+name: Test waiting status toolbar and filters V2
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/waiting_server_status_v2.py
+      - scripts/install_waiting_server_status_v2.sh
+      - .github/workflows/test-waiting-server-status-v2.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Install Jinja for production-like template test
+        run: python -m pip install --quiet jinja2
+      - name: Syntax and no-extra-load safety
+        run: |
+          python -m py_compile patches/waiting_server_status_v2.py
+          bash -n scripts/install_waiting_server_status_v2.sh
+          python - <<'PY'
+          import ast,subprocess
+          from pathlib import Path
+          patch=Path('patches/waiting_server_status_v2.py').read_text()
+          t=ast.parse(patch)
+          values={}
+          for n in t.body:
+              if isinstance(n,ast.Assign):
+                  for target in n.targets:
+                      if isinstance(target,ast.Name) and target.id in ('_WSV2_SCRIPT','_WSV2_STYLE'):
+                          values[target.id]=ast.literal_eval(n.value)
+          js=values['_WSV2_SCRIPT'].replace('<script>','').replace('</script>','')
+          Path('/tmp/waiting-status-v2.js').write_text(js)
+          subprocess.run(['node','--check','/tmp/waiting-status-v2.js'],check=True)
+          assert 'fetch("/followups/connection-status"' in js
+          assert 'data-waiting-v2-filter' in js
+          assert 'items.some' in js and 'knownBlocked' in js
+          assert "MutationObserver" in js
+          for forbidden in ("live.sock","_ml_one(", "ssh ","usermod ", "UPDATE subscriptions", "DELETE FROM subscriptions"):
+              assert forbidden not in patch, forbidden
+          print('PASS: JavaScript syntax, filters, local-only status read')
+          PY
+      - name: Render patched Jinja template and retain all controls
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          from jinja2 import Environment
+          def string_var(path,var):
+              root=ast.parse(Path(path).read_text())
+              return ast.literal_eval(next(n.value for n in root.body
+                  if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id==var for t in n.targets)))
+          tpl=string_var('patches/waiting_compact.py','WAITING_COMPACT_TEMPLATE')
+          old_css=string_var('patches/waiting_server_status_v1.py','_WSS_STYLE')
+          old_js=string_var('patches/waiting_server_status_v1.py','_WSS_JS')
+          tpl=tpl.replace('<div class="waiting-service">','<div data-wss-sid="{{ s.id }}" class="waiting-service">',1)
+          tpl=tpl.replace('<small>نام</small>','<small>نام <span class="wss-summary" title=""></span></small>',1)
+          tpl=tpl.replace('<span>انقضا {{ s.expiry_date|jdate }}</span>',
+              '<span>انقضا {{ s.expiry_date|jdate }} <span class="wss-child"></span></span>',1)
+          tpl=tpl.replace('{% block content %}','{% block content %}'+old_css,1)
+          tpl=tpl.replace('{% endblock %}',old_js+'{% endblock %}') if tpl.count('{% endblock %}')==1 else tpl
+          anchor='<span class="waiting-chevron">⌄</span>'
+          controls='<div class="waiting-head-pay waiting-pay-tools"><button type="button" data-waiting-renewal-form>پیامک تمدید</button><form action="/followups/pay-group"><button>تسویه کامل</button></form><form action="/followups/restore-group"><button>برگردان همه</button></form></div>'
+          tpl=tpl.replace(anchor,controls+anchor,1)
+          tpl=tpl.replace('<div class="waiting-services">',
+              '<div data-waiting-sms-reminder-box class="waiting-services">',1)
+          overlay=ast.parse(Path('patches/waiting_server_status_v2.py').read_text())
+          space={'_WSS_STYLE':old_css,'_WSS_JS':old_js,
+              'TEMPLATES':{'followups.html':tpl},
+              'env':type('E',(),{'loader':type('L',(),{'mapping':{}})()})()}
+          for name in ('_WSV2_STYLE','_WSV2_SCRIPT'):
+              space[name]=string_var('patches/waiting_server_status_v2.py',name)
+          first=next(i for i,n in enumerate(overlay.body)
+              if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='_wsv2_tpl' for t in n.targets))
+          exec(compile(ast.Module(body=overlay.body[first:],type_ignores=[]),'v2_overlay','exec'),space)
+          final=space['TEMPLATES']['followups.html']
+          Environment().parse(final)
+          assert 'class="wss-summary"' not in final
+          assert 'class="wss-child"' not in final
+          assert final.count('data-waiting-v2-status-btn')==1
+          assert final.count('data-waiting-v2-filter="blocked"')==1
+          assert final.count('data-waiting-v2-filter="active"')==1
+          assert final.count('data-waiting-v2-filter="unknown"')==1
+          assert 'window.__hesabWaitingStatusV1' not in final
+          assert 'data-wss-sid="{{ s.id }}"' in final
+          assert '/followups/pay-group' in final and '/followups/restore-group' in final
+          assert 'data-waiting-renewal-form' in final
+          assert 'data-waiting-sms-reminder-box' in final
+          assert final.count('id="waiting-search"')==1
+          assert final.index('data-waiting-v2-status-btn')<final.index('برگردان همه')
+          print('PASS: status relocated, compact toolbar, user/payment forms untouched, Jinja valid')
+          PY
