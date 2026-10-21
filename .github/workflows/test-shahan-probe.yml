@@ -1,0 +1,29 @@
+name: Test Shahan no-load read-only probe
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - scripts/shahan_probe_v1.py
+      - .github/workflows/test-shahan-probe.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Syntax and static safe-read constraints
+        run: |
+          python -m py_compile scripts/shahan_probe_v1.py
+          python - <<'PY'
+          from pathlib import Path
+          code=Path("scripts/shahan_probe_v1.py").read_text()
+          for bad in ("password_hash", "spwd.", "sudo systemctl", "systemctl restart", "usermod ", "userdel ", "UPDATE users", "DELETE FROM", "INSERT INTO", "urllib.request", "requests.get", "curl "):
+              assert bad not in code, f"Unexpected operation: {bad}"
+          assert "LIMIT 2000" in code
+          assert "INFORMATION_SCHEMA.COLUMNS" in code
+          assert "0o600" in code
+          print("PASS: syntax, bounded local read-only DB snapshot, no panel polling")
+          PY
