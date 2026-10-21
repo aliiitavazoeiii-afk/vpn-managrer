@@ -83,10 +83,10 @@ for i in $(seq 1 6); do
  if c exec -T app python - <<'PY' >/dev/null 2>&1
 from app.main import app,TEMPLATES
 from jinja2 import Environment
-names={r.path for r in app.routes if "GET" in (r.methods or set())}
+names={r.path for r in app.routes if "GET" in (getattr(r,"methods",set()) or set())}
 assert "/control-room" in names
 assert "/control-room/v2/data" in names
-assert sum(r.path=="/control-room" and "GET" in (r.methods or set()) for r in app.routes)==1
+assert sum(r.path=="/control-room" and "GET" in (getattr(r,"methods",set()) or set()) for r in app.routes)==1
 tpl=TEMPLATES["control_room.html"]
 assert 'HESAB_MAYA_CONTROL_ROOM_V2' in open("/app/app/main.py").read()
 assert 'id="c2-cards"' in tpl
@@ -99,7 +99,22 @@ PY
 done
 if [[ "$READY" != 1 ]]; then
  echo 'STOP: control-room runtime check did not pass; NO usage cron installed.'
- echo 'Check: docker compose -f docker-compose.yml -f docker-compose.sms.yml logs --tail=70 app'
+ echo '=== SANITIZED APP DIAGNOSTIC (do not print environment/credentials) ==='
+ c exec -T app python - <<'PY' || true
+from app.main import app,TEMPLATES
+from jinja2 import Environment
+from pathlib import Path
+routes=[(getattr(r,"path",None),sorted(getattr(r,"methods",set()) or set())) for r in app.routes]
+print("APP SOURCE MARKER:", "HESAB_MAYA_CONTROL_ROOM_V2" in Path("/app/app/main.py").read_text())
+print("CONTROL ROOM ROUTES:",[r for r in routes if (r[0] or "").startswith("/control-room")])
+print("CONTROL ROOM GET:",sum(path=="/control-room" and "GET" in methods for path,methods in routes))
+t=TEMPLATES.get("control_room.html","")
+print("TEMPLATE EXISTS:",bool(t),"NEW CARDS:",'id="c2-cards"' in t,
+      "TODAY:",'id="c2-top-today"' in t,"30D:",'id="c2-top-30"' in t,
+      "OLD SERVER SECTIONS:", "iran_servers" in t or "foreign_servers" in t)
+try:Environment().parse(t);print("JINJA: PASS")
+except Exception as e:print("JINJA ERROR:",type(e).__name__,str(e)[:140])
+PY
  # Trigger rollback for a new install; preserve existing patch when resuming.
  false
 fi
