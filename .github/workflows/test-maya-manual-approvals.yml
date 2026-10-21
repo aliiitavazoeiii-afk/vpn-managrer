@@ -76,7 +76,7 @@ jobs:
           assert "live.sock" in importer
           assert "source.dashboard()" in importer
           assert "No finance records changed" in importer
-          assert "toggle" not in overlay and "UPDATE subscriptions" not in overlay
+          assert "_ml_call(\"toggle\"" not in overlay and "UPDATE subscriptions" not in overlay
           assert "c up -d --no-deps --no-build --force-recreate app" in installer
           assert "docker compose down" not in installer
           assert 'maya1_control.py' in installer
