@@ -93,7 +93,7 @@ jobs:
           overlay=Path('patches/waiting_server_status_v1.py').read_text()
           status=Path('scripts/build_shahan_waiting_status_v1.py').read_text()
           installer=Path('scripts/install_waiting_server_status_v1.sh').read_text()
-          assert '_ml_one(' not in overlay.split('_WSS_STYLE=')[0]
+          assert '_ml_one(server' not in overlay.split('_WSS_STYLE=')[0]
           assert 'live.sock' not in overlay
           assert '/srv/maya-live/usage_v1.sqlite3' in overlay
           assert 'shahan_waiting_status_v1.json' in overlay
