@@ -142,10 +142,18 @@ _WSV2_SCRIPT=r'''
    if(real.length===1){
       label=real[0].server+" · "+(labels[real[0].status]||"نامشخص");
    }else if(real.length>1){
-      label="سرورها · "+(n.active?fa(n.active)+" فعال":"")+
-         (n.active&&n.blocked?" / ":"")+
-         (n.blocked?fa(n.blocked)+" غیرفعال":"")+
-         (n.unknown?" / "+fa(n.unknown)+" نامشخص":"");
+      const unique=new Map();
+      real.forEach(x=>{
+        const key=x.server+"|"+x.status;
+        if(!unique.has(key))unique.set(key,x);
+      });
+      const choices=[...unique.values()];
+      label=choices.slice(0,2).map(x=>
+         x.server+" "+(knownActive.has(x.status)?"فعال":
+                      knownBlocked.has(x.status)?"غیرفعال":"نامشخص")+
+                      (x.source==="shahan_manual"?"*":"")
+      ).join(" · ");
+      if(choices.length>2)label+=" +"+fa(choices.length-2);
    }
    if(!label.trim()||label==="سرورها · ")label="وضعیت سرورها";
    btn.querySelector(".waiting-v2-server-btn-label").textContent=label;
