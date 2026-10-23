@@ -1,0 +1,51 @@
+name: Test safe Android SMS queue reset and resend guard
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/sms_native_v2.py
+      - scripts/reset_native_sms_app_queue_v1.py
+      - scripts/install_sms_resend_queue_reset_v1.sh
+      - .github/workflows/test-sms-queue-reset-v1.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Syntax and preserve sent/payment history
+        run: |
+          python3 -m py_compile patches/sms_native_v2.py scripts/reset_native_sms_app_queue_v1.py
+          bash -n scripts/install_sms_resend_queue_reset_v1.sh
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          sms=Path("patches/sms_native_v2.py").read_text()
+          assert "AND status <> 'cancelled'" in sms
+          assert "AND created_at > NOW() - INTERVAL '1 day'" in sms
+          assert "IDENTICAL_SMS_ALREADY_REGISTERED" in sms
+          tree=ast.parse(sms)
+          enqueue=next(node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name=="_ns_enqueue")
+          assert "_ns_enqueue" in sms
+          reset=Path("scripts/reset_native_sms_app_queue_v1.py").read_text()
+          assert "status IN ('queued','claimed','opened')" in reset
+          assert "status=CASE WHEN status='queued' THEN 'cancelled' ELSE 'uncertain' END" in reset
+          assert "SELECT 'APPLIED cancelled='" in reset
+          assert "pg_dump" in reset
+          assert "pg_restore" in reset
+          assert "WHERE status IN ('queued','claimed','opened')" in reset
+          assert "status='operator_opened'" not in reset
+          assert "DELETE FROM native_sms_v2_jobs" not in reset
+          assert "TRUNCATE" not in reset
+          assert "DROP TABLE" not in reset
+          assert "UPDATE subscriptions" not in reset
+          assert "UPDATE audit_events" not in reset
+          installer=Path("scripts/install_sms_resend_queue_reset_v1.sh").read_text()
+          assert 'reset_native_sms_app_queue_v1.py --apply' in installer
+          assert "docker compose down" not in installer
+          assert "c up -d --no-deps --no-build --force-recreate app" in installer
+          print("PASS: cancelled drafts can requeue; sent/unknown history retained; app V4 queue clear requires --apply")
+          PY
