@@ -1,0 +1,90 @@
+name: Test Maya visible client matching V2
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/maya_dynamic_links_v2.py
+      - scripts/install_maya_dynamic_links_v2.sh
+      - .github/workflows/test-maya-dynamic-links-v2.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install --quiet jinja2
+      - name: Static safety, bash and JS syntax
+        run: |
+          python -m py_compile patches/maya_dynamic_links_v2.py
+          bash -n scripts/install_maya_dynamic_links_v2.sh
+          python - <<'PY'
+          import ast,subprocess
+          from pathlib import Path
+          src=Path("patches/maya_dynamic_links_v2.py").read_text()
+          tree=ast.parse(src)
+          script=next(ast.literal_eval(n.value) for n in tree.body
+              if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="_MDL2_SCRIPT" for t in n.targets))
+          Path("/tmp/mdl2.js").write_text(script.replace("<script>","").replace("</script>"))
+          subprocess.run(["node","--check","/tmp/mdl2.js"],check=True)
+          assert "# HESAB_MAYA_DYNAMIC_LINKS_V2" in src
+          assert '_MDL_APPROVED_REASONS=frozenset(("unmatched_review","exact_name_conflict"))' in src
+          assert 'id="mdl2-open"' in src
+          assert 'window.hesabLinkMaya' in src
+          assert '"/control-room/v2/data"' in src
+          for text in ("_ml_call(","UPDATE subscriptions","DELETE FROM payments","systemctl restart","maya_usage_sampler_v1.py"):
+              assert text not in src,text
+          inst=Path("scripts/install_maya_dynamic_links_v2.sh").read_text()
+          assert 'PREFLIGHT_SUCCESS' in inst
+          assert 'RUNTIME_SUCCESS' in inst
+          assert "grep -Fq '# HESAB_MAYA_DYNAMIC_LINKS_V2'" in inst
+          for text in ("UPDATE subscriptions","DELETE FROM payments","maya_usage_sampler_v1.py","systemctl restart"):
+              assert text not in inst,text
+          print("PASS: V2 does not touch XUI or billing; JS and bash parse")
+          PY
+      - name: Compose V1 then V2 on the exact post-exclusion and archived UI
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          from jinja2 import Environment
+          def parsed(p):return ast.parse(Path(p).read_text())
+          def val(p,name):
+              return next(ast.literal_eval(n.value) for n in parsed(p).body
+                  if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id==name for t in n.targets))
+          template=val("patches/control_room_v2.py","_CR2_TEMPLATE")
+          for before,after in val("patches/maya_live_exclusion_counts_v1.py","_MA_REPLACEMENTS"):
+              assert template.count(before)==1,before
+              template=template.replace(before,after,1)
+          orig='item.control_ambiguous?"تعارض ورودی"'
+          repl='item.reason==="approved_archived_read_only"?"آرشیوشده · فقط نمایش":item.control_ambiguous?"تعارض ورودی"'
+          template=template.replace(orig,repl,1)
+          env={"TEMPLATES":{"control_room.html":template},
+               "env":type("E",(),{"loader":type("L",(),{"mapping":{}})()})()}
+          for name in ("_MDL_CSS","_MDL_SCRIPT"):
+              env[name]=val("patches/maya_dynamic_links_v1.py",name)
+          v1=parsed("patches/maya_dynamic_links_v1.py")
+          v1idx=next(i for i,n in enumerate(v1.body)
+                  if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="_mdl_tpl" for t in n.targets))
+          exec(compile(ast.Module(body=v1.body[v1idx:],type_ignores=[]),"v1_layout","exec"),env)
+          for name in ("_MDL2_CSS","_MDL2_SCRIPT","_MDL2_TOOLBAR"):
+              env[name]=val("patches/maya_dynamic_links_v2.py",name)
+          v2=parsed("patches/maya_dynamic_links_v2.py")
+          v2idx=next(i for i,n in enumerate(v2.body)
+                  if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="_MDL2_TEMPLATE" for t in n.targets))
+          exec(compile(ast.Module(body=v2.body[v2idx:],type_ignores=[]),"v2_layout","exec"),env)
+          result=env["TEMPLATES"]["control_room.html"]
+          Environment().parse(result)
+          assert result.count('id="mdl2-open"')==1
+          assert result.count('id="c2-cards"')==1
+          assert result.count('window.__hesabMayaPickerV2=true')==1
+          assert result.count('b.onclick=()=>window.hesabLinkMaya(server,item)')==1
+          assert '"exact_name_conflict"].includes(item.reason)' in result
+          assert "آرشیوشده · فقط نمایش" in result
+          assert '["manual_excluded","legacy_excluded"].includes(item.reason)' in result
+          assert 'btn.onclick=()=>toggle(server,item,btn)' in result
+          assert '"/control-room/maya-link/approve"' in result
+          print("PASS: visible action is unconditional; existing control-room UI preserved")
+          PY
