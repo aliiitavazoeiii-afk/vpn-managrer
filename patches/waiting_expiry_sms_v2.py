@@ -1,6 +1,6 @@
 # HESAB_WAITING_EXPIRY_SMS_V2
 # Operator-only update to the existing waiting reminders.
-# The customer's actual earliest waiting due date replaces the sample "۶ مهر".
+# The waiting action reuses the canonical debt text for every due date.
 # This never pays, marks followup, changes subscriptions, or sends SMS.
 from fastapi import Request as _ews_Request, Form as _ews_Form, Depends as _ews_Depends
 from fastapi.responses import JSONResponse as _ews_JSON
@@ -49,11 +49,9 @@ def _ews_expiry_label(expiry):
     return str(jd).translate(_EWS_FA_NUMBERS)+" "+_EWS_MONTHS[jm-1]
 
 def _ews_message(expiry):
-    return (
-        "سلام اکانت شما "+_ews_expiry_label(expiry)+" تمام شده.\n"
-        "برای تمدید با شماره همراه خودتون وارد این سایت بشید و نسبت به پرداخت اقدام فرمایید.\n\n"
-        "usersmanager.ir"
-    )
+    # Keep the existing Jinja filter signature, but never interpolate old expiry.
+    # Exactly the same canonical text is used by the debt inbox and phone draft.
+    return _ABAN_SMS_PATTERN
 
 def _ews_queue_impl(request,phone,db):
     # The admin login middleware already protects the dashboard.
