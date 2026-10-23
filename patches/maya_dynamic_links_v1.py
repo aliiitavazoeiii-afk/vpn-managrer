@@ -218,19 +218,17 @@ _MDL_SCRIPT=r'''
 </script>
 '''
 _mdl_tpl=TEMPLATES.get("control_room.html","")
-_mdl_anchors=(
- '}else create("small",item.reason==="approved_archived_read_only"?"آرشیوشده · فقط نمایش":item.control_ambiguous?"تعارض ورودی":"نیازمند تطبیق",controls);',
- '}else create("small",item.control_ambiguous?"تعارض ورودی":"نیازمند تطبیق",controls);',
-)
-_mdl_found=[x for x in _mdl_anchors if _mdl_tpl.count(x)==1]
-if len(_mdl_found)!=1:
-    raise RuntimeError("Control room unmatched-action slot changed; abort")
-_mdl_anchor=_mdl_found[0]
-_mdl_repl='''}else if(!item.sid && !item.control_ambiguous && item.reason==="unmatched_review"){
+# Insert our branch at the stable START of the client-action decision,
+# BEFORE existing no-match labels. Older exception/archived overlays modify
+# the ELSE text, so never depend on an exact ELSE string or overwrite it.
+_mdl_anchor='if(item.sid&&!item.control_ambiguous){'
+if _mdl_tpl.count(_mdl_anchor)!=1:
+    raise RuntimeError("Control room client-action decision not unique; abort")
+_mdl_repl='''if(!item.sid && !item.control_ambiguous && item.reason==="unmatched_review"){
      const b=create("button","تطبیق",controls,"c2-btn");
      b.type="button";b.disabled=state.mutating;
      b.onclick=()=>window.hesabLinkMaya(server,item);
-   }else create("small",item.reason==="approved_archived_read_only"?"آرشیوشده · فقط نمایش":item.control_ambiguous?"تعارض ورودی":"نیازمند تطبیق",controls);'''
+   }else if(item.sid&&!item.control_ambiguous){'''
 _mdl_tpl=_mdl_tpl.replace(_mdl_anchor,_mdl_repl,1)
 _mdl_tpl=_mdl_tpl.replace("{% block content %}","{% block content %}"+_MDL_CSS,1)
 _mdl_before,_mdl_after=_mdl_tpl.rsplit("{% endblock %}",1)
