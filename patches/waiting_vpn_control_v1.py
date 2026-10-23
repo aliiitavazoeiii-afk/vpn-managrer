@@ -150,6 +150,28 @@ def _wvc_disable(request:_wvc_Request,
 
 app.add_api_route("/followups/vpn/disable",_wvc_disable,methods=["POST"])
 
+# Ensure an existing operator session gets a CSRF nonce from the waiting page
+# itself; visiting the separate control-room first must not be necessary.
+_wvc_waiting_get=[
+  r for r in app.router.routes
+  if getattr(r,"path",None)=="/followups" and
+     "GET" in (getattr(r,"methods",set()) or set())
+]
+if len(_wvc_waiting_get)!=1:
+    raise RuntimeError("Expected one existing waiting GET handler")
+_wvc_existing_get=_wvc_waiting_get[0].endpoint
+def _wvc_waiting_with_csrf(request:_wvc_Request,db:_wvc_Session=_wvc_Depends(get_db)):
+    token=request.session.get("maya1_control_csrf")
+    if not isinstance(token,str) or len(token)<30:
+        request.session["maya1_control_csrf"]=_wvc_secrets.token_urlsafe(32)
+    return _wvc_existing_get(request,db=db)
+app.router.routes[:]=[
+ r for r in app.router.routes
+ if not (getattr(r,"path",None)=="/followups" and
+         "GET" in (getattr(r,"methods",set()) or set()))
+]
+app.add_api_route("/followups",_wvc_waiting_with_csrf,methods=["GET"])
+
 def _wvc_reactivate_one(db,row):
     ident=int(row["id"]);sid=int(row["subscription_id"])
     server=str(row["server"]);email=str(row["email"])
