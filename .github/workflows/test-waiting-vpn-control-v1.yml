@@ -109,7 +109,7 @@ jobs:
                if isinstance(n,ast.Assign) and any(isinstance(v,ast.Name) and v.id==name for v in n.targets))
           template='''{% extends "base.html" %}
           {% block content %}
-          <section><button data-waiting-v2-status-btn>سرورها</button>
+          <section><div class="waiting-head-pay waiting-pay-tools"><button data-waiting-v2-status-btn>سرورها</button></div>
           <div class="waiting-actions">
           <form method="post" action="/followups/{{ s.id }}/pay">تسویه</form>
           <form method="post" action="/followups/{{ s.id }}/restore">بازگشت</form>
@@ -122,10 +122,11 @@ jobs:
           exec(compile(ast.Module(body=src.body[start:],type_ignores=[]),"tmpl","exec"),space)
           page=space["TEMPLATES"]["followups.html"]
           Environment().parse(page)
-          assert page.count('class="waiting-vpn-stop-form"')==1
+          assert page.count('class="waiting-vpn-stop-form"')==2
           assert 'name="csrf"' in page and 'name="sid"' in page
           assert '/followups/{{ s.id }}/pay' in page
           assert '/followups/{{ s.id }}/restore' in page
           assert 'data-waiting-v2-status-btn' in page
+          assert 'data-waiting-vpn-expand' in page
           print("PASS: appends only one optional per-account button without removing old actions")
           PY
