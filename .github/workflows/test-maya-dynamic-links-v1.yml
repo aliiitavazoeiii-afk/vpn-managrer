@@ -1,0 +1,121 @@
+name: Test dynamic Maya new account linking
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/maya_dynamic_links_v1.py
+      - scripts/install_maya_dynamic_links_v1.sh
+      - .github/workflows/test-maya-dynamic-links-v1.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Dependencies
+        run: python -m pip install --quiet jinja2
+      - name: Verify syntax and no XUI mutation
+        run: |
+          python -m py_compile patches/maya_dynamic_links_v1.py
+          bash -n scripts/install_maya_dynamic_links_v1.sh
+          python - <<'PY'
+          import ast,subprocess
+          from pathlib import Path
+          src=Path("patches/maya_dynamic_links_v1.py").read_text()
+          root=ast.parse(src)
+          v=next(ast.literal_eval(n.value) for n in root.body
+              if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="_MDL_SCRIPT" for t in n.targets))
+          Path("/tmp/maya-link-v1.js").write_text(v.replace("<script>","").replace("</script>",""))
+          subprocess.run(["node","--check","/tmp/maya-link-v1.js"],check=True)
+          assert "_ml_one(server,db)" in src
+          assert "_ml_call(\"toggle\"" not in src
+          assert "UPDATE subscriptions" not in src
+          assert "maya_new_approved_links" in src
+          assert '"manual_approved"' in src
+          assert 'existing' in src and 'len(matches)!=1' in src
+          installer=Path("scripts/install_maya_dynamic_links_v1.sh").read_text()
+          assert "maya_new_approved_links" in installer
+          assert "subscription_id BIGINT" in installer
+          for bad in ("UPDATE subscriptions","DELETE FROM payments","usermod ","userdel ","maya_usage_sampler_v1.py","systemctl restart"):
+              assert bad not in installer
+          print("PASS: syntax, JS, guarded link-only writes, no sampler or XUI commands")
+          PY
+      - name: Existing archived-account UI and new link dialog survive together
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          from jinja2 import Environment
+          def value(file,name):
+              tree=ast.parse(Path(file).read_text())
+              return ast.literal_eval(next(n.value for n in tree.body if isinstance(n,ast.Assign)
+                  and any(isinstance(t,ast.Name) and t.id==name for t in n.targets)))
+          src=ast.parse(Path('patches/maya_dynamic_links_v1.py').read_text())
+          tpl=value('patches/control_room_v2.py','_CR2_TEMPLATE')
+          original='item.control_ambiguous?"تعارض ورودی"'
+          archived='item.reason==="approved_archived_read_only"?"آرشیوشده · فقط نمایش":item.control_ambiguous?"تعارض ورودی"'
+          assert tpl.count(original)==1
+          tpl=tpl.replace(original,archived,1)
+          env={'TEMPLATES':{'control_room.html':tpl},
+               'env':type('E',(),{'loader':type('L',(),{'mapping':{}})()})()}
+          for name in ('_MDL_CSS','_MDL_SCRIPT'):
+              env[name]=value('patches/maya_dynamic_links_v1.py',name)
+          pos=next(i for i,n in enumerate(src.body) if isinstance(n,ast.Assign)
+              and any(isinstance(t,ast.Name) and t.id=="_mdl_tpl" for t in n.targets))
+          exec(compile(ast.Module(body=src.body[pos:],type_ignores=[]),'dynamic_template','exec'),env)
+          result=env['TEMPLATES']['control_room.html']
+          Environment().parse(result)
+          assert result.count('b.onclick=()=>window.hesabLinkMaya(server,item)')==1
+          assert 'window.hesabLinkMaya=(server,item)=>' in result
+          assert 'approved_archived_read_only' in result
+          assert "آرشیوشده · فقط نمایش" in result
+          assert '"/control-room/maya-link/approve"' in result
+          assert '"/control-room/maya-link/account?sid="' in result
+          assert 'csrf="{{ ctrl_csrf }}"' not in result or '{{ ctrl_csrf }}' in result
+          assert 'btn.onclick=()=>toggle(server,item,btn)' in result
+          print('PASS: original operator XUI controls and archived-read-only safeguards preserved')
+          PY
+      - name: Resolver does not map excluded, duplicate, or cut accounts
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          from datetime import date
+          src=ast.parse(Path("patches/maya_dynamic_links_v1.py").read_text())
+          fn=next(n for n in src.body if isinstance(n,ast.FunctionDef) and n.name=="_ml_resolve")
+          class Account:
+              id=375
+              display_name="My Test"
+              expiry_date=date(2026,12,1)
+          class Result:
+              def mappings(self):return self
+              def all(self):return [{"email":"newname","subscription_id":375}]
+          class DB:
+              def execute(self,*args,**kw):return Result()
+              def get(self,typ,sid):return Account() if sid==375 else None
+          state=[None]
+          base=[
+           {"email":"newname","sid":None,"reason":"unmatched_review","control_ambiguous":False},
+          ]
+          import copy
+          def previous(*args):return copy.deepcopy(base)
+          env={"_MDL_PREVIOUS_RESOLVE":previous,
+               "_mdl_text":lambda x:x,"Subscription":Account,
+               "_followup_states":lambda db:{375:state[0]},
+               "_MDL_APPROVED_REASONS":frozenset(["unmatched_review"])}
+          exec(compile(ast.Module(body=[fn],type_ignores=[]),'test_resolve','exec'),env)
+          out=env["_ml_resolve"]("maya4",[],DB())
+          assert out[0]["sid"]==375 and out[0]["reason"]=="manual_approved"
+          base[0]["reason"]="manual_excluded"
+          assert env["_ml_resolve"]("maya4",[],DB())[0]["sid"] is None
+          base[0]["reason"]="unmatched_review"
+          state[0]="cut"
+          assert env["_ml_resolve"]("maya4",[],DB())[0]["sid"] is None
+          state[0]=None
+          base.append({"email":"other","sid":375,"reason":"manual_approved","control_ambiguous":False})
+          assert env["_ml_resolve"]("maya4",[],DB())[0]["sid"] is None
+          print("PASS: approved new Maya4 ID maps exactly; manual exclusions, cut accounts and duplicate IDs never hijacked")
+          PY
