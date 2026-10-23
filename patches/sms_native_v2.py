@@ -88,6 +88,7 @@ def _ns_enqueue(db, phone, source, message=""):
             return None,"INVALID_MESSAGE"
         prev=db.execute(_ns_text("""
           SELECT id FROM native_sms_v2_jobs WHERE phone=:phone AND message=:body
+          AND status <> 'cancelled'
           AND created_at > NOW() - INTERVAL '1 day' LIMIT 1
         """),{"phone":normalized,"body":message}).first()
         if prev:
