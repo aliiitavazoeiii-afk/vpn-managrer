@@ -1,0 +1,62 @@
+name: Test unified debt and waiting SMS drafts
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/sms_aban_default.py
+      - patches/waiting_expiry_sms_v2.py
+      - scripts/install_unified_debt_sms_20261023.sh
+      - .github/workflows/test-unified-debt-sms-20261023.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Text path and installation safety
+        run: |
+          python3 -m py_compile patches/sms_aban_default.py patches/waiting_expiry_sms_v2.py
+          bash -n scripts/install_unified_debt_sms_20261023.sh
+          python3 - <<'PY'
+          import ast
+          from datetime import date
+          from pathlib import Path
+          code=Path("patches/sms_aban_default.py").read_text()
+          wait=Path("patches/waiting_expiry_sms_v2.py").read_text()
+          def find(code,name):
+              nodes=[n for n in ast.parse(code).body if isinstance(n,ast.Assign)
+                     and len(n.targets)==1 and isinstance(n.targets[0],ast.Name)
+                     and n.targets[0].id==name]
+              assert len(nodes)==1
+              return ast.literal_eval(nodes[0].value)
+          message=find(code,"_ABAN_SMS_PATTERN")
+          exact=(
+           "سلام امروز موعد تمدید اکانت شماست\n"
+           "لطفا برای تمدید وارد پنل کاربری خودتون بشید و نسبت به پرداخت اقدام فرمایید\n\n"
+           " ساعت 10 شب اکانت هایی که پرداخت نداشتن مسدود خواهند شد و تا فردا همچنان امکان پرداخت هست.فردا ساعت 12 ظهر اکانت های پرداخت نشده حذف خواهند شد.\n\n"
+           "فعال یا غیرفعال شدن اکانت ها سیستمی بوده و امکان فعال سازی اکانت بدون واریز ممکن نیست\n\n"
+           "usersmanager.ir"
+          )
+          assert message==exact
+          assert len(message)<1000
+          assert "{expiry}" not in message
+          assert "body = _ABAN_SMS_PATTERN.format(expiry=jdate(earliest))" in code
+          assert '_aban_display_text = _ABAN_SMS_PATTERN.replace' in code
+          astree=ast.parse(wait)
+          node=next(n for n in astree.body if isinstance(n,ast.FunctionDef) and n.name=="_ews_message")
+          env={"_ABAN_SMS_PATTERN":message}
+          exec(compile(ast.Module(body=[node],type_ignores=[]),"isolated_waiting_sms","exec"),env)
+          for d in (date(2026,9,21),date(2026,10,23),date(2025,1,1),None):
+              assert env["_ews_message"](d)==exact
+          assert 'message=_ews_message(expiry)' in wait
+          assert 'env.filters["ews_message"]=_ews_message' in wait
+          installer=Path("scripts/install_unified_debt_sms_20261023.sh").read_text()
+          assert 'cp -a patches/sms_native_v2.py "$BACKUP/sms_native_v2.py"' in installer
+          assert "from app.main import app, env, TEMPLATES, _ABAN_SMS_PATTERN, _ews_message" in installer
+          assert "compose down" not in installer
+          assert "docker compose down" not in installer
+          assert "No SMS sent" in installer
+          print("PASS: old and current due dates -> identical panel-URL SMS")
+          print("PASS: previews and new phone drafts converge, installer guarded")
+          PY
