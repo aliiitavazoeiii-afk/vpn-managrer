@@ -80,13 +80,14 @@ from pathlib import Path
 src=Path("/app/app/main.py").read_text()
 assert "# HESAB_WAITING_VPN_CONTROL_V1" in src
 page=TEMPLATES.get("followups.html","")
-assert page.count('class="waiting-vpn-stop-form"')==1
+assert page.count('class="waiting-vpn-stop-form"')==2
 assert 'data-waiting-v2-filter="blocked"' in page
 assert "/followups/pay-group" in page
 assert "/followups/restore-group" in page
 assert "data-waiting-renewal-form" in page
 assert "data-waiting-v2-status-btn" in page
 assert "window.__hesabWaitingVpnStopV1" in page
+assert "data-waiting-vpn-expand" in page
 Environment().parse(page)
 for path,method in [("/followups","GET"),("/followups/vpn/disable","POST"),
                     ("/followups/connection-status","GET")]:
