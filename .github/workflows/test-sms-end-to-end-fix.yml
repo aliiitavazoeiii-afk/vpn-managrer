@@ -24,6 +24,10 @@ jobs:
           from pathlib import Path
           s=Path("scripts/install_sms_resend_queue_reset_final.sh").read_text()
           assert 'APP VERIFIED: correction route and canonical text loaded' in s
+          assert 'ALL COMPONENTS STAGED: canonical text, waiting text, safe correction drafts' in s
+          assert 'cp -a "$BACK/sms_aban_default.py" patches/sms_aban_default.py' in s
+          assert 'canonical=_ABAN_SMS_PATTERN==expected' in s
+          assert 'waiting=all(_ews_message(d)==expected' in s
           assert 'compose exec -T app python - <<' in s
           assert 'QUEUE RESET FAILED' in s
           assert 'reset_native_sms_app_queue_v1.py" --apply' in s
@@ -37,6 +41,62 @@ jobs:
           assert "WHERE status IN ('queued','claimed','opened')" in q
           assert "DELETE FROM native_sms_v2_jobs" not in q
           print("PASS: live-code verified, single path, no duplicate reset or destructive actions")
+          PY
+      - name: Exercise SMS installer preflight and exact-file staging in temporary production fixture
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import ast, tempfile, subprocess
+          script=Path("scripts/install_sms_resend_queue_reset_final.sh").read_text()
+          begin='python3 - "$REPO" <<' + "'" + 'PY' + "'"
+          assert script.count(begin)==1
+          block=script.split(begin,1)[1].split("\nPY",1)[0]
+          native=Path("patches/sms_native_v2.py").read_text()
+          debt=Path("patches/sms_aban_default.py").read_text()
+          def extract(code,name):
+              match=[n for n in ast.parse(code).body
+                     if isinstance(n,ast.FunctionDef) and n.name==name]
+              assert len(match)==1
+              return ast.get_source_segment(code,match[0])
+          # Fixture reflects the old live code: queue handler without correction
+          # guard, prior due-date rendering, and old canonical message.
+          curr_enqueue=extract(native,"_ns_enqueue")
+          old_enqueue='def _ns_enqueue(db, phone, source, message=""):\n    return "NATIVE_SMS_ALREADY_REGISTERED",_ns_clean_phone(phone)\n'
+          curr_wait=extract(native,"_ews_message")
+          old_wait='def _ews_message(expiry):\n    return "سلام اکانت شما ۳۰ شهریور تمام شده."\n'
+          native=native.replace(curr_enqueue,old_enqueue,1).replace(curr_wait,old_wait,1)
+          tree=ast.parse(debt)
+          nodes=[n for n in tree.body if isinstance(n,ast.Assign) and
+                 len(n.targets)==1 and isinstance(n.targets[0],ast.Name) and
+                 n.targets[0].id=="_ABAN_SMS_PATTERN"]
+          assert len(nodes)==1
+          current=ast.get_source_segment(debt,nodes[0])
+          old='''_ABAN_SMS_PATTERN = ("سلام اکانت شما {expiry} تمام شده.\\nusersmanager.ir")'''
+          debt=debt.replace(current,old,1)
+          with tempfile.TemporaryDirectory() as d:
+              p=Path(d)
+              (p/"patches").mkdir()
+              (p/"patches/sms_native_v2.py").write_text(native)
+              (p/"patches/sms_aban_default.py").write_text(debt)
+              run=subprocess.run(["python3","-",str(Path.cwd())],input=block,
+                      cwd=d,text=True,capture_output=True)
+              assert run.returncode==0,run.stdout+"\n"+run.stderr
+              n=(p/"patches/sms_native_v2.py").read_text()
+              q=(p/"patches/sms_aban_default.py").read_text()
+              enqueue=extract(n,"_ns_enqueue")
+              waiting=extract(n,"_ews_message")
+              nodes=[n for n in ast.parse(q).body if isinstance(n,ast.Assign)
+                      and len(n.targets)==1 and isinstance(n.targets[0],ast.Name)
+                      and n.targets[0].id=="_ABAN_SMS_PATTERN"]
+              text=ast.literal_eval(nodes[0].value)
+              assert "PREVIOUS_SMS_UNCERTAIN_OR_PENDING_REVIEW" in enqueue
+              assert "CORRECTED_SMS_ALREADY_REGISTERED" in enqueue
+              assert "return _ABAN_SMS_PATTERN" in waiting
+              assert text.endswith("\n\nusersmanager.ir")
+              assert text.startswith("سلام امروز موعد تمدید اکانت شماست")
+              assert "{expiry}" not in text
+              assert "نام" in q
+              print("PASS: installer really updates BOTH production SMS files and new resend guard.")
           PY
       - name: Exercise actual native enqueue code against simulated SQL rows
         run: |
