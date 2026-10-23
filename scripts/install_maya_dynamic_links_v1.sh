@@ -20,6 +20,35 @@ grep -Fq "/srv/maya-live:ro" docker-compose.sms.yml || {
  echo "STOP: existing approved mappings/sampler not mounted";exit 3;
 }
 c config -q
+# DRY RUN in an isolated Python process of the EXISTING, RUNNING app.
+# This compiles/loads the candidate overlay into an in-memory module only:
+# no HTTP, SSH, XUI request, DB write, service reload or scheduled job.
+if ! grep -Fq '# HESAB_MAYA_DYNAMIC_LINKS_V1' patches/maya1_control.py; then
+  echo "=== PREFLIGHT: ISOLATED REAL-APP LOAD (NO CHANGES) ==="
+  if ! cat "$SRC/patches/maya_dynamic_links_v1.py" | c exec -T app python -c '
+import importlib,sys,traceback
+try:
+  m=importlib.import_module("app.main")
+  source=sys.stdin.read()
+  assert "# HESAB_MAYA_DYNAMIC_LINKS_V1" in source,"Patch source missing"
+  exec(compile(source,"<maya_new_links_candidate>","exec"),vars(m))
+  from jinja2 import Environment
+  page=m.TEMPLATES["control_room.html"]
+  Environment().parse(page)
+  assert page.count("b.onclick=()=>window.hesabLinkMaya(server,item)")==1,"Matching action not unique"
+  assert "window.hesabLinkMaya=(server,item)=>" in page,"Matching dialog missing"
+  assert len([r for r in m.app.routes if getattr(r,"path",None)=="/control-room/maya-link/approve"])==1,"Approval route duplicate"
+  assert len([r for r in m.app.routes if getattr(r,"path",None)=="/control-room/maya-link/account"])==1,"Lookup route duplicate"
+  print("PREFLIGHT_SUCCESS: candidate imports and Jinja renders against current app")
+except Exception:
+  print("PREFLIGHT_FAILED: no application files or services changed")
+  traceback.print_exc(limit=8)
+  sys.exit(1)
+';then
+    echo "STOP: candidate failed before app restart; see PREFLIGHT_FAILED traceback."
+    exit 4
+  fi
+fi
 backup="/opt/hesab-backups/maya-new-links-$(date +%Y%m%d-%H%M%S)-$$"
 mkdir -p "$backup"
 cp -a patches/maya1_control.py "$backup/maya1_control.py"
@@ -88,7 +117,38 @@ PY
  then ready=1;break;fi
  sleep 2
 done
-if [[ "$ready" != 1 ]];then echo "STOP: runtime validation failed";false;fi
+if [[ "$ready" != 1 ]];then
+  echo "STOP: runtime validation failed; checking the reason BEFORE rollback"
+  if c exec -T app python - <<'PY'
+import importlib,traceback,sys
+try:
+  m=importlib.import_module("app.main")
+  from pathlib import Path
+  from jinja2 import Environment
+  from sqlalchemy import text
+  s=Path("/app/app/main.py").read_text()
+  print("PATCH_IN_RUNNING_MODULE:",hasattr(m,"_mdl_post_link"))
+  print("SOURCE_MARKER:", "# HESAB_MAYA_DYNAMIC_LINKS_V1" in s)
+  print("APP_ROUTE_APPROVE:",sum(getattr(r,"path",None)=="/control-room/maya-link/approve" for r in m.app.routes))
+  print("APP_ROUTE_ACCOUNT:",sum(getattr(r,"path",None)=="/control-room/maya-link/account" for r in m.app.routes))
+  tpl=m.TEMPLATES.get("control_room.html","")
+  print("ACTION_BUTTON:",tpl.count("b.onclick=()=>window.hesabLinkMaya(server,item)"))
+  print("DIALOG_PRESENT:","window.hesabLinkMaya=(server,item)=>" in tpl)
+  print("UNEXPECTED_WAITING_ANCHOR:","data-waiting" in tpl)
+  Environment().parse(tpl)
+  gen=m.get_db()
+  db=next(gen)
+  try:print("LINK_TABLE_COUNT:",db.execute(text("SELECT COUNT(*) FROM maya_new_approved_links")).scalar())
+  finally:gen.close()
+except Exception:
+  traceback.print_exc(limit=7)
+  sys.exit(1)
+PY
+  then :; else
+    echo "DIAGNOSTIC: import or template check failed; restoring backup."
+  fi
+  false
+fi
 trap - ERR
 echo "SUCCESS: control-room manual matching for new Maya clients installed."
 echo "No XUI changes, no payment changes, no new background jobs."
