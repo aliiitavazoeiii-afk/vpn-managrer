@@ -46,11 +46,23 @@ def backup():
     with path.open("rb") as f:
         if f.read(5)!=b"PGDMP":
             raise RuntimeError("Unrecognized PostgreSQL dump header")
-        f.seek(0)
-        test=subprocess.run(COMPOSE+["exec","-T","db","pg_restore","-l"],
-                            cwd=BASE,stdin=f,stdout=subprocess.DEVNULL,
-                            stderr=subprocess.PIPE,timeout=100)
-    if test.returncode:raise RuntimeError("pg_restore could not list backup")
+    # pg_restore cannot always seek in a streamed custom-format archive.
+    # Copy the intact archive as a normal temporary file INSIDE the running
+    # db container, list it there, then erase that temporary copy. We never
+    # run restore or modify the production database during validation.
+    inside="/tmp/hesab-sms-queue-check-"+str(os.getpid())+".dump"
+    try:
+        copied=subprocess.run(COMPOSE+["cp",str(path),"db:"+inside],
+            cwd=BASE,capture_output=True,text=True,timeout=120)
+        if copied.returncode:
+            raise RuntimeError("Could not stage backup for validation: "+copied.stderr[-250:])
+        check=subprocess.run(COMPOSE+["exec","-T","-u","0","db","pg_restore","--list",inside],
+            cwd=BASE,capture_output=True,text=True,timeout=120)
+        if check.returncode or "TABLE" not in check.stdout:
+            raise RuntimeError("pg_restore archive validation failed: "+check.stderr[-250:])
+    finally:
+        subprocess.run(COMPOSE+["exec","-T","-u","0","db","rm","-f",inside],
+            cwd=BASE,capture_output=True,timeout=30)
     print("DB_BACKUP:",path)
     return path
 
