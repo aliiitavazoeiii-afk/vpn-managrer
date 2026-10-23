@@ -49,6 +49,7 @@ def _ns_enqueue(db, phone, source, message=""):
                {"k":"native-v2-"+normalized})
     cycle=None
     ids=[]
+    waiting_ids=[]
     if source=="debt":
         states=_followup_states(db)
         now=today_local()
@@ -65,6 +66,8 @@ def _ns_enqueue(db, phone, source, message=""):
         cycle=earliest.isoformat()
         message=_ABAN_SMS_PATTERN.format(expiry=jdate(earliest))
         ids=[int(s.id) for s in eligible]
+        # Preserve actionable accounts when a correction is stored as manual.
+        waiting_ids=list(ids)
         older=db.execute(_ns_text("""
           SELECT id FROM sms_jobs WHERE phone=:phone
             AND message=:body AND status IN ('sent','delivered','operator_confirmed')
@@ -138,6 +141,12 @@ def _ns_enqueue(db, phone, source, message=""):
     db.add(AuditEvent(kind="native_sms_v2_queued",
                       message=f"job={job_id}; phone={normalized}; "
                               f"source={source}; account_ids={ids}; no send yet"))
+    # As before Native V2, a successful debt SMS queue action immediately
+    # moves those due accounts to waiting, in the same DB transaction.
+    # "Queued" is not evidence that the message was actually sent.
+    for waiting_sid in waiting_ids:
+        _followup_set(db,waiting_sid,"waiting",
+                      f"debt SMS draft queued, not sent; phone={normalized}; job={job_id}")
     db.commit()
     return int(job_id),None
 
@@ -213,9 +222,57 @@ _NS_SCRIPT = r"""<script>
         headers:{"Accept":"application/json","X-Requested-With":"XMLHttpRequest"}});
       const a=await r.json();
       if(!r.ok || !a.ok){notice("پیامک ثبت نشد: "+(a.code||r.status),true);return}
-      notice("درخواست به صف گوشی اضافه شد. می‌توانی برای بقیه مشتری‌ها هم درخواست ثبت کنی؛ در اپ با بازکردن هر پیام، همان مشتری به «در انتظار» می‌رود.",false);
-      // No wait for Android: all customer requests can be queued in one visit.
-      // The operator-open endpoint is responsible for followup_waiting.
+      notice("پیامک در صف گوشی ثبت شد و حساب به «در انتظار پرداخت» منتقل شد؛ ارسال واقعی از گوشی انجام می‌شود.",false);
+      // Debt status was committed atomically with the queued SMS draft.
+      // Update the affected debt card only. Do not replay any SMS POST.
+      const group=f.closest("[data-debt-group]");
+      const desk=document.querySelector(".debt-desk");
+      if(group&&desk){
+        const key=group.getAttribute("data-group-key");
+        const y=window.scrollY;
+        const rect=group.getBoundingClientRect();
+        const previousAnchor=document.documentElement.style.overflowAnchor;
+        document.documentElement.style.overflowAnchor="none";
+        try{
+          const latest=await fetch("/debts",{
+            credentials:"same-origin",cache:"no-store",
+            headers:{"X-Requested-With":"XMLHttpRequest"}
+          });
+          if(!latest.ok)throw Error("status refresh HTTP "+latest.status);
+          const doc=new DOMParser().parseFromString(await latest.text(),"text/html");
+          const newDesk=doc.querySelector(".debt-desk");
+          const newSummary=doc.querySelector(".debt-summary-clean");
+          const summary=document.querySelector(".debt-summary-clean");
+          if(!newDesk||!newSummary||!summary)throw Error("unexpected debt page");
+          if([...newDesk.querySelectorAll("[data-debt-group]")].some(
+               g=>g.getAttribute("data-group-key")===key)){
+            notice("پیام ثبت شده ولی این گروه هنوز در وصول دیده می‌شود؛ «در انتظار» را بررسی کن.",true);
+          }else{
+            const focus=document.activeElement;
+            if(focus instanceof HTMLElement&&group.contains(focus))focus.blur();
+            group.remove();
+            if(!desk.querySelector("[data-debt-group]"))desk.innerHTML=newDesk.innerHTML;
+            summary.innerHTML=newSummary.innerHTML;
+            const input=document.getElementById("debt-search");
+            const cnt=document.getElementById("debt-search-count");
+            const empty=document.getElementById("debt-no-results");
+            let shown=0;
+            desk.querySelectorAll("[data-debt-group]").forEach(g=>{
+              const term=(input?.value||"").trim().toLowerCase();
+              const match=!term||(g.getAttribute("data-search")||"").toLowerCase().includes(term);
+              g.hidden=!match;
+              if(match)shown++;
+            });
+            if(cnt)cnt.textContent=String(shown).replace(/\d/g,d=>"۰۱۲۳۴۵۶۷۸۹"[d])+" نتیجه";
+            if(empty)empty.hidden=shown!==0;
+            window.scrollTo({top:rect.bottom<=0?Math.max(0,y-rect.height):y,behavior:"instant"});
+          }
+        }catch(_){
+          notice("پیام ثبت شد؛ حساب منتقل شده است. برای تازه‌سازی لیست، صفحه را رفرش کن.",false);
+        }finally{
+          document.documentElement.style.overflowAnchor=previousAnchor;
+        }
+      }
     } catch (_) {
       notice("نتیجه ثبت قطعی نیست؛ پیش از هر ارسال مجدد وضعیت را بررسی کن.",true);
     } finally {
