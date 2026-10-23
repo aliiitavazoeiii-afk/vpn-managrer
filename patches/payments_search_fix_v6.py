@@ -7,7 +7,7 @@ _pfs6_template=TEMPLATES.get("payments.html","")
 if 'id="pf-search"' in _pfs6_template:
     if not _pfs6_template:
         raise RuntimeError("Payments search v6: payment history template missing")
-    if _pfs6_template.count('id="pf-search"') != 1 or _pfs6_template.count('data-pf-row') != 1:
+    if _pfs6_template.count('id="pf-search"') != 1 or '<div class="pf-row" data-pf-row' not in _pfs6_template:
         raise RuntimeError("Payments search v6: unsupported payment template")
     if 'id="pf-days"' not in _pfs6_template or '"/payments/{{ p.id }}/undo"' not in _pfs6_template:
         # Literal Jinja undo action is immutable.
