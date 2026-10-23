@@ -55,6 +55,11 @@ jobs:
                   and any(isinstance(t,ast.Name) and t.id==name for t in n.targets)))
           src=ast.parse(Path('patches/maya_dynamic_links_v1.py').read_text())
           tpl=value('patches/control_room_v2.py','_CR2_TEMPLATE')
+          # Exact production order: exclusion-count labels first, then archived
+          # display-only protection. These older overlays change ELSE text.
+          for before,after in value('patches/maya_live_exclusion_counts_v1.py','_MA_REPLACEMENTS'):
+              assert tpl.count(before)==1,before
+              tpl=tpl.replace(before,after,1)
           original='item.control_ambiguous?"تعارض ورودی"'
           archived='item.reason==="approved_archived_read_only"?"آرشیوشده · فقط نمایش":item.control_ambiguous?"تعارض ورودی"'
           assert tpl.count(original)==1
@@ -71,6 +76,7 @@ jobs:
           assert result.count('b.onclick=()=>window.hesabLinkMaya(server,item)')==1
           assert 'window.hesabLinkMaya=(server,item)=>' in result
           assert 'approved_archived_read_only' in result
+          assert '["manual_excluded","legacy_excluded"].includes(item.reason)' in result
           assert "آرشیوشده · فقط نمایش" in result
           assert '"/control-room/maya-link/approve"' in result
           assert '"/control-room/maya-link/account?sid="' in result
