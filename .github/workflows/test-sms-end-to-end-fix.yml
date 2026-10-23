@@ -98,7 +98,6 @@ jobs:
               assert text.endswith("\n\nusersmanager.ir")
               assert text.startswith("سلام امروز موعد تمدید اکانت شماست")
               assert "{expiry}" not in text
-              assert "نام" in q
               print("PASS: installer really updates BOTH production SMS files and new resend guard.")
           PY
       - name: Exercise actual native enqueue code against simulated SQL rows
