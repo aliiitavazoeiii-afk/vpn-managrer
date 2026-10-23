@@ -1,0 +1,167 @@
+name: Test immediate waiting after debt SMS queue
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/sms_native_v2.py
+      - scripts/install_debt_sms_immediate_waiting_v1.sh
+      - .github/workflows/test-debt-sms-immediate-waiting.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Check Bash, Python and in-page JavaScript syntax
+        run: |
+          bash -n scripts/install_debt_sms_immediate_waiting_v1.sh
+          python3 -m py_compile patches/sms_native_v2.py
+          python3 - <<'PY'
+          import ast,subprocess
+          from pathlib import Path
+          src=Path("patches/sms_native_v2.py").read_text()
+          nodes=[n for n in ast.parse(src).body if isinstance(n,ast.Assign)
+                 and len(n.targets)==1 and isinstance(n.targets[0],ast.Name)
+                 and n.targets[0].id=="_NS_SCRIPT"]
+          assert len(nodes)==1
+          js=ast.literal_eval(nodes[0].value)
+          js=js.replace("<script>","").replace("</script>","")
+          Path("/tmp/debt_sms_waiting.js").write_text(js)
+          subprocess.run(["node","--check","/tmp/debt_sms_waiting.js"],check=True)
+          assert "newDesk=doc.querySelector" in js
+          assert "fetch(\"/debts\"" in js
+          assert "پیامک ثبت نشد" in js
+          print("PASS: JavaScript and installer syntax, inline list refresh")
+          PY
+      - name: Simulate atomic queue and waiting transition for old and revised SMS
+        run: |
+          python3 - <<'PY'
+          import ast
+          from datetime import date
+          from pathlib import Path
+          from types import SimpleNamespace
+          src=Path("patches/sms_native_v2.py").read_text()
+          node=next(n for n in ast.parse(src).body if isinstance(n,ast.FunctionDef) and n.name=="_ns_enqueue")
+          class Column:
+              def __eq__(self,value):return value
+              def is_(self,value):return value
+              def asc(self):return self
+          class Subscription:
+              phone=Column()
+              is_free=Column()
+              id=Column()
+          class Result:
+              def __init__(self,obj=None):self.obj=obj
+              def first(self):return self.obj
+              def mappings(self):return self
+              def scalar_one(self):return 918
+          class Query:
+              def __init__(self,rows):self.rows=rows
+              def filter(self,*args):return self
+              def order_by(self,*args):return self
+              def all(self):return self.rows
+          class DB:
+              def __init__(self,old=None):
+                  self.old=old
+                  self.rows=[SimpleNamespace(id=376,expiry_date=date(2026,9,30),phone="09120000000",is_free=False)]
+                  self.audit=[];self.commit_count=0;self.rollback_count=0
+                  self.inserted=[]
+              def query(self,model):return Query(self.rows)
+              def execute(self,sql,params=None):
+                  if "SELECT pg_advisory_xact_lock" in sql:return Result()
+                  if "SELECT id FROM sms_jobs" in sql:return Result()
+                  if "SELECT id,status,message" in sql:return Result(self.old)
+                  if "source='manual' AND phone=:phone AND cycle_key=:cycle" in sql:return Result()
+                  if "created_at > NOW() - INTERVAL '1 day'" in sql:return Result()
+                  if "INSERT INTO native_sms_v2_jobs" in sql:
+                      self.inserted.append(params);return Result()
+                  raise RuntimeError("UNEXPECTED SQL: "+sql[:100])
+              def add(self,item):self.audit.append(item)
+              def commit(self):self.commit_count+=1
+              def rollback(self):self.rollback_count+=1
+          events=[]
+          def track(db,sid,state,message):
+              db.audit.append({"kind":"followup_waiting","sid":sid,"state":state,"message":message})
+          scope={"_ns_setup":lambda db:None,
+                 "_ns_clean_phone":lambda p:p,
+                 "_ns_text":lambda q:q,
+                 "_followup_states":lambda db:{},
+                 "today_local":lambda:date(2026,10,23),
+                 "Subscription":Subscription,
+                 "current_debt_for":lambda s,t:100,
+                 "_ABAN_SMS_PATTERN":"سلام امروز موعد تمدید اکانت شماست\n\nusersmanager.ir",
+                 "jdate":lambda d:d.isoformat(),
+                 "AuditEvent":lambda **kw:kw,
+                 "_followup_set":track}
+          exec(compile(ast.Module(body=[node],type_ignores=[]),"native_enqueue_test","exec"),scope)
+          enqueue=scope["_ns_enqueue"]
+          for old,ok in [(None,True),
+                         ({"id":22,"status":"operator_opened","message":"OLD 30 شهریور"},True),
+                         ({"id":22,"status":"queued","message":"OLD 30 شهریور"},False)]:
+              db=DB(old)
+              job,err=enqueue(db,"09120000000","debt")
+              waiting=[ev for ev in db.audit if ev.get("kind")=="followup_waiting"]
+              if ok:
+                  assert job==918 and err is None
+                  assert len(waiting)==1 and waiting[0]["sid"]==376 and waiting[0]["state"]=="waiting"
+                  assert waiting[0]["message"].find("not sent")>=0
+                  assert db.commit_count==1 and len(db.inserted)==1
+                  if old:
+                      assert db.inserted[0]["source"]=="manual"
+                      assert db.inserted[0]["ids"]==[]
+                  else:
+                      assert db.inserted[0]["source"]=="debt"
+                      assert db.inserted[0]["ids"]==[376]
+              else:
+                  assert job is None and err and not waiting and not db.inserted
+              print("PASS:",old and old["status"] or "new debt","waiting events",len(waiting))
+          manual=DB()
+          job,err=enqueue(manual,"09120000000","manual","only an unrelated manual SMS")
+          assert job==918 and not [x for x in manual.audit if x.get("kind")=="followup_waiting"]
+          print("PASS: unrelated manual SMS never moves finances")
+          PY
+      - name: Exercise the REAL deploy surgery against older native code
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import ast,tempfile,subprocess
+          installer=Path("scripts/install_debt_sms_immediate_waiting_v1.sh").read_text()
+          marker='python3 - "$REPO" <<'+"'"+"PY"+"'"
+          assert installer.count(marker)==1
+          snippet=installer.split(marker,1)[1].split("\nPY",1)[0]
+          native=Path("patches/sms_native_v2.py").read_text()
+          def segment(code,name,typ):
+              matches=[n for n in ast.parse(code).body if isinstance(n,typ)
+                  and (n.name==name if isinstance(n,ast.FunctionDef) else
+                       len(n.targets)==1 and isinstance(n.targets[0],ast.Name)
+                       and n.targets[0].id==name)]
+              assert len(matches)==1
+              return ast.get_source_segment(code,matches[0])
+          old_fn=segment(native,"_ns_enqueue",ast.FunctionDef)
+          old_js=segment(native,"_NS_SCRIPT",ast.Assign)
+          # Simulate the production file before this regression repair.
+          mock_fn=old_fn.replace('    waiting_ids=[]\n','').replace(
+              '        waiting_ids=list(ids)\n','')
+          assert mock_fn!=old_fn
+          start=mock_fn.index('    # As before Native V2,')
+          end=mock_fn.index('    db.commit()',start)
+          mock_fn=mock_fn[:start]+mock_fn[end:]
+          mock_js=old_js.replace(
+              'notice("پیامک در صف گوشی ثبت شد و حساب به «در انتظار پرداخت» منتقل شد؛ ارسال واقعی از گوشی انجام می‌شود.",false);',
+              'notice("پیامک در صف گوشی ثبت شد. بعداً از گوشی اقدام کن.",false);')
+          assert mock_js!=old_js
+          old=native.replace(old_fn,mock_fn,1).replace(old_js,mock_js,1)
+          with tempfile.TemporaryDirectory() as t:
+              p=Path(t);(p/"patches").mkdir()
+              (p/"patches/sms_native_v2.py").write_text(old)
+              run=subprocess.run(["python3","-",str(Path.cwd())],input=snippet,
+                                 text=True,capture_output=True,cwd=t)
+              assert run.returncode==0,run.stdout+"\n"+run.stderr
+              new=(p/"patches/sms_native_v2.py").read_text()
+              assert segment(new,"_ns_enqueue",ast.FunctionDef)==old_fn
+              assert segment(new,"_NS_SCRIPT",ast.Assign)==old_js
+              print("PASS: exact installer changes only the two correct code elements")
+          PY
