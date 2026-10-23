@@ -85,7 +85,7 @@ for code,label in [(patched_debt,str(live_debt)),(patched_wait,str(live_wait))]:
     compile(code,label,"exec")
 if patched_debt.count("_ABAN_SMS_PATTERN.format(expiry=")<1:
     raise RuntimeError("Canonical debt server-send not found")
-if patched_wait.count("_ews_queue_impl(")!=1:
+if "def _ews_queue_impl(" not in patched_wait or "def _ews_queue_header(" not in patched_wait:
     raise RuntimeError("Waiting SMS endpoint not found")
 if patched_wait.count('env.filters["ews_message"]')!=1:
     raise RuntimeError("Waiting preview filter not found")
