@@ -89,7 +89,8 @@ def _ns_enqueue(db, phone, source, message=""):
             if (old_status in ("cancelled","operator_opened","sent","delivered")
                 and (old_body!=message or old_status=="cancelled")):
                 source="manual"
-                cycle=None
+                # Keep the original cycle as a manual correction idempotency key.
+                # Native debt index applies only to source='debt'.
                 ids=[]
             elif old_status in ("queued","claimed","opened","uncertain",
                                  "attempting","failed"):
@@ -103,6 +104,19 @@ def _ns_enqueue(db, phone, source, message=""):
         if not message or len(message)>1000:
             db.rollback()
             return None,"INVALID_MESSAGE"
+        if cycle is not None:
+            # No second correction for the same subscription cycle unless the
+            # existing draft was explicitly cancelled. This protects beyond
+            # the one-day manual-message deduplication window.
+            correction=db.execute(_ns_text("""
+              SELECT id FROM native_sms_v2_jobs
+              WHERE source='manual' AND phone=:phone AND cycle_key=:cycle
+                AND message=:body AND status <> 'cancelled'
+              LIMIT 1
+            """),{"phone":normalized,"cycle":cycle,"body":message}).first()
+            if correction:
+                db.rollback()
+                return None,"CORRECTED_SMS_ALREADY_REGISTERED"
         prev=db.execute(_ns_text("""
           SELECT id FROM native_sms_v2_jobs WHERE phone=:phone AND message=:body
           AND status <> 'cancelled'
