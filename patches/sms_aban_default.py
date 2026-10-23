@@ -14,13 +14,16 @@ _ABAN_MANUAL_ONCE_PHONES = frozenset({
 _ABAN_MANUAL_ONCE_SUFFIX = ":manual-exception-aban1"
 
 _ABAN_SMS_PATTERN = (
-    "سلام اکانت شما {expiry} تمام شده.\n"
-    "برای تمدید با شماره همراه خودتون وارد این سایت بشید و نسبت به پرداخت اقدام فرمایید.\n\n"
-    "usersmanager.ir"
+    "سلام امروز موعد تمدید اکانت شماست\n"
+    "لطفا برای تمدید وارد پنل کاربری خودتون بشید و نسبت به پرداخت اقدام فرمایید\n"
+    "\n"
+    " ساعت 10 شب اکانت هایی که پرداخت نداشتن مسدود خواهند شد و تا فردا همچنان امکان پرداخت هست.فردا ساعت 12 ظهر اکانت های پرداخت نشده حذف خواهند شد.\n"
+    "\n"
+    "فعال یا غیرفعال شدن اکانت ها سیستمی بوده و امکان فعال سازی اکانت بدون واریز ممکن نیست"
 )
 
-# Single account expiry date for an entire phone group: oldest actual due
-# account (the one for which we first started collection). No account names.
+# The canonical debt reminder is operator-authored and deliberately has no
+# dynamic expiry placeholder. Other finance/SMS rules remain unchanged.
 _aban_tpl = TEMPLATES.get("debts.html", "")
 if not _aban_tpl:
     raise RuntimeError("Debt SMS template unavailable")
