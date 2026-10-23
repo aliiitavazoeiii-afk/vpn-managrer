@@ -52,6 +52,9 @@ jobs:
           assert script.count(begin)==1
           block=script.split(begin,1)[1].split("\nPY",1)[0]
           native=Path("patches/sms_native_v2.py").read_text()
+          # Production's SMS-native file includes this appended overlay.
+          # The repository deliberately keeps it as a separate patch source.
+          native += "\\n\\n" + Path("patches/waiting_expiry_sms_v2.py").read_text()
           debt=Path("patches/sms_aban_default.py").read_text()
           def extract(code,name):
               match=[n for n in ast.parse(code).body
