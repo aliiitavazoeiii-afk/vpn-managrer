@@ -1,0 +1,48 @@
+name: Test exact debt SMS text and safe installer
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/sms_aban_default.py
+      - scripts/install_exact_debt_sms_20261023.sh
+      - .github/workflows/test-exact-debt-sms-20261023.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate syntax and exact literal
+        run: |
+          bash -n scripts/install_exact_debt_sms_20261023.sh
+          python3 -m py_compile patches/sms_aban_default.py
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          path="patches/sms_aban_default.py"
+          source=Path(path).read_text()
+          nodes=[n for n in ast.parse(source).body
+             if isinstance(n,ast.Assign) and len(n.targets)==1
+             and isinstance(n.targets[0],ast.Name) and n.targets[0].id=="_ABAN_SMS_PATTERN"]
+          assert len(nodes)==1
+          actual=ast.literal_eval(nodes[0].value)
+          expected=(
+             "سلام امروز موعد تمدید اکانت شماست\n"
+             "لطفا برای تمدید وارد پنل کاربری خودتون بشید و نسبت به پرداخت اقدام فرمایید\n\n"
+             " ساعت 10 شب اکانت هایی که پرداخت نداشتن مسدود خواهند شد و تا فردا همچنان امکان پرداخت هست.فردا ساعت 12 ظهر اکانت های پرداخت نشده حذف خواهند شد.\n\n"
+             "فعال یا غیرفعال شدن اکانت ها سیستمی بوده و امکان فعال سازی اکانت بدون واریز ممکن نیست"
+          )
+          assert actual==expected
+          assert len(actual)<1000
+          assert actual.format(expiry="۵ آبان")==expected
+          assert "_aban_display_text = _ABAN_SMS_PATTERN.replace" in source
+          assert "body = _ABAN_SMS_PATTERN.format(expiry=jdate(earliest))" in source
+          bridge=Path("patches/sms_browser_bridge.py").read_text()
+          assert "requested_body.strip() != canonical.strip()" in bridge
+          installer=Path("scripts/install_exact_debt_sms_20261023.sh").read_text()
+          assert "no 22:00/12:00 jobs" in installer
+          assert 'compose up -d --no-deps --no-build --force-recreate app' in installer
+          assert "compose down" not in installer
+          print("PASS: exact 340-character operator copy, screen/send parity, no schedule")
+          PY
