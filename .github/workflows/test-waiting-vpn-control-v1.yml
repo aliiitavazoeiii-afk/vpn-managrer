@@ -1,0 +1,131 @@
+name: Test manual waiting XUI cutoff and payment-only auto restore
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/waiting_vpn_control_v1.py
+      - scripts/install_waiting_vpn_control_v1.sh
+      - .github/workflows/test-waiting-vpn-control-v1.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Preflight dependencies
+        run: python -m pip install --quiet jinja2
+      - name: Syntax, safe control isolation, and browser JS
+        run: |
+          python -m py_compile patches/waiting_vpn_control_v1.py
+          bash -n scripts/install_waiting_vpn_control_v1.sh
+          python - <<'PY'
+          from pathlib import Path
+          import ast,subprocess
+          text=Path("patches/waiting_vpn_control_v1.py").read_text()
+          root=ast.parse(text)
+          var=next(ast.literal_eval(n.value) for n in root.body
+              if isinstance(n,ast.Assign) and any(isinstance(v,ast.Name) and v.id=="_WVC_JS" for v in n.targets))
+          js=var.replace("<script>","").replace("</script>","")
+          Path("/tmp/waitingvpn.js").write_text(js)
+          subprocess.run(["node","--check","/tmp/waitingvpn.js"],check=True)
+          assert "setInterval" not in text and "BYHOUR" not in text
+          assert "state='disabled'" in text
+          assert "payment_watermark" in text
+          assert 'payments p' in text
+          assert "_ml_call(\"toggle\",server,email=email,expected=True,target=False)" in text
+          assert "_ml_call(\"toggle\",server,email=email,expected=False,target=True)" in text
+          assert "needs_review" in text
+          assert "state='activating'" in text
+          assert "current_debt_for(s,today_local())" in text
+          assert "payment_status" in text
+          assert "SHAHAN" not in text.upper().replace("NO SHAHAN CONTROL","")
+          installer=Path("scripts/install_waiting_vpn_control_v1.sh").read_text()
+          for cmd in ("userdel ","usermod ","docker compose down","UPDATE subscriptions","DELETE FROM payments","systemctl restart"):
+              assert cmd not in installer,cmd
+          print("PASS: manual-only disconnect, confirmed payment gate, bounded DB polling, no Shahan")
+          PY
+      - name: Validate finance and mapping guards with mocks
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          from datetime import date,timedelta
+          source=ast.parse(Path("patches/waiting_vpn_control_v1.py").read_text())
+          defs=[n for n in source.body if isinstance(n,ast.FunctionDef)
+                and n.name in ("_wvc_ready","_wvc_match")]
+          class Subscription:pass
+          class S:
+              is_free=False
+              payment_status="paid"
+              expiry_date=date.today()+timedelta(days=20)
+          class DB:
+              def __init__(self):self.s=S()
+              def get(self,cls,sid):return self.s
+          db=DB()
+          debt=[100];state=["waiting"]
+          env={"Subscription":Subscription,"_followup_states":lambda db:{1:state[0]},
+               "today_local":date.today,"current_debt_for":lambda s,t:debt[0],
+               "_WVC_CONTROL_REASONS":frozenset(("manual_approved","approved_maya1","exact_name"))}
+          exec(compile(ast.Module(body=defs,type_ignores=[]),"guards","exec"),env)
+          ready=env["_wvc_ready"]
+          assert ready(db,1,True)
+          assert not ready(db,1,False)
+          debt[0]=0;state[0]=None
+          assert ready(db,1,False)
+          db.s.payment_status="unpaid"
+          assert not ready(db,1,False)
+          db.s.payment_status="paid"
+          db.s.expiry_date=date.today()-timedelta(days=2)
+          assert not ready(db,1,False)
+          db.s.expiry_date=date.today()+timedelta(days=1)
+          state[0]="cut"
+          assert not ready(db,1,False)
+          state[0]=None
+          row={"sid":1,"reason":"manual_approved","control_ambiguous":False,
+               "finance_state":"normal","email":"known"}
+          assert env["_wvc_match"]({"rows":[row]},"maya1",1)==row
+          for changes in ({"control_ambiguous":True},{"reason":"approved_archived_read_only"},
+                          {"reason":"manual_excluded"},{"finance_state":"cut"}):
+              bad=dict(row,**changes)
+              try:env["_wvc_match"]({"rows":[bad]},"maya1",1);assert False,changes
+              except RuntimeError:pass
+          try:env["_wvc_match"]({"rows":[row,row]},"maya1",1);assert False
+          except RuntimeError:pass
+          print("PASS: only waiting debt manually disables, only fully-paid valid accounts auto-enable")
+          PY
+      - name: Jinja structure and existing action controls untouched
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          from jinja2 import Environment
+          src=ast.parse(Path("patches/waiting_vpn_control_v1.py").read_text())
+          values={}
+          for name in ("_WVC_STYLE","_WVC_JS"):
+              values[name]=next(ast.literal_eval(n.value) for n in src.body
+               if isinstance(n,ast.Assign) and any(isinstance(v,ast.Name) and v.id==name for v in n.targets))
+          template='''{% extends "base.html" %}
+          {% block content %}
+          <section><button data-waiting-v2-status-btn>سرورها</button>
+          <div class="waiting-actions">
+          <form method="post" action="/followups/{{ s.id }}/pay">تسویه</form>
+          <form method="post" action="/followups/{{ s.id }}/restore">بازگشت</form>
+          </div></section>
+          {% endblock %}'''
+          space={**values,"TEMPLATES":{"followups.html":template},
+             "env":type("E",(),{"loader":type("L",(),{"mapping":{}})()})()}
+          start=next(i for i,n in enumerate(src.body)
+             if isinstance(n,ast.Assign) and any(isinstance(v,ast.Name) and v.id=="_wvc_tpl" for v in n.targets))
+          exec(compile(ast.Module(body=src.body[start:],type_ignores=[]),"tmpl","exec"),space)
+          page=space["TEMPLATES"]["followups.html"]
+          Environment().parse(page)
+          assert page.count('class="waiting-vpn-stop-form"')==1
+          assert 'name="csrf"' in page and 'name="sid"' in page
+          assert '/followups/{{ s.id }}/pay' in page
+          assert '/followups/{{ s.id }}/restore' in page
+          assert 'data-waiting-v2-status-btn' in page
+          print("PASS: appends only one optional per-account button without removing old actions")
+          PY
