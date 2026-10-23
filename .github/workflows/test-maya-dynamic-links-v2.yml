@@ -27,7 +27,7 @@ jobs:
           tree=ast.parse(src)
           script=next(ast.literal_eval(n.value) for n in tree.body
               if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=="_MDL2_SCRIPT" for t in n.targets))
-          Path("/tmp/mdl2.js").write_text(script.replace("<script>","").replace("</script>"))
+          Path("/tmp/mdl2.js").write_text(script.replace("<script>","").replace("</script>",""))
           subprocess.run(["node","--check","/tmp/mdl2.js"],check=True)
           assert "# HESAB_MAYA_DYNAMIC_LINKS_V2" in src
           assert '_MDL_APPROVED_REASONS=frozenset(("unmatched_review","exact_name_conflict"))' in src
