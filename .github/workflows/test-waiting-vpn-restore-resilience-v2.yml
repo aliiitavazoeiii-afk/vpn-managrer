@@ -1,0 +1,123 @@
+name: Test waiting Maya restore resilience V2
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/waiting_vpn_restore_resilience_v2.py
+      - scripts/install_waiting_vpn_restore_resilience_v2.sh
+      - .github/workflows/test-waiting-vpn-restore-resilience-v2.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Parse Python and installer, assert safety properties
+        run: |
+          set -e
+          python -m py_compile patches/waiting_vpn_restore_resilience_v2.py
+          bash -n scripts/install_waiting_vpn_restore_resilience_v2.sh
+          python - <<'PY'
+          from pathlib import Path
+          import ast
+          p=Path('patches/waiting_vpn_restore_resilience_v2.py').read_text()
+          s=Path('scripts/install_waiting_vpn_restore_resilience_v2.sh').read_text()
+          parsed=ast.parse(p)
+          defs={n.name for n in parsed.body if isinstance(n,ast.FunctionDef)}
+          for name in ('_wvc_disable_one','_wvr_promote_uncertain_disable',
+             '_wvr_restore_one','_wvc_reconcile_once','_wvr_mark_retry','_wvr_finish'):
+             assert name in defs,name
+          # Only an explicit manual request calls an XUI disable; no cron or
+          # XUI bulk mutations appear in this overlay.
+          assert 'expected=False,target=True' in p
+          assert 'expected=True,target=False' not in p
+          assert 'AND p.id>c.payment_watermark AND p.amount_toman>0' in p
+          assert 'AND p.id>waiting_vpn_controls.payment_watermark' in p
+          assert 'm._wvc_ready' not in p
+          assert '_wvc_ready(db,sid,False)' in p
+          assert 'next_retry_at' in s and 'restore_attempts' in s
+          assert 'ALTER TABLE waiting_vpn_controls' in s
+          assert 'ON CONFLICT' not in s
+          for forbid in ('UPDATE subscriptions','DELETE FROM payments','UPDATE payments',
+                        'bulkDisable','client_enabled=False','systemctl restart'):
+             assert forbid not in p+ '\n' + s,forbid
+          print('PASS: no timed disconnection; only verified paid manual-cut ledger records eligible')
+          PY
+      - name: Mock end-to-end paid restore retry and broker readback
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          tree=ast.parse(Path('patches/waiting_vpn_restore_resilience_v2.py').read_text())
+          names={'_wvr_restore_one','_wvc_disable_one','_wvr_backoff'}
+          defs=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name in names]
+          import types
+          trace=[]
+          class Answer:
+              def __init__(self,row=None):self.row=row
+              def first(self):return self.row
+          class DB:
+              def execute(self,sql,args=None):
+                  trace.append(('sql',str(sql).strip()[:45]))
+                  return Answer((42,))
+              def commit(self):trace.append(('commit',))
+              def rollback(self):trace.append(('rollback',))
+              def expire_all(self):trace.append(('expire',))
+          db=DB()
+          record={'id':42,'subscription_id':382,'server':'maya4','email':'new_client'}
+          on=[False]
+          enabled=[False]
+          matched=lambda live,server,sid:{
+            'email':'new_client','sid':382,'reason':'exact_name','client_enabled':enabled[0]}
+          def live(server,db):
+            trace.append(('snapshot',server))
+            return {'rows':[matched(None,server,382)]}
+          def toggle(op,server,**kwargs):
+            trace.append(('TOGGLE',op,server,kwargs))
+            enabled[0]=True
+            return {'client_enabled':True}
+          def finish(db,*args):
+            trace.append(('FINISH',args[-1]))
+          def retry(db,*args):
+            trace.append(('RETRY',args[-1]))
+          env={'_wvr_text':lambda s:s,
+               '_wvc_ready':lambda db,sid,require_waiting:on[0],
+               '_ml_one':live,'_wvc_match':matched,
+               '_ml_call':toggle,
+               '_wvr_finish':finish,'_wvr_mark_retry':retry,
+               '_WVR_BACKOFF':(30,90,240,600,1200,3600),
+               '_WVR_ORIGINAL_DISABLE_ONE':lambda sid,db:{'sid':sid,'ok':False,'warnings':['maya4: unconfirmed'],'confirmed':[]},
+               '_wvr_promote_uncertain_disable':lambda sid,db:['maya4']}
+          exec(compile(ast.Module(body=defs,type_ignores=[]),'resilience_test','exec'),env)
+          assert [env['_wvr_backoff'](x) for x in [1,2,3,4,5,6,7]]==[30,90,240,600,1200,3600,3600]
+          no=env['_wvc_disable_one'](382,db)
+          assert no['ok'] is True and no['confirmed']==['maya4']
+          env['_wvr_restore_one'](db,record)
+          assert not any(x[0]=='TOGGLE' for x in trace),'No payment must never enable'
+          on[0]=True
+          trace.clear()
+          env['_wvr_restore_one'](db,record)
+          assert len([x for x in trace if x[0]=='TOGGLE'])==1
+          assert ('FINISH','auto_enabled_confirmed') in trace
+          trace.clear()
+          enabled[0]=False
+          def ambiguous(op,server,**kw):
+            trace.append(('TOGGLE',op,server,kw))
+            enabled[0]=True
+            raise TimeoutError('XUI update finished before response was lost')
+          env['_ml_call']=ambiguous
+          env['_wvr_restore_one'](db,record)
+          assert ('FINISH','enabled_confirmed_after_broker_error') in trace
+          assert not any(x[0]=='RETRY' for x in trace)
+          trace.clear()
+          enabled[0]=False
+          def offline(op,server,**kw):raise TimeoutError('XUI did not respond')
+          env['_ml_call']=offline
+          env['_wvr_restore_one'](db,record)
+          assert any(x[0]=='RETRY' for x in trace)
+          assert not any(x[0]=='FINISH' for x in trace)
+          print('PASS: unpaid never enabled, fully paid enabled once; lost response verified by snapshot; retry only on uncertainty')
+          PY
