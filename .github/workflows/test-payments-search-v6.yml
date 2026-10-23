@@ -1,0 +1,135 @@
+name: Test payments search V6 for both production templates
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/payments_search_fix_v6.py
+      - scripts/install_payments_search_fix_v6.sh
+      - .github/workflows/test-payments-search-v6.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  payments-search:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Compile overlay and installer
+        run: |
+          python -m py_compile patches/payments_search_fix_v6.py
+          bash -n scripts/install_payments_search_fix_v6.sh
+          python -m pip install --quiet jinja2
+      - name: Exercise actual overlay against both V5 payment templates
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from jinja2 import Environment
+          import ast,json,re
+          patch=Path("patches/payments_search_fix_v6.py").read_text()
+          result={}
+          for variant,path,name in (
+            ("safe","patches/payment_history_fix_v5.py","_PF_TEMPLATE"),
+            ("operator","patches/operator_workspace_v5.py","_OP_PAYMENTS_TEMPLATE"),
+          ):
+            src=Path(path).read_text()
+            values=[n.value for n in ast.parse(src).body if isinstance(n,ast.Assign)
+                    and len(n.targets)==1 and isinstance(n.targets[0],ast.Name)
+                    and n.targets[0].id==name]
+            assert len(values)==1,variant
+            original=ast.literal_eval(values[0])
+            assert 'action="/payments/{{' in original
+            class Loader: mapping={}
+            class Env: loader=Loader()
+            scope={"TEMPLATES":{"payments.html":original},"env":Env()}
+            exec(compile(patch,"payments_search_fix_v6.py","exec"),scope)
+            final=scope["TEMPLATES"]["payments.html"]
+            assert final!=original
+            assert "display:none !important" in final or "display: none !important" in final
+            assert "addEventListener(\"input\",apply)" in final
+            assert "addEventListener(\"search\",apply)" in final
+            assert "terms.every(" in final
+            assert "data-pf-id" in final if variant=="safe" else "op-pay-entry[hidden]" in final
+            assert original.count('action="/payments/{{')==final.count('action="/payments/{{')
+            assert original.count('method="post"')==final.count('method="post"')
+            Environment().parse(final)
+            scripts=re.findall(r"<script>([\s\S]*?)</script>",final)
+            assert len(scripts)==1,(variant,len(scripts))
+            Path("/tmp/pay-search-"+variant+".js").write_text(scripts[0])
+            result[variant]={"original":len(original),"patched":len(final)}
+            print("PASS:",variant,"Jinja/undo unchanged, CSS hidden and search improved")
+          print(json.dumps(result))
+          PY
+          node --check /tmp/pay-search-safe.js
+          node --check /tmp/pay-search-operator.js
+      - name: Execute the real browser search IIFE using fake document nodes
+        run: |
+          node <<'JS'
+          const fs=require('fs'),vm=require('vm');
+          function baseRows(){
+            function row(search,content,day){
+              return {dataset:{search,pfSearchNorm:search,pfId:search.includes('علی')?'137':'250',when:day},
+                 hidden:false,textContent:content,
+                 querySelector(sel){return sel==='[data-pf-time]'?{textContent:''}:null}};
+            }
+            return [
+              row("علی رضایی 09120001111 137 750000 پرداخت ماه مهر",
+                  "علی رضایی شناسه ۱۳۷ مبلغ ۷۵۰,۰۰۰ تومان", "2026-10-22T11:30:00Z"),
+              row("مریم کریمی 09120002222 250 550000 پرداخت شهریور",
+                  "مریم کریمی شناسه ۲۵۰ مبلغ ۵۵۰,۰۰۰ تومان","2026-10-23T11:30:00Z")
+            ];
+          }
+          function testSafe(){
+            const rows=baseRows(),elements={};
+            function el(tag){return {tag,hidden:false,textContent:'',
+              append(...children){this.children=(this.children||[]).concat(children)},
+              querySelector(){return null}}}
+            const input={value:'',handlers:{},addEventListener(event,cb){this.handlers[event]=cb}};
+            elements['pf-search']=input;
+            elements['pf-rows']={querySelectorAll(){return rows},remove(){}};
+            elements['pf-days']={children:[],append(node){this.children.push(node)}};
+            elements['pf-count']={textContent:''};
+            elements['pf-empty']={hidden:true};
+            const document={getElementById(k){return elements[k]},createElement:el};
+            vm.runInNewContext(fs.readFileSync('/tmp/pay-search-safe.js','utf8'),
+              {document,Intl,Date,Map,Object,String,isNaN,console});
+            function search(q){
+              input.value=q;input.handlers.input();
+              return rows.map(r=>!r.hidden);
+            }
+            let assert=require('assert/strict');
+            assert.deepEqual(search('علی رضایی'),[true,false]);
+            assert.deepEqual(search('09120002222'),[false,true]);
+            assert.deepEqual(search('۷۵۰۰۰۰'),[true,false]);
+            assert.deepEqual(search('شناسه ۲۵۰'),[false,true]);
+            assert.deepEqual(search('ناموجود'),[false,false]);
+            assert.equal(elements['pf-empty'].hidden,false);
+            assert.deepEqual(search(''),[true,true]);
+            assert.equal(elements['pf-days'].children.some(g=>g.hidden),false);
+            console.log('PASS safe V5 actual JavaScript filters rows by Persian name/phone/amount/id');
+          }
+          function testOperator(){
+            const rows=baseRows();
+            const group={hidden:false,querySelectorAll(){return rows},
+                         querySelector(){return {textContent:"امروز · 2 پرداخت"}}};
+            const input={value:'',handlers:{},addEventListener(event,cb){this.handlers[event]=cb}};
+            const elements={'op-pay-query':input,'op-pay-count':{textContent:''},'op-pay-empty':{hidden:true}};
+            const document={
+              getElementById(k){return elements[k]},
+              querySelectorAll(selector){return selector==='.op-pay-day'?[group]:rows}
+            };
+            vm.runInNewContext(fs.readFileSync('/tmp/pay-search-operator.js','utf8'),
+              {document,console});
+            function search(q){input.value=q;input.handlers.input();return rows.map(r=>!r.hidden)}
+            const assert=require('assert/strict');
+            assert.deepEqual(search('علی رضایی'),[true,false]);
+            assert.deepEqual(search('۰۹۱۲۰۰۰۲۲۲۲'),[false,true]);
+            assert.deepEqual(search('750000'),[true,false]);
+            assert.deepEqual(search('ساعت ناموجود'),[false,false]);
+            assert.equal(group.hidden,true);
+            assert.deepEqual(search(''),[true,true]);
+            assert.equal(group.hidden,false);
+            console.log('PASS operator V5 actual JavaScript filters rows and entire day sections');
+          }
+          testSafe();testOperator();
+          JS
