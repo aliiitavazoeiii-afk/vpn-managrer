@@ -1,0 +1,122 @@
+name: Test corrected debt SMS flow and one-pass queue reset
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - scripts/install_sms_resend_queue_reset_final.sh
+      - scripts/reset_native_sms_app_queue_v1.py
+      - patches/sms_native_v2.py
+      - .github/workflows/test-sms-end-to-end-fix.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Syntax and lifecycle tests
+        run: |
+          bash -n scripts/install_sms_resend_queue_reset_final.sh
+          python3 -m py_compile scripts/reset_native_sms_app_queue_v1.py patches/sms_native_v2.py
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("scripts/install_sms_resend_queue_reset_final.sh").read_text()
+          assert 'APP VERIFIED: correction route and canonical text loaded' in s
+          assert 'compose exec -T app python - <<' in s
+          assert 'QUEUE RESET FAILED' in s
+          assert 'reset_native_sms_app_queue_v1.py" --apply' in s
+          assert 'compose up -d --no-deps --no-build --force-recreate app' in s
+          assert 'SUCCESS: ONE-PASS CORRECTION INSTALLED AND PHONE APP QUEUE CLEARED' in s
+          assert 'inspect.getsource' not in s
+          assert 'sum(getattr(r,"path"' not in s
+          q=Path("scripts/reset_native_sms_app_queue_v1.py").read_text()
+          assert '"cp",str(path),"db:"+inside' in q
+          assert '"pg_restore","--list",inside' in q
+          assert "WHERE status IN ('queued','claimed','opened')" in q
+          assert "DELETE FROM native_sms_v2_jobs" not in q
+          print("PASS: live-code verified, single path, no duplicate reset or destructive actions")
+          PY
+      - name: Exercise actual native enqueue code against simulated SQL rows
+        run: |
+          python3 - <<'PY'
+          import ast,re
+          from pathlib import Path
+          from datetime import date
+          from types import SimpleNamespace
+          source=Path("patches/sms_native_v2.py").read_text()
+          node=next(n for n in ast.parse(source).body if isinstance(n,ast.FunctionDef) and n.name=="_ns_enqueue")
+          class Column:
+              def __eq__(self,value):return value
+              def is_(self,value):return value
+              def asc(self):return self
+          class Subscription:
+              phone=Column()
+              is_free=Column()
+              id=Column()
+          class Result:
+              def __init__(self, obj=None):self.obj=obj
+              def first(self):return self.obj
+              def mappings(self):return self
+              def scalar_one(self):return 802
+          class Query:
+              def __init__(self,rows):self.rows=rows
+              def filter(self,*args):return self
+              def order_by(self,*args):return self
+              def all(self):return self.rows
+          class DB:
+              def __init__(self,status,oldbody,newbody):
+                  self.status=status;self.oldbody=oldbody;self.newbody=newbody
+                  self.rows=[SimpleNamespace(id=115,expiry_date=date(2026,9,30),
+                                  phone="09120000000",is_free=False)]
+                  self.inserted=[];self.rolled_back=False
+              def query(self,cls):return Query(self.rows)
+              def execute(self,stmt,params=None):
+                  if 'SELECT pg_advisory_xact_lock' in stmt:return Result()
+                  if 'SELECT id FROM sms_jobs' in stmt:return Result()
+                  if "SELECT id,status,message FROM native_sms_v2_jobs" in stmt:
+                      return Result({'id':24,'status':self.status,'message':self.oldbody})
+                  if "source='manual' AND phone=:phone AND cycle_key=:cycle" in stmt:
+                      return Result()
+                  if "created_at > NOW() - INTERVAL '1 day'" in stmt:return Result()
+                  if 'INSERT INTO native_sms_v2_jobs' in stmt:
+                      self.inserted.append(params);return Result()
+                  raise RuntimeError('Unknown SQL '+stmt[:130])
+              def rollback(self):self.rolled_back=True
+              def add(self,item):pass
+              def commit(self):pass
+          expected="سلام امروز موعد تمدید اکانت شماست\nusersmanager.ir"
+          scope={"_ns_setup":lambda db:None,
+                 "_ns_clean_phone":lambda x:x,
+                 "_ns_text":lambda x:x,
+                 "_followup_states":lambda db:{},
+                 "today_local":lambda:date(2026,10,23),
+                 "Subscription":Subscription,
+                 "current_debt_for":lambda s,now:100,
+                 "_ABAN_SMS_PATTERN":expected,
+                 "jdate":lambda d:d.isoformat(),
+                 "AuditEvent":lambda **kw:kw}
+          exec(compile(ast.Module(body=[node],type_ignores=[]),"native_enqueue_test","exec"),scope)
+          enqueue=scope["_ns_enqueue"]
+          for old_state,old_body,should_insert in [
+             ("operator_opened","OLD 30 شهریور",True),
+             ("cancelled","OLD 30 شهریور",True),
+             ("queued","OLD 30 شهریور",False),
+             ("opened","OLD 30 شهریور",False),
+             ("uncertain","OLD 30 شهریور",False),
+             ("operator_opened",expected,False),
+          ]:
+              db=DB(old_state,old_body,expected)
+              job,error=enqueue(db,"09120000000","debt")
+              assert bool(db.inserted)==should_insert,(old_state,job,error)
+              if should_insert:
+                  assert job==802 and error is None
+                  assert db.inserted[0]["source"]=="manual"
+                  assert db.inserted[0]["cycle"]=="2026-09-30"
+                  assert db.inserted[0]["ids"]==[]
+                  assert db.inserted[0]["body"]==expected
+              else:
+                  assert job is None and error
+              print("PASS",old_state,"draft_created" if should_insert else "blocked",error or "")
+          PY
