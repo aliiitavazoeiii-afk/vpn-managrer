@@ -37,6 +37,7 @@ rollback(){
  exit 1
 }
 trap rollback ERR
+changed=1
 
 python3 - "$SRC" <<'PY'
 import ast,os,tempfile,sys
@@ -101,7 +102,6 @@ print("STAGED: both canonical debtor SMS and waiting-payment SMS are identical."
 print("TEXT LENGTH:",len(expected))
 print("No expiry is inserted into either message. Only future drafts change.")
 PY
-changed=1
 c up -d --no-deps --no-build --force-recreate app
 ready=0
 for n in $(seq 1 30);do
