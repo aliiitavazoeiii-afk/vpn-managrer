@@ -44,7 +44,7 @@ jobs:
           assert "requested_body.strip() != canonical.strip()" in bridge
           installer=Path("scripts/install_exact_debt_sms_20261023.sh").read_text()
           assert "install_unified_debt_sms_20261023.sh" in installer
-          assert 'compose up -d --no-deps --no-build --force-recreate app' in Path("scripts/install_unified_debt_sms_20261023.sh").read_text()
+          assert 'c up -d --no-deps --no-build --force-recreate app' in Path("scripts/install_unified_debt_sms_20261023.sh").read_text()
           assert "compose down" not in installer
           print("PASS: exact user copy plus panel URL, screen/send parity, no schedule")
           PY
