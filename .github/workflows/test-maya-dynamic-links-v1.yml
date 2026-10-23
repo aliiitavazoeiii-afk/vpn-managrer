@@ -35,7 +35,7 @@ jobs:
           assert "UPDATE subscriptions" not in src
           assert "maya_new_approved_links" in src
           assert '"manual_approved"' in src
-          assert 'existing' in src and 'len(matches)!=1' in src
+          assert 'exists' in src and 'len(matches)!=1' in src
           installer=Path("scripts/install_maya_dynamic_links_v1.sh").read_text()
           assert "maya_new_approved_links" in installer
           assert "subscription_id BIGINT" in installer
