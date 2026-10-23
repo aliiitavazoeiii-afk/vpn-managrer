@@ -287,6 +287,21 @@ _WVC_JS=r'''
      el.className="waiting-vpn-notice";el.setAttribute("role","status");document.body.append(el);}
    el.textContent=s;
  };
+ document.addEventListener("click",e=>{
+   const btn=e.target.closest("[data-waiting-vpn-expand]");
+   if(!btn)return;
+   e.preventDefault();e.stopImmediatePropagation();
+   const group=btn.closest("[data-waiting-group]");
+   const panel=group?.querySelector(".waiting-services");
+   const head=group?.querySelector("[data-waiting-toggle]");
+   if(panel){
+     panel.hidden=false;
+     head?.classList.add("open");
+     head?.setAttribute("aria-expanded","true");
+     notice("برای قطع VPN، اکانت موردنظر را از زیرمجموعه انتخاب کن.");
+     panel.querySelector(".waiting-vpn-stop")?.focus();
+   }
+ },true);
  document.addEventListener("submit",async e=>{
    const form=e.target.closest(".waiting-vpn-stop-form");
    if(!form)return;
@@ -327,6 +342,24 @@ _wvc_form=r'''
             <button type="submit" class="waiting-vpn-stop">غیرفعال‌کردن VPN</button>
           </form>
 '''
+_wvc_head_anchor='<div class="waiting-head-pay waiting-pay-tools">'
+if _wvc_tpl.count(_wvc_head_anchor)!=1:
+    raise RuntimeError("Waiting group action bar missing")
+_wvc_head_control=r'''
+        {% if g.services == 1 %}
+          <form class="waiting-vpn-stop-form" method="post" action="/followups/vpn/disable"
+                data-account-name="{{ g.rows[0].s.display_name }}">
+            <input type="hidden" name="sid" value="{{ g.rows[0].s.id }}">
+            <input type="hidden" name="csrf" value="{{ request.session.get('maya1_control_csrf','') }}">
+            <button type="submit" class="waiting-vpn-stop">غیرفعال‌کردن VPN</button>
+          </form>
+        {% else %}
+          <button type="button" class="waiting-vpn-stop" data-waiting-vpn-expand
+            title="یک یا چند اکانت دارد؛ برای قطع دقیق، زیرمجموعه را انتخاب کن">انتخاب برای قطع VPN</button>
+        {% endif %}
+'''
+_wvc_tpl=_wvc_tpl.replace(_wvc_head_anchor,
+                          _wvc_head_anchor+"\n"+_wvc_head_control,1)
 _wvc_tpl=_wvc_tpl.replace('<div class="waiting-actions">',
                           '<div class="waiting-actions">\n'+_wvc_form,1)
 _wvc_tpl=_wvc_tpl.replace("{% block content %}","{% block content %}"+_WVC_STYLE,1)
