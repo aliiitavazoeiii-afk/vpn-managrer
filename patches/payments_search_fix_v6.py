@@ -88,6 +88,10 @@ if 'id="pf-search"' in _pfs6_template:
     input.addEventListener("search",apply);
     input.addEventListener("change",apply);
     apply();'''
+    # String literals are indented with this branch in source; remove only the
+    # four branch-indentation spaces inside the multiline JS bodies.
+    _pfs6_old = _pfs6_old.replace("\n    ", "\n")
+    _pfs6_new = _pfs6_new.replace("\n    ", "\n")
     if _pfs6_template.count(_pfs6_old) != 1:
         raise RuntimeError("Payments search v6: source search code differs; refusing blind edit")
     _pfs6_template = _pfs6_template.replace(_pfs6_old, _pfs6_new, 1)
