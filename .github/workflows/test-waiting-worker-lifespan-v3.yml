@@ -1,0 +1,90 @@
+name: Test FastAPI waiting restore worker lifespan V3
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - patches/waiting_vpn_worker_lifespan_v3.py
+      - scripts/install_waiting_vpn_worker_lifespan_v3.sh
+      - .github/workflows/test-waiting-worker-lifespan-v3.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Syntax and safety
+        run: |
+          python -m py_compile patches/waiting_vpn_worker_lifespan_v3.py
+          bash -n scripts/install_waiting_vpn_worker_lifespan_v3.sh
+          python - <<'PY'
+          from pathlib import Path
+          s=Path("patches/waiting_vpn_worker_lifespan_v3.py").read_text()
+          i=Path("scripts/install_waiting_vpn_worker_lifespan_v3.sh").read_text()
+          assert "app.router.lifespan_context=_wvr3_lifespan" in s
+          assert "async with _WVR3_ORIGINAL_LIFESPAN(application)" in s
+          assert "to_thread(_wvc_reconcile_once)" in s
+          assert "_wvc_startup" in s
+          assert "heartbeat_at" in s
+          assert "scan_completed" in i
+          assert "PREFLIGHT_SUCCESS" in i
+          assert "ROLLBACK" in i
+          for forbidden in ["_ml_call(","UPDATE subscriptions","UPDATE payments","DELETE FROM payments",
+                            "bulkEnable","bulkDisable","CREATE TRIGGER"]:
+              assert forbidden not in s+i,forbidden
+          print("PASS: scheduling-only patch; preserves existing paid-only safety")
+          PY
+      - name: Real asynchronous lifespan test (custom old lifespan bypasses on_startup)
+        run: |
+          python - <<'PY'
+          import asyncio,json,time
+          from pathlib import Path
+          from contextlib import asynccontextmanager
+          from types import SimpleNamespace
+          traces=[]
+          scans=[]
+          class Router:
+              on_startup=[]
+              lifespan_context=None
+          class App:
+              router=Router()
+              state=SimpleNamespace()
+          app=App()
+          @asynccontextmanager
+          async def original(application):
+              traces.append("existing_startup")
+              try:
+                  yield {"preexisting":"lifespan-state"}
+              finally:
+                  traces.append("existing_shutdown")
+          async def old_worker_startup():traces.append("wrong_old_startup")
+          app.router.lifespan_context=original
+          app.router.on_startup=[old_worker_startup]
+          def reconcile():scans.append(time.time())
+          env={
+              "app":app,
+              "_wvc_startup":old_worker_startup,
+              "_wvc_reconcile_once":reconcile,
+              "_WVC_PAYMENT_CHECK_INTERVAL":0.03,
+          }
+          exec(compile(Path("patches/waiting_vpn_worker_lifespan_v3.py").read_text(),
+              "<worker-lifespan-v3>","exec"),env)
+          assert app.router.lifespan_context is env["_wvr3_lifespan"]
+          assert env["_WVR3_ORIGINAL_LIFESPAN"] is original
+          assert len(app.router.on_startup)==0
+          async def test():
+              async with app.router.lifespan_context(app) as state:
+                  assert state=={"preexisting":"lifespan-state"}
+                  await asyncio.sleep(0.22)
+                  assert len(scans)>=2,scans
+                  h=json.loads(Path("/tmp/hesab-waiting-worker-v3.json").read_text())
+                  assert h["scan_completed"]>=2,h
+                  assert h["errors"]==0,h
+                  assert app.state.wvr3_task is not None
+              assert app.state.wvr3_task is None
+              assert traces==["existing_startup","existing_shutdown"],traces
+          asyncio.run(test())
+          print("PASS: worker runs despite custom lifespan; old startup and shutdown preserved, no duplicate")
+          PY
