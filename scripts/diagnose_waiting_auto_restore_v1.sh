@@ -22,6 +22,7 @@ print("AUTO_WORKER_ENABLED_IN_APP",hasattr(m,"_wvc_reconcile_once"))
 print("DYNAMIC_LINK_PATCH",hasattr(m,"_mdl_post_link"))
 generator=m.get_db()
 db=next(generator)
+db.execute(text("SET TRANSACTION READ ONLY"))
 try:
     sub=db.get(m.Subscription,sid)
     if not sub:
