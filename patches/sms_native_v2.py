@@ -74,14 +74,31 @@ def _ns_enqueue(db, phone, source, message=""):
             db.rollback()
             return None,"IDENTICAL_OLD_SMS_ALREADY_CONFIRMED"
         prev=db.execute(_ns_text("""
-          SELECT id FROM native_sms_v2_jobs
+          SELECT id,status,message FROM native_sms_v2_jobs
           WHERE source='debt' AND phone=:phone AND cycle_key=:cycle
           LIMIT 1
-        """),{"phone":normalized,"cycle":cycle}).first()
+        """),{"phone":normalized,"cycle":cycle}).mappings().first()
         if prev:
-            db.rollback()
-            return None,"NATIVE_SMS_ALREADY_REGISTERED"
-    else:
+            # A one-time explicit corrected copy can be prepared even though
+            # a previous draft for this billing cycle exists. Never rewrite
+            # the original record or bypass its unique (phone,cycle) index.
+            # Label the new draft as manual: opening it must not repeat a
+            # financial followup transition for the same customer.
+            old_status=str(prev["status"] or "")
+            old_body=str(prev["message"] or "")
+            if (old_status in ("cancelled","operator_opened","sent","delivered")
+                and (old_body!=message or old_status=="cancelled")):
+                source="manual"
+                cycle=None
+                ids=[]
+            elif old_status in ("queued","claimed","opened","uncertain",
+                                 "attempting","failed"):
+                db.rollback()
+                return None,"PREVIOUS_SMS_UNCERTAIN_OR_PENDING_REVIEW"
+            else:
+                db.rollback()
+                return None,"NATIVE_SMS_ALREADY_REGISTERED"
+    if source=="manual":
         message=str(message or "").strip()
         if not message or len(message)>1000:
             db.rollback()
