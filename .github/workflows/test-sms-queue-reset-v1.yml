@@ -6,6 +6,7 @@ on:
       - patches/sms_native_v2.py
       - scripts/reset_native_sms_app_queue_v1.py
       - scripts/install_sms_resend_queue_reset_v1.sh
+      - scripts/install_sms_resend_queue_reset_v2.sh
       - .github/workflows/test-sms-queue-reset-v1.yml
   workflow_dispatch:
 permissions: {contents: read}
@@ -20,6 +21,7 @@ jobs:
         run: |
           python3 -m py_compile patches/sms_native_v2.py scripts/reset_native_sms_app_queue_v1.py
           bash -n scripts/install_sms_resend_queue_reset_v1.sh
+          bash -n scripts/install_sms_resend_queue_reset_v2.sh
           python3 - <<'PY'
           import ast
           from pathlib import Path
@@ -27,6 +29,10 @@ jobs:
           assert "AND status <> 'cancelled'" in sms
           assert "AND created_at > NOW() - INTERVAL '1 day'" in sms
           assert "IDENTICAL_SMS_ALREADY_REGISTERED" in sms
+          assert 'PREVIOUS_SMS_UNCERTAIN_OR_PENDING_REVIEW' in sms
+          assert 'old_status in ("cancelled","operator_opened","sent","delivered")' in sms
+          assert 'old_body!=message' in sms
+          assert 'source="manual"' in sms
           tree=ast.parse(sms)
           enqueue=next(node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name=="_ns_enqueue")
           assert "_ns_enqueue" in sms
@@ -36,6 +42,8 @@ jobs:
           assert "SELECT 'APPLIED cancelled='" in reset
           assert "pg_dump" in reset
           assert "pg_restore" in reset
+          assert '"cp",str(path),"db:"+inside' in reset
+          assert '"pg_restore","--list",inside' in reset
           assert "WHERE status IN ('queued','claimed','opened')" in reset
           assert "status='operator_opened'" not in reset
           assert "DELETE FROM native_sms_v2_jobs" not in reset
@@ -47,5 +55,6 @@ jobs:
           assert 'reset_native_sms_app_queue_v1.py --apply' in installer
           assert "docker compose down" not in installer
           assert "c up -d --no-deps --no-build --force-recreate app" in installer
-          print("PASS: cancelled drafts can requeue; sent/unknown history retained; app V4 queue clear requires --apply")
+          assert 'install_sms_resend_queue_reset_v2.sh' in Path('scripts/install_sms_resend_queue_reset_v2.sh').name
+          print("PASS: corrected debt SMS can queue once with older cycle, DB backup is seekable, app clear requires --apply")
           PY
