@@ -31,6 +31,7 @@ rollback(){
  exit 1
 }
 trap rollback ERR
+changed=1
 python3 - "$REPO" <<'PY'
 from pathlib import Path
 import sys
@@ -54,7 +55,6 @@ elif live.count(before)==1:
 else:
     raise RuntimeError("Live manual SMS dedup differs; cannot update safely")
 PY
-changed=1
 c up -d --no-deps --no-build --force-recreate app
 ok=0
 for i in $(seq 1 24);do
