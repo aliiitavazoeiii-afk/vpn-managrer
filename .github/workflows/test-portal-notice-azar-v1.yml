@@ -1,0 +1,40 @@
+name: Test customer welcome notice Azar
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - customer_portal/dashboard_v2.html
+      - scripts/install_portal_notice_azar_v1.sh
+      - scripts/install_portal_notice_font.sh
+      - .github/workflows/test-portal-notice-azar-v1.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify single announcement text, syntax and UI-only scope
+        run: |
+          bash -n scripts/install_portal_notice_azar_v1.sh
+          bash -n scripts/install_portal_notice_font.sh
+          python - <<'PY'
+          from pathlib import Path
+          old="تمامی اکانت‌ها تا تاریخ یکم آبان محاسبه می‌شوند."
+          new="تمامی اکانت‌ها تا تاریخ یکم آذر محاسبه می‌شوند."
+          html=Path("customer_portal/dashboard_v2.html").read_text(encoding="utf-8")
+          assert html.count(new)==1
+          assert old not in html
+          assert "از این پس سررسید اکانت شما یکم هر ماه خواهد بود." in html
+          assert "entryModal" in html
+          installer=Path("scripts/install_portal_notice_azar_v1.sh").read_text(encoding="utf-8")
+          assert 'customer-portal' in installer
+          assert 'build customer-portal' in installer
+          assert 'PREFLIGHT_SUCCESS' in installer
+          assert 'server._V2_DASH.count(new)==1' in installer
+          for unsafe in ("UPDATE subscriptions","UPDATE payments","DELETE FROM payments",
+                         "build app","up -d app","bulkEnable","bulkDisable"):
+              assert unsafe not in installer,unsafe
+          assert new in Path("scripts/install_portal_notice_font.sh").read_text()
+          print("PASS: Azar message changed and deploy script touches only customer portal")
+          PY
