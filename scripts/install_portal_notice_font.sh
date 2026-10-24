@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# UI-only rollout: exact Aban announcement text + Estedad renewal heading.
+# UI-only rollout: exact Azar announcement text + Estedad renewal heading.
 # Preserve production billing files and existing performance optimizations.
 set -Eeuo pipefail
 umask 077
@@ -44,7 +44,7 @@ h=p.read_text(encoding="utf8")
 s=css.read_text(encoding="utf8")
 block=re.compile(r'<div class="entry-modal-icon">!</div>\s*<div class="entry-modal-kicker">اطلاعیه مهم</div>\s*<h2>.*?</h2>\s*<p>.*?</p>',re.S)
 replacement=('<h2>اطلاعیه مهم</h2>\n    '
-'<p>تمامی اکانت‌ها تا تاریخ یکم آبان محاسبه می‌شوند.</p>\n    '
+'<p>تمامی اکانت‌ها تا تاریخ یکم آذر محاسبه می‌شوند.</p>\n    '
 '<p>از این پس سررسید اکانت شما یکم هر ماه خواهد بود.</p>')
 if '<h2>اطلاعیه مهم</h2>' not in h:
     h,n=block.subn(replacement,h,count=1)
@@ -53,7 +53,7 @@ if '<h2>اطلاعیه مهم</h2>' not in h:
 else:
     expected = (
       '<h2>اطلاعیه مهم</h2>\n    '
-      '<p>تمامی اکانت‌ها تا تاریخ یکم آبان محاسبه می‌شوند.</p>\n    '
+      '<p>تمامی اکانت‌ها تا تاریخ یکم آذر محاسبه می‌شوند.</p>\n    '
       '<p>از این پس سررسید اکانت شما یکم هر ماه خواهد بود.</p>'
     )
     if expected not in h:
@@ -82,7 +82,7 @@ PY
 "${C[@]}" up -d --no-deps --no-build --force-recreate customer-portal
 for n in $(seq 1 30); do
  if "${C[@]}" exec -T customer-portal python -c 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8091/health",timeout=3).read()' >/dev/null 2>&1; then
-   "${C[@]}" exec -T customer-portal python -c 'from pathlib import Path; p=Path("/srv/dashboard_v2.html").read_text(); c=Path("/srv/v2_polish.css").read_text(); assert "<h2>اطلاعیه مهم</h2>" in p; assert "تمامی اکانت‌ها تا تاریخ یکم آبان محاسبه می‌شوند." in p; assert "از این پس سررسید اکانت شما یکم هر ماه خواهد بود." in p; assert "PORTAL_NOTICE_RENEW_TYPOGRAPHY_V2" in c; print("NOTICE & FONT VERIFIED")'
+   "${C[@]}" exec -T customer-portal python -c 'from pathlib import Path; p=Path("/srv/dashboard_v2.html").read_text(); c=Path("/srv/v2_polish.css").read_text(); assert "<h2>اطلاعیه مهم</h2>" in p; assert "تمامی اکانت‌ها تا تاریخ یکم آذر محاسبه می‌شوند." in p; assert "از این پس سررسید اکانت شما یکم هر ماه خواهد بود." in p; assert "PORTAL_NOTICE_RENEW_TYPOGRAPHY_V2" in c; print("NOTICE & FONT VERIFIED")'
    trap - ERR
    echo "SUCCESS: PORTAL NOTICE AND RENEWAL FONT UPDATED"
    echo "Backup: $BACKUP"
