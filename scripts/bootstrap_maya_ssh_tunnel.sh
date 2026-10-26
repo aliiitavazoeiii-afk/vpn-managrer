@@ -5,9 +5,10 @@
 set -Eeuo pipefail
 umask 077
 [[ "$(id -u)" -eq 0 ]] || { echo "STOP: run with sudo/root"; exit 2; }
-[[ "$#" -eq 3 ]] || { echo "Usage: $0 maya-s3|maya4 REMOTE_IPV4 XUI_PORT"; exit 2; }
+[[ "$#" -eq 3 ]] || { echo "Usage: $0 maya1|maya-s3|maya4 REMOTE_IPV4 XUI_PORT"; exit 2; }
 SERVER="$1"; HOST="$2"; REMOTE_PORT="$3"
 case "$SERVER" in
+  maya1) KEY="/root/.ssh/hesab_maya1_tunnel";;
   maya-s3) KEY="/root/.ssh/hesab_maya_s3_tunnel";;
   maya4) KEY="/root/.ssh/hesab_maya4_tunnel";;
   *) echo "STOP: unsupported server";exit 2;;
