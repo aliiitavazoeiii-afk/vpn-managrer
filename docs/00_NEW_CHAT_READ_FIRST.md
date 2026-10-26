@@ -142,3 +142,8 @@ I am continuing the long-running Hesab VPN project (GitHub aliiitavazoeiii-afk/v
 - First-login ?welcome=1 deliberately displays previous Azar notice/page; after acknowledging notice navigate to / to see new V2 service dashboard.
 - Important unresolved privacy concern: current /login authenticates by phone entry only (not SMS OTP). New payment history displays stored financial data; consider secure login before treating it as private.
 - Full evidence and pending runtime verification: docs/PROJECT_HISTORY_2026-10-26.md V3/V4 sections.
+
+
+## L. Exact screenshot visual V5 prepared (NOT YET DEPLOYED)
+- User selected exact screenshot styling: 3D server green LEDs, 3D speedometer/globe, large support agent protruding above card. The release source with actual screenshot-derived assets is base64-encoded ZIP in `releases/hesab_exact_visual_v5.zip.b64`; ZIP SHA-256 `4f88a25a32777f19d6adecbcff5d678671c7993735e87579f7714852b3c04841`.
+- Release documentation and full risk checklist: `docs/HESAB_SERVICES_EXACT_VISUAL_V5.md`. Production **not verified/deployed** yet. Installer inside ZIP preserves existing V3 image-baked V2 landing and mounted login-activity wrapper, including optional V4. Builds/recreates **only** customer-portal, with backups and rollback attempt. No production live health or fake 99.9% uptime.
