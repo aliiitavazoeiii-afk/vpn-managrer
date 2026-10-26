@@ -15,8 +15,21 @@ CID="$(compose ps -q customer-portal)"
 [ -n "$CID" ] && [ "$(docker inspect -f '{{.State.Running}}' "$CID")" = true ] || { echo "STOP: container not running";exit 3; }
 MOUNT="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/srv/login_activity.py"}}{{.Source}}{{end}}{{end}}' "$CID")"
 [ "$MOUNT" = "$LIVE" ] || { echo "STOP: source mount differs";exit 3; }
-docker exec "$CID" grep -q HESAB_CUSTOMER_SERVICES_V2 /srv/server.py || { echo "STOP: dashboard V2 missing";exit 3; }
-docker exec "$CID" grep -q PORTAL_LOGIN_ACTIVITY_V1 /srv/server.py || { echo "STOP: login audit missing";exit 3; }
+# Import the actual bootstrapped module: /srv/server.py only contains an exec()
+# reference to the image-baked V2 module, not its source marker.
+# Verify the current route and audit wrapper before touching the mounted file.
+docker exec "$CID" python -c '
+import server
+routes=[r for r in server.app.router.routes if getattr(r,"path",None)=="/" and "GET" in (getattr(r,"methods",set()) or set())]
+assert len(routes)==1, "Unexpected root route count"
+assert callable(getattr(server,"_sv2_landing",None)), "V2 landing is not loaded"
+assert callable(getattr(server,"_pla_home_with_activity",None)), "Login activity wrapper is not loaded"
+assert routes[0].endpoint is server._pla_home_with_activity, "Unexpected current GET / handler"
+assert routes[0].dependant.call is server._pla_home_with_activity, "Unexpected FastAPI GET / dependency"
+assert server._pla_previous_home is server.v2_home, "Unexpected current audit upstream"
+assert any(r.path=="/payments/history" for r in server.app.router.routes), "V2 payment history unavailable"
+print("PRECHECK_V2_AND_LOGIN_AUDIT_OK")
+' || { echo "STOP: runtime route preflight failed; no files changed";exit 3; }
 grep -q '_pla_previous_home = v2_home' "$LIVE"
 grep -q 'def _pla_home_with_activity(' "$LIVE"
 if grep -q HESAB_CUSTOMER_SERVICES_AFTER_LOGIN_ACTIVITY_V4 "$LIVE";then echo "ALREADY INSTALLED";exit 0;fi
