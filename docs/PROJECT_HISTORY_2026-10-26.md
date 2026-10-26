@@ -174,3 +174,17 @@ NOTE: Recent scripts exist first in the GitHub checkout, not necessarily under /
 - Maya1 after-rebuild secure SSH diagnose/bootstrap: a5ce471, 3532562, 43813ca (2026-10-26).
 
 **Continue with docs/00_NEW_CHAT_READ_FIRST.md; this historical file does not by itself authorize installation or production writes.**
+
+
+## 2026-10-26 — Customer services landing V1 (code committed, NOT deployed)
+
+- New customer_portal/services_home_v1.py creates a monochrome subscriber landing page before the existing financial V2 dashboard.
+- Existing original homepage remains reachable at /?view=payments; current payment POST routes, Ayria verification/ledger, database and account-deactivation endpoints were not intentionally changed.
+- Shows live PostgreSQL-derived subscription count, earliest expiry and total existing debt; accounts with different expiries should open the existing detailed payment page for individual values.
+- Cloudflare Speedtest browser integration is a candidate UI wired through a version-pinned ESM external import; requires actual device/browser, network and build/runtime testing before deployment. Results are only copied locally for manual support; NO server-side result submission or storage.
+- Cloudflare Radar card currently opens a public Radar page, NOT authenticated Radar API integration, Iranian ISP live incident classifier or locally cached live data.
+- Server-health card deliberately shows unknown/pending; no invented uptime or green state. Per-account Maya identity and verified tunnel-level health monitoring still to be designed.
+- Support contact is deliberately unconfigured and not advertised as working; valid support details/workflow must be supplied and then connected.
+- Payment history is NOT yet a dedicated verified ledger view: the button goes to existing payment detail page pending a read-only payment history implementation. It must not imply historical rows are displayed until implemented.
+- Commits: edac3c406f7c9512b68f435b7e6a16c20f7c217e (landing overlay), 959785fcd884017c071779cf13ceac5cee1f483c (Dockerfile wiring).
+- Status: SOURCE ONLY, no production deploy and no runtime/browser/CI success claims. Before deploy: validate Dockerfile build, overlay FastAPI route operation, browser UI (including Safari), speedtest CORS/import/results and redirect links; backup and only recreate customer-portal with rollback.
