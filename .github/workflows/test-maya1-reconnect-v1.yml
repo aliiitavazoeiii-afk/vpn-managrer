@@ -1,0 +1,36 @@
+name: Test Maya1 rebuild reconnect helpers
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - scripts/diagnose_maya1_after_rebuild_v1.sh
+      - scripts/bootstrap_maya_ssh_tunnel.sh
+      - .github/workflows/test-maya1-reconnect-v1.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and safety verification
+        run: |
+          bash -n scripts/diagnose_maya1_after_rebuild_v1.sh
+          bash -n scripts/bootstrap_maya_ssh_tunnel.sh
+          python - <<'PY'
+          from pathlib import Path
+          a=Path("scripts/diagnose_maya1_after_rebuild_v1.sh").read_text()
+          b=Path("scripts/bootstrap_maya_ssh_tunnel.sh").read_text()
+          assert "MAYA1 AFTER-REBUILD SAFETY DIAG" in a
+          assert 'python3 /opt/vpn-control-center/scripts/maya_multi_panel_sync.py check maya1' in a
+          assert 'LIVE_BROKER_OK=TRUE' in a
+          assert 'LEGACY_PINNED_HOST' in a
+          assert "maya1) KEY=\"/root/.ssh/hesab_maya1_tunnel\"" in b
+          assert "StrictHostKeyChecking=ask" in b
+          assert "StrictHostKeyChecking=yes" in b
+          assert 'restrict,port-forwarding,permitopen=' in b
+          for unsafe in ("UPDATE subscriptions","UPDATE payments","DELETE FROM","ssh-keygen -R",
+                         "StrictHostKeyChecking=no","rm -rf /root/.ssh"):
+              assert unsafe not in a + '\n' + b,unsafe
+          print("PASS: diagnostic is read-only, Maya1 SSH pairing restricted and host verified")
+          PY
