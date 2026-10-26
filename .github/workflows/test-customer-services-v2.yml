@@ -9,6 +9,9 @@ on:
       - 'docker-compose.sms.yml'
       - 'scripts/install_customer_services_v2.sh'
       - 'scripts/install_customer_services_v3.sh'
+      - 'scripts/install_customer_services_route_v4.sh'
+      - 'scripts/test_customer_services_route_v4.py'
+      - 'customer_portal/services_after_login_activity_v4.py'
       - '.github/workflows/test-customer-services-v2.yml'
   workflow_dispatch:
 jobs:
@@ -28,6 +31,9 @@ jobs:
           node --check customer_portal/services_ui_v2.js
           bash -n scripts/install_customer_services_v2.sh
           bash -n scripts/install_customer_services_v3.sh
+          bash -n scripts/install_customer_services_route_v4.sh
+          python -m py_compile customer_portal/services_after_login_activity_v4.py
+          python scripts/test_customer_services_route_v4.py
       - name: Render RTL template with Jinja2
         run: |
           pip install 'jinja2==3.1.6'
