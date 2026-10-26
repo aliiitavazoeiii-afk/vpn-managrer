@@ -20,8 +20,8 @@ restore() {
   compose up -d --no-deps --force-recreate customer-portal
 }
 [ "$(id -u)" = 0 ] || { echo "STOP: root required"; exit 2; }
-if [ "\${1:-}" = "--rollback" ]; then restore "\${2:?backup path required}";exit;fi
-SRC="\${1:?pass checked-out source directory}"
+if [ "${1:-}" = "--rollback" ]; then restore "${2:?backup path required}";exit;fi
+SRC="${1:?pass checked-out source directory}"
 for name in $FILES; do [ -s "$SRC/customer_portal/$name" ] || { echo "Missing $name";exit 2; };done
 [ -s customer_portal/logo.png ] || { echo "STOP: private logo mount missing";exit 3; }
 [ -s customer_portal/Dockerfile ] && [ -s docker-compose.sms.yml ] || exit 3
