@@ -1,0 +1,102 @@
+<!doctype html><html lang="fa" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light"><title>حساب من | پنل مشترکین</title>
+<link rel="stylesheet" href="/assets/v2.css"><link rel="stylesheet" href="/assets/v2_polish.css">
+<link rel="stylesheet" href="/assets/services-v2.css"></head>
+<body class="sv2"><main class="sv-shell">
+<header class="sv-top">
+ <div class="sv-brand"><div class="sv-logo"><img src="/assets/logo.png" alt="لوگو"></div><div><b>پنل مشترکین</b><small>مدیریت اشتراک و خدمات VPN</small></div></div>
+ <div class="sv-top-actions"><span class="sv-phone" dir="ltr">{{ masked_phone }}</span><form method="post" action="/logout"><button class="sv-logout" type="submit">خروج <span aria-hidden="true">↗</span></button></form></div>
+</header>
+<div class="sv-greeting"><div><span>خوش آمدید</span><h1>حساب من <span class="sv-spark">✦</span></h1></div><span class="sv-greeting-tag">YOUR DASHBOARD</span></div>
+<div class="sv-top-grid">
+<section class="sv-box sv-subscription">
+ <div class="sv-heading"><div class="sv-heading-icon sv-icon-gold" aria-hidden="true">✦</div><div><h2>اشتراک VPN شما</h2><p>وضعیت فعلی حساب کاربری شما</p></div><span class="sv-count">{{ account_count|fa }} اکانت</span></div>
+ <div class="sv-duo">
+  <div class="sv-metric"><div class="sv-metric-label"><span class="sv-mini">▦</span> تاریخ تمدید</div><strong>{{ expiry }}</strong>{% if account_count > 1 %}<small>نزدیک‌ترین سررسید</small>{% else %}<small>بر اساس تاریخ ثبت‌شده</small>{% endif %}</div>
+  <div class="sv-metric"><div class="sv-metric-label"><span class="sv-mini">▣</span> بدهی فعلی</div><strong>{{ debt }} <em>تومان</em></strong><small>مجموع حساب‌های فعال</small></div>
+ </div>
+ <a class="sv-main-button" href="/?view=payments">تمدید یا پرداخت اشتراک <span aria-hidden="true">←</span></a>
+ <a class="sv-line-button" href="/payments/history">سوابق پرداخت و جزئیات حساب <span aria-hidden="true">←</span></a>
+</section>
+<section class="sv-box sv-server">
+ <div class="sv-heading"><div class="sv-heading-icon sv-icon-blue" aria-hidden="true">▤</div><div><h2>وضعیت سرور شما</h2><p>سلامت اتصال و کیفیت سرویس</p></div></div>
+ <div class="sv-server-art" aria-hidden="true">
+ <svg viewBox="0 0 360 186" role="presentation"><defs>
+ <linearGradient id="rack" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#485b74"/><stop offset=".48" stop-color="#273247"/><stop offset="1" stop-color="#121b29"/></linearGradient>
+ <linearGradient id="racktop" x1="0" x2="1"><stop stop-color="#9caec4"/><stop offset="1" stop-color="#52657d"/></linearGradient>
+ <radialGradient id="glow"><stop stop-color="#7ebcff" stop-opacity=".46"/><stop offset="1" stop-color="#7ebcff" stop-opacity="0"/></radialGradient>
+ <filter id="svshadow"><feGaussianBlur stdDeviation="10"/></filter></defs>
+ <ellipse cx="181" cy="166" rx="119" ry="13" fill="#5978ae" opacity=".16" filter="url(#svshadow)"/>
+ <circle cx="174" cy="86" r="84" fill="url(#glow)"/>
+ <g transform="translate(67 28)">
+  <rect x="0" y="9" width="221" height="40" rx="13" fill="url(#racktop)"/><rect x="0" y="16" width="221" height="40" rx="12" fill="url(#rack)"/><rect x="14" y="28" width="83" height="6" rx="3" fill="#101a2a" opacity=".65"/><circle cx="183" cy="36" r="5" fill="#a0e7a0"/><circle cx="202" cy="36" r="5" fill="#50ccf4"/>
+  <rect x="0" y="64" width="221" height="40" rx="12" fill="url(#racktop)"/><rect x="0" y="71" width="221" height="40" rx="12" fill="url(#rack)"/><rect x="14" y="83" width="83" height="6" rx="3" fill="#111a2a" opacity=".65"/><circle cx="183" cy="91" r="5" fill="#a0e7a0"/><circle cx="202" cy="91" r="5" fill="#50ccf4"/>
+  <rect x="0" y="117" width="221" height="38" rx="12" fill="url(#racktop)"/><rect x="0" y="123" width="221" height="38" rx="12" fill="url(#rack)"/><rect x="14" y="135" width="83" height="6" rx="3" fill="#111a2a" opacity=".65"/><circle cx="183" cy="143" r="5" fill="#a0e7a0"/><circle cx="202" cy="143" r="5" fill="#50ccf4"/>
+ </g><circle cx="293" cy="119" r="30" fill="#e6eef9"/><circle cx="293" cy="119" r="24" fill="#cdddf7"/><path d="M282 119l8 8 15-17" fill="none" stroke="#507daf" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+ <div class="sv-server-footer"><span class="sv-unknown"><i></i>در انتظار فعال‌سازی پایش</span><span class="sv-server-caption">اطلاعات پایش هنوز متصل نشده است</span></div>
+</section>
+</div>
+<div class="sv-feature-grid">
+ <section class="sv-box sv-feature sv-speed-card">
+  <div class="sv-feature-copy"><span class="sv-eyebrow">SPEED TEST</span><h2>تست سرعت اینترنت</h2><p>سنجش دانلود، آپلود و پینگ با Cloudflare</p>
+  <button class="sv-feature-button" id="sv-speed-open" type="button">شروع تست سرعت <span>←</span></button></div>
+  <div class="sv-icon3d sv-speed-ill" aria-hidden="true"><svg viewBox="0 0 210 184" role="presentation"><defs><linearGradient id="speedbody" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#87d1ff"/><stop offset=".55" stop-color="#276afb"/><stop offset="1" stop-color="#4835c8"/></linearGradient><linearGradient id="needle" x1="0" x2="1"><stop stop-color="#ffb65b"/><stop offset="1" stop-color="#f34f78"/></linearGradient></defs>
+   <ellipse cx="104" cy="162" rx="84" ry="13" fill="#83a4ea" opacity=".2"/>
+   <path d="M28 138A78 78 0 0 1 184 138" fill="none" stroke="#dbe9ff" stroke-width="29" stroke-linecap="round"/>
+   <path d="M28 138A78 78 0 0 1 184 138" fill="none" stroke="url(#speedbody)" stroke-width="22" stroke-linecap="round"/>
+   <path d="M61 128l9-13M103 67v-15M150 111l15-8" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".8"/>
+   <path d="M105 140l49-60-26 68" fill="url(#needle)" stroke="#e65c62" stroke-width="3"/><circle cx="105" cy="140" r="12" fill="#e9f2ff"/><circle cx="105" cy="140" r="5" fill="#3773df"/></svg></div>
+ </section>
+ <section class="sv-box sv-feature sv-radar-card">
+  <div class="sv-feature-copy"><span class="sv-eyebrow">INTERNET RADAR</span><h2>وضعیت لایو اینترنت</h2><p>گزارش‌های اینترنت ایران و اپراتورها</p>
+  <a class="sv-feature-button" href="https://radar.cloudflare.com/outages/ir" target="_blank" rel="noopener noreferrer">مشاهده وضعیت <span>↗</span></a></div>
+  <div class="sv-icon3d sv-globe-ill" aria-hidden="true"><svg viewBox="0 0 200 180" role="presentation"><defs>
+    <radialGradient id="earth" cx=".24" cy=".17" r="1"><stop stop-color="#a8eafa"/><stop offset=".38" stop-color="#317eed"/><stop offset="1" stop-color="#14348c"/></radialGradient>
+    <linearGradient id="orbit" x1="0" x2="1"><stop stop-color="#8edaf6"/><stop offset="1" stop-color="#465de0"/></linearGradient></defs>
+    <ellipse cx="104" cy="160" rx="65" ry="9" fill="#88a1e8" opacity=".24"/><circle cx="103" cy="90" r="69" fill="url(#earth)"/>
+    <path d="M71 38l22 2 14 21-13 17 11 15-21 16-20-17-14 6-9-25 15-10zM124 102l29-10 13 20-22 23-10 17-18-10-5-19z" fill="#58d8bd" opacity=".83"/>
+    <ellipse cx="101" cy="89" rx="92" ry="25" transform="rotate(-24 101 89)" fill="none" stroke="url(#orbit)" stroke-width="6"/>
+    <circle cx="22" cy="115" r="12" fill="#52df80"/><circle cx="182" cy="59" r="11" fill="#ffca48"/></svg></div>
+ </section>
+</div>
+<section class="sv-box sv-support">
+ <div class="sv-support-copy"><span class="sv-eyebrow">WE'RE HERE TO HELP</span><h2>پشتیبانی</h2><p>برای راهنمایی یا رفع مشکل، از یکی از راه‌های زیر با ما در ارتباط باشید.</p>
+ <div class="sv-support-actions">
+ {% if whatsapp_url %}<a class="sv-whatsapp" href="{{ whatsapp_url }}" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">✆</span> پیام در واتساپ</a>{% else %}<span class="sv-disabled" title="هنوز تنظیم نشده">پیام در واتساپ · به‌زودی</span>{% endif %}
+ {% if phone_url %}<a class="sv-call" href="{{ phone_url }}"><span aria-hidden="true">☎</span> تماس تلفنی</a>{% else %}<span class="sv-disabled" title="هنوز تنظیم نشده">تماس تلفنی · به‌زودی</span>{% endif %}
+ </div></div>
+ <div class="sv-support-graphic" aria-hidden="true"><svg viewBox="0 0 300 270" role="presentation"><defs>
+   <radialGradient id="agentbg"><stop stop-color="#d7e8ff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+   <linearGradient id="hoodie" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#344b70"/><stop offset="1" stop-color="#111a30"/></linearGradient>
+   <linearGradient id="hair" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#56372c"/><stop offset="1" stop-color="#241f28"/></linearGradient>
+   <linearGradient id="face" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#f8c69f"/><stop offset="1" stop-color="#dd8b6b"/></linearGradient>
+   <linearGradient id="headset" x1="0" x2="1"><stop stop-color="#58a9ff"/><stop offset="1" stop-color="#244fcd"/></linearGradient></defs>
+   <circle cx="150" cy="130" r="123" fill="url(#agentbg)"/><circle cx="244" cy="67" r="20" fill="#e6f6ff"/><circle cx="63" cy="96" r="15" fill="#ebfbee"/>
+   <path d="M53 265c8-68 47-93 96-93s94 24 101 93" fill="url(#hoodie)"/>
+   <path d="M122 169l28 40 27-39-19-19h-21z" fill="url(#face)"/>
+   <ellipse cx="150" cy="111" rx="55" ry="65" fill="url(#face)"/>
+   <path d="M96 113C79 84 96 47 130 43c28-23 83 1 80 38 0 18-4 29-9 36-11-13-14-35-22-38-21 18-53 17-79 15z" fill="url(#hair)"/>
+   <path d="M104 118c8-10 13-30 15-37" fill="none" stroke="#694134" stroke-width="4" opacity=".55"/>
+   <path d="M120 117q8-6 17 0M163 116q9-6 18 0" fill="none" stroke="#55392e" stroke-width="4" stroke-linecap="round"/>
+   <ellipse cx="130" cy="122" rx="3" ry="4" fill="#2b2630"/><ellipse cx="172" cy="122" rx="3" ry="4" fill="#2b2630"/>
+   <path d="M142 147q10 10 20 0" fill="none" stroke="#a8574e" stroke-width="4" stroke-linecap="round"/>
+   <path d="M92 134v-25a58 58 0 0 1 116 0v25" fill="none" stroke="#223552" stroke-width="15"/>
+   <rect x="79" y="111" width="25" height="52" rx="12" fill="url(#headset)"/><rect x="197" y="110" width="25" height="52" rx="12" fill="url(#headset)"/>
+   <path d="M210 152c0 24-26 25-42 25" fill="none" stroke="#3c6fa9" stroke-width="6" stroke-linecap="round"/><rect x="164" y="171" width="16" height="8" rx="4" fill="#2762b9"/>
+   <rect x="110" y="216" width="122" height="64" rx="13" fill="#bbc9dd"/><path d="M111 226l103-10" stroke="#ebf3ff" stroke-width="4" opacity=".55"/>
+   <path d="M151 240l12 7-12 7-12-7z" fill="#8e9cb5"/></svg></div>
+</section>
+<section id="sv-speed-panel" class="sv-box sv-speed-panel" hidden>
+<div class="sv-heading"><div><h2>تست سرعت Cloudflare</h2><p>اندازه‌گیری مستقیم از مرورگر شما؛ امکان مصرف اینترنت وجود دارد.</p></div><button id="sv-speed-close" class="sv-close" type="button" aria-label="بستن">×</button></div>
+<div class="sv-speed-controls"><label><input id="sv-vpn-on" type="checkbox" checked> هنگام تست VPN روشن است</label><button id="sv-speed-start" class="sv-main-button" type="button">اجرای تست سرعت</button></div>
+<div id="sv-speed-message" class="sv-info" role="status" aria-live="polite"></div>
+<div id="sv-speed-results" class="sv-speed-results" hidden><div class="sv-result-grid">
+ <div><span>دانلود</span><strong id="sv-download">—</strong></div><div><span>آپلود</span><strong id="sv-upload">—</strong></div>
+ <div><span>Ping</span><strong id="sv-latency">—</strong></div><div><span>Jitter</span><strong id="sv-jitter">—</strong></div>
+ </div><button id="sv-copy-report" class="sv-line-button" type="button">کپی نتیجه برای ارسال در واتساپ</button></div>
+<p class="sv-footnote">نتیجه مسیر دستگاه شما تا شبکه Cloudflare است؛ لزوماً عملکرد اختصاصی سرور مایا نیست. گزارش تنها با انتخاب خودتان کپی می‌شود.</p>
+</section>
+<footer class="sv-footer">پنل مشترکین VPN <span>•</span> خدمات و مدیریت اشتراک</footer></main>
+<script src="/assets/services-v2.js" defer></script>
+</body></html>
