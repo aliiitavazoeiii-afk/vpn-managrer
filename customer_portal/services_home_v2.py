@@ -81,7 +81,9 @@ def _sv2_payment_history(request: Request):
                      headers={"Cache-Control":"private,no-store"})
 
 def _sv2_landing(request: Request):
-    if request.query_params.get("view") == "payments" or any(\n        key in request.query_params for key in ("payment_error", "payment_pending", "disabled", "welcome")\n    ):\n        return v2_home(request)
+    if request.query_params.get("view") == "payments" or any(
+        key in request.query_params for key in ("payment_error", "payment_pending", "disabled", "welcome")
+    ):\n        return v2_home(request)
     phone = _v2_session_phone(request)
     if not phone:
         return v2_home(request)
