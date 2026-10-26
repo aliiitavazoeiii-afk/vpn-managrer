@@ -1,5 +1,8 @@
 # Hesab VPN
 
+> **CURRENT NEW-CHAT ENTRYPOINT (2026-10-26):** Read **[docs/00_NEW_CHAT_READ_FIRST.md](docs/00_NEW_CHAT_READ_FIRST.md)** first, then **[docs/PROJECT_HISTORY_2026-10-26.md](docs/PROJECT_HISTORY_2026-10-26.md)**. The active development branch is **manual-sms-batch-operator-open**, not the older sms-app branch or main. This file includes historical information and may not reflect the latest deployed runtime. **Never run root install.sh or docker compose down -v on production.**
+
+
 > **Production maintenance warning (2026-10-11):** This README contains original-install notes only. **Do not run `install.sh` on a running server**: it deletes the existing Compose volume and application folder. For the current `sms-app` architecture, operations, safety and new-chat onboarding, read **[PROJECT_HANDOFF.md](PROJECT_HANDOFF.md)** first. The latest application code is on `sms-app`, not `main`.
 
 
