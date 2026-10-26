@@ -1,5 +1,8 @@
 # Hesab VPN — Project Handoff (2026-10-11)
 
+> **CURRENT NEW-CHAT ENTRYPOINT (2026-10-26):** Read **[docs/00_NEW_CHAT_READ_FIRST.md](docs/00_NEW_CHAT_READ_FIRST.md)** first, then **[docs/PROJECT_HISTORY_2026-10-26.md](docs/PROJECT_HISTORY_2026-10-26.md)**. The active development branch is **manual-sms-batch-operator-open**, not the older sms-app branch or main. This file includes historical information and may not reflect the latest deployed runtime. **Never run root install.sh or docker compose down -v on production.**
+
+
 > **Source of truth for code:** `aliiitavazoeiii-afk/vpn-managrer`, branch **`sms-app`** (NOT `main`). The branch was at commit `352421c1e71249ed7a72098c9f510ddb63edf319` when this handoff was written. Future commits may advance the branch.
 >
 > **Source of truth for live data:** production PostgreSQL on the server. **GitHub is not a database backup and commits do not imply deployment.**
