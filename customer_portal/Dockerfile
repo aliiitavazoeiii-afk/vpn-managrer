@@ -17,7 +17,11 @@ COPY billing_migration.py .
 COPY billing_policy.py .
 COPY billing_cycle_live.py .
 COPY services_home_v1.py .
-RUN printf '\nexec(compile(open("/srv/v2.py", "r", encoding="utf-8").read(), "/srv/v2.py", "exec"))\nexec(compile(open("/srv/billing_sync.py", "r", encoding="utf-8").read(), "/srv/billing_sync.py", "exec"))\nexec(compile(open("/srv/billing_cycle_live.py", "r", encoding="utf-8").read(), "/srv/billing_cycle_live.py", "exec"))\nexec(compile(open(\"/srv/services_home_v1.py\", \"r\", encoding=\"utf-8\").read(), \"/srv/services_home_v1.py\", \"exec\"))\n' >> server.py \
- && python -m py_compile server.py v2.py billing_sync.py billing_migration.py billing_policy.py billing_cycle_live.py services_home_v1.py
+COPY services_home_v2.py .
+COPY services_ui_v2.html .
+COPY services_ui_v2.css .
+COPY services_ui_v2.js .
+RUN printf '\nexec(compile(open("/srv/v2.py", "r", encoding="utf-8").read(), "/srv/v2.py", "exec"))\nexec(compile(open("/srv/billing_sync.py", "r", encoding="utf-8").read(), "/srv/billing_sync.py", "exec"))\nexec(compile(open("/srv/billing_cycle_live.py", "r", encoding="utf-8").read(), "/srv/billing_cycle_live.py", "exec"))\nexec(compile(open(\"/srv/services_home_v1.py\", \"r\", encoding=\"utf-8\").read(), \"/srv/services_home_v1.py\", \"exec\"))\nexec(compile(open(\"/srv/services_home_v2.py\", \"r\", encoding=\"utf-8\").read(), \"/srv/services_home_v2.py\", \"exec\"))\n' >> server.py \
+ && python -m py_compile server.py v2.py billing_sync.py billing_migration.py billing_policy.py billing_cycle_live.py services_home_v1.py services_home_v2.py
 EXPOSE 8091
 CMD ["uvicorn","server:app","--host","0.0.0.0","--port","8091","--proxy-headers","--forwarded-allow-ips=*"]
