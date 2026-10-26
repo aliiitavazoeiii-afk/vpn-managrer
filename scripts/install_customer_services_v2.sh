@@ -51,8 +51,8 @@ on_error() {
   echo "INSTALL FAILED; backup=$BACKUP";exit "$result"
 }
 trap on_error ERR
-for name in $FILES; do cp -a "$SRC/customer_portal/$name" "customer_portal/$name";done
 MODIFIED=1
+for name in $FILES; do cp -a "$SRC/customer_portal/$name" "customer_portal/$name";done
 python3 - <<'PY'
 from pathlib import Path
 p=Path("customer_portal/Dockerfile")
