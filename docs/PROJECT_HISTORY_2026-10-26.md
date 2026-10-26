@@ -233,3 +233,11 @@ Production directory is /opt/vpn-control-center. Obtain a fresh checkout of the 
 - Root cause: original V4 install preflight grepped for `HESAB_CUSTOMER_SERVICES_V2` in `/srv/server.py`; this literal marker belongs to `services_home_v2.py` source, whereas server.py only includes a dynamic `exec(compile(open(...)))` reference. The grep was invalid and failed closed; no production changes from V4 attempt.
 - Fixed `scripts/install_customer_services_route_v4.sh` to import the *active container* `server` module and assert exactly one GET / route, `_sv2_landing` loaded, `_pla_home_with_activity` active, `_pla_previous_home is v2_home`, correct FastAPI dependency, and payment history route present before any file modification. Existing backup/no-build/app-only rollback retained.
 - Do not claim successful V4 deployment until new installer executes and checks pass. Preserve login audit and payment paths. The owner reported live customer UI still old at this checkpoint.
+
+
+## 2026-10-26 — Exact reference screenshot V5 archive ready (NOT YET DEPLOYED)
+- Owner asked to make the customer portal look like the last supplied screenshot, especially authentic 3D illustration cards and customer support agent's head extending beyond its panel.
+- Unlike previous hand-drawn SVG approximation, prepared a self-contained ZIP containing four small cropped JPEG illustrations directly extracted from the user-provided screenshot, responsive HTML, exact visual CSS, limited read-only asset serving module, late login-activity routing shim and scoped installer.
+- GitHub release source: `releases/hesab_exact_visual_v5.zip.b64`, decode with `base64 -d`; ZIP SHA-256 `4f88a25a32777f19d6adecbcff5d678671c7993735e87579f7714852b3c04841`.
+- Full design and safe installation handoff: `docs/HESAB_SERVICES_EXACT_VISUAL_V5.md`. Local ZIP integrity/Python/Bash/Jinja smoke tests passed. Production deployment and actual browser pixel/behavior checks not yet confirmed.
+- V5 reuses existing payment, session and Cloudflare routines, retains daily login activity wrapper, modifies no payment table and only rebuilds/recreates customer-portal. Server health LEDs are decorative pending actual monitoring; contact actions remain disabled until production contact numbers are supplied. Never claim live uptime from this illustration.
