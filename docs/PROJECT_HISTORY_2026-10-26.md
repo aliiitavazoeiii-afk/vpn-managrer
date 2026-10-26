@@ -264,3 +264,11 @@ Production directory is /opt/vpn-control-center. Obtain a fresh checkout of the 
 - Scoped install `install_hesab_customer_v7.sh RELEASE_DIR` protects all preexisting V5/V6 images, loads V7 AFTER V5 but BEFORE runtime-mounted login-activity wrapper; backs up Dockerfile, portal-only compose override, new source; builds/recreates only customer-portal; asserts live `_pla_previous_home is _sv2_landing_v7`, ledger and customer routes remain, health/assets; failure attempts portal-only rollback. No DB schema/write or admin app change. Manual rollback script included.
 - Offline validated Python module parse, JS syntax, Bash syntax, V5 home transformation, FastAPI isolated runtime test using mocked read-only ledger and Jinja, ZIP integrity; mapping generator additionally checks Maya1 legacy approval fingerprint; not deployed on production.
 - IMPORTANT: Existing portal auth still trusts phone entry without SIM ownership verification; inline financial history remains exposed to anyone who can enter a known account phone. Plan OTP security separately. This release does not claim to fix that.
+
+
+## 2026-10-26 — V7 release now stored in GitHub; no manual ZIP upload needed
+
+- The V7 release ZIP was committed as ASCII base64 at `releases/hesab_customer_v7_release.zip.b64` on branch `manual-sms-batch-operator-open`.
+- GitHub publication commit: `56f257fac2ec047f36d748dc6f2a58790e96703f`. Connector read-back of the GitHub file **exactly matched** the user-visible V7 ZIP's base64, 24,532 encoded characters. Original ZIP SHA256 remains `d73d47056682aa65ab13705e3814d39c38c9730f0a66ec58b3f6cd2659dd14db`.
+- Install from management server: clone the branch, verify a pinned commit, `base64 -d releases/hesab_customer_v7_release.zip.b64 > release.zip`, verify `sha256sum`, extract to a temporary directory with Python's zipfile, run `bash install_hesab_customer_v7.sh EXTRACTED_DIR`. The production installer handles customer-portal-only backups and app rebuild/recreate.
+- User does not need to download or use WinSCP. This is a published GitHub artifact, **not a claim it has been deployed or checked on the production server**. Previous V5/V6 live behavior was acknowledged by the user.
