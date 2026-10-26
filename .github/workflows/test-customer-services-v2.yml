@@ -1,0 +1,50 @@
+name: Customer services dashboard V2
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - 'customer_portal/services_home_v2.py'
+      - 'customer_portal/services_ui_v2.*'
+      - 'customer_portal/Dockerfile'
+      - 'docker-compose.sms.yml'
+      - 'scripts/install_customer_services_v2.sh'
+      - '.github/workflows/test-customer-services-v2.yml'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static Python, JS, shell checks
+        run: |
+          python -m py_compile customer_portal/services_home_v2.py
+          node --check customer_portal/services_ui_v2.js
+          bash -n scripts/install_customer_services_v2.sh
+      - name: Render RTL template with Jinja2
+        run: |
+          pip install 'jinja2==3.1.6'
+          python - <<'PY'
+          from pathlib import Path
+          from jinja2 import Environment, select_autoescape
+          env=Environment(autoescape=select_autoescape(['html']))
+          env.filters['fa']=str
+          template=env.from_string(Path('customer_portal/services_ui_v2.html').read_text())
+          rendered=template.render(masked_phone='0912•••9999',account_count=2,
+               expiry='۱۴۰۵/۰۹/۰۱',debt='۵۰۰,۰۰۰',whatsapp_url=None,phone_url=None)
+          assert 'تست سرعت اینترنت' in rendered
+          assert 'پیام در واتساپ' in rendered
+          assert 'تماس تلفنی' in rendered
+          assert '/?view=payments' in rendered
+          assert '/payments/history' in rendered
+          assert 'https://wa.me/' not in rendered
+          assert '<html lang="fa" dir="rtl">' in rendered
+          print("CUSTOMER_SERVICES_V2_TEMPLATE_OK")
+          PY
+      - name: Portal-only image build
+        run: docker build -f customer_portal/Dockerfile customer_portal
