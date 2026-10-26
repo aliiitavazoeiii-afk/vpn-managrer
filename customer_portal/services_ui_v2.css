@@ -1,6 +1,6 @@
 /* HESAB_SERVICES_DASHBOARD_V2: isolated CSS, no admin/payment overrides */
 :root{color-scheme:light}
-body.sv2{margin:0!important;min-height:100vh!important;background:#f6f7f9!important;color:#16181b!important;font-family:Estedad,Vazirmatn,Tahoma,Arial,sans-serif!important}
+body.sv2{margin:0!important;min-height:100vh!important;background:#f6f7f9!important;color:#16181b!important;font-family:Vazirmatn,Tahoma,Arial,sans-serif!important}
 .sv2 *{box-sizing:border-box}
 .sv2 a{text-decoration:none}
 .sv2 button{font:inherit;cursor:pointer}
