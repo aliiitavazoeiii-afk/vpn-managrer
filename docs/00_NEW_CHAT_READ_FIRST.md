@@ -134,3 +134,11 @@ I am continuing the long-running Hesab VPN project (GitHub aliiitavazoeiii-afk/v
 - Support numbers were not provided: missing configuration produces disabled actions rather than bogus WhatsApp/tel links.
 - Scoped installer: scripts/install_customer_services_v2.sh SOURCE_CHECKOUT with rollback option --rollback BACKUP_DIR. Installer only targets customer-portal, backs up source/compose, checks health, does not touch DB, app, X-UI or Caddy. Git source and CI workflow are not proof of production deployment.
 - Full context and risks are in docs/PROJECT_HISTORY_2026-10-26.md, section "Customer services dashboard V2".
+
+
+## K. Customer services V3/V4 operational handoff (2026-10-26)
+- V3 portal-only image was successfully built/installed by operator, with backup /root/hesab-services-v3-backup-20261026T173332Z and PORTAL_ASSETS_OK. But real UI still old: **active GET / = _pla_home_with_activity** due to runtime-appended login_activity.py overriding image-baked services home. This is confirmed by user container introspection.
+- Do not remove phone-login monitoring. Safe fix committed in customer_portal/services_after_login_activity_v4.py plus scripts/install_customer_services_route_v4.sh. Shim delegates existing login activity wrapper to _sv2_landing, preserving daily audit and original payment route. **V4 not yet installed/confirmed.** It patches only mounted host login_activity.py and recreates customer-portal with --no-build; rollback attempts restore on failure.
+- First-login ?welcome=1 deliberately displays previous Azar notice/page; after acknowledging notice navigate to / to see new V2 service dashboard.
+- Important unresolved privacy concern: current /login authenticates by phone entry only (not SMS OTP). New payment history displays stored financial data; consider secure login before treating it as private.
+- Full evidence and pending runtime verification: docs/PROJECT_HISTORY_2026-10-26.md V3/V4 sections.
