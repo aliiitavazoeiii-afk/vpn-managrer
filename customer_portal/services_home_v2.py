@@ -83,7 +83,8 @@ def _sv2_payment_history(request: Request):
 def _sv2_landing(request: Request):
     if request.query_params.get("view") == "payments" or any(
         key in request.query_params for key in ("payment_error", "payment_pending", "disabled", "welcome")
-    ):\n        return v2_home(request)
+    ):
+        return v2_home(request)
     phone = _v2_session_phone(request)
     if not phone:
         return v2_home(request)
