@@ -104,5 +104,22 @@ This event occurred AFTER the first production bootstrap/HA timer activation and
 - The logs prove *automatic role-local restart* worked once, but DO NOT prove a failed-restart -> quarantine -> Mieru-only transition, and do NOT validate SMS integration (not yet connected).
 - Design Control Room to distinguish HEALTHY (currently passing probes), intermittently unstable / recurring SUSPECT, and QUARANTINED. Add alert rules for repeated flapping within an hour without duplicate SMS spam. Alert for actual role restart event if useful; never label every transient SUSPECT as proven filtering.
 
+## NAIVE INDEPENDENT BACKEND SHARD MONITORING (2026-10-27)
+Additional validated upstream code now exists in frp-tunnel branch:
+- `dual-trust-mieru/nm-naive-shards-maintenance.sh` (stage/cutover/rollback)
+- `dual-trust-mieru/nm-naive-shards-compare.py` (A/B single vs two-client shadow)
+- `dual-trust-mieru/nm-ha-agent.py` marker SHARD_AWARE_HA_V1 (only live mode)
+- `dual-trust-mieru/NAIVE_SHARDING_SAFE_TRIAL_RUNBOOK.md` (full evidence and operator deployment instructions).
+
+Actual A/B evidence: old one-process Naive passed 42/48 (87.5%) synthetic HTTP tests; staged two-Naive-client gateway passed 48/48 (100%) with average 975ms and p95 1221ms; Mieru passed 48/48. Shadow had almost no production load, so results do not establish stability under live traffic. Naive foreign Caddy was not CPU/FD/RAM exhausted at that snapshot; network loss/timeouts counters are cumulative and require rate correlation.
+
+When two-client sharding becomes live:
+- Heartbeat status JSON will additionally include `naive_shards: {mode:"LIVE"|"SINGLE",backends:{a:{health,status,failed_cycles,last_restart_at,incident,probes},b:{...}}}`.
+- Add optional nested Shard A / Shard B details in Naive section; do not modify existing top-level roles contract.
+- HA may send `RESTARTING_NAIVE_SHARD`, `NAIVE_SHARD_RECOVERED`, `NAIVE_SHARD_STILL_DOWN`, `NAIVE_SHARD_RESTART_ERROR`, `NAIVE_SHARD_STATUS_CHANGE`, and `NAIVE_SHARDED_GATEWAY_RESTART_SKIPPED`. Do not send SMS on every health probe. Group per server+shard+incident with dedup and cooldown.
+- `NAIVE_SHARD_STILL_DOWN` is warning; when parent Naive route is still serving via other shard, DO NOT label entire Naive foreign or Iran server filtered.
+- The panel is read-only and MUST NOT run a remote Naive sharding cutover, gateway restart or shell command merely because it sees a shard degraded.
+- A HA UPDATE alone is not a new live sharded deployment; only the user's explicit and confirmed maintenance `cutover` activates the live topology.
+
 ## DIRECT PROMPT TO PASTE INTO NEXT CHAT
 Continue Hesab VPN panel in aliiitavazoeiii-afk/vpn-managrer. Before ANY modification, completely read docs/CONTROL_ROOM_TUNNEL_TELEMETRY_HANDOFF.md plus the current real production panel and SMS app. Implement a non-destructive multi-Iran Control Room using the signed heartbeat contract, live Naive/Mieru status, persisted events and deduped SMS notifications via the existing provider. Read the latest HA implementation in frp-tunnel branch naive-mieru-live-safe-v1. NEVER run install.sh or reset customer/payment DB. Verify with staging and backups before deployment.
