@@ -90,5 +90,19 @@ Deduplicate by server_id + incident/event key, persist delivery state transactio
 7. To onboard future Iran servers, install same agent + unique sender keys, register in Control Room.
 8. No direct SSH, restart, IP blocking or remote controlling routing from web UI in this milestone. Local HA stays authoritative.
 
+## VERIFIED PRODUCTION FIELD EVENT (maya11, 2026-10-27 UTC; user terminal logs)
+This event occurred AFTER the first production bootstrap/HA timer activation and is operational evidence, not a synthetic simulation.
+- Iran bootstrap confirmed DUAL Selector -> DUAL-AUTO; `nm-ha.timer` enabled and active; status.policy=ARMED.
+- 15:15:32 UTC: Naive HEALTHY -> SUSPECT.
+- 15:16:17 UTC: agent event `RESTARTING_CARRIER` role=naive, detail `2 consecutive full-path failures; peer healthy`.
+- 15:16:22 UTC: `CARRIER_RECOVERED_AFTER_RESTART` role=naive. No selector-quarantine event, as local restart solved probe failure.
+- 15:17:53 UTC: `ROLE_RECOVERED`, Naive RECOVERING -> HEALTHY.
+- 15:20:12 and 15:27:52 UTC: further isolated Naive SUSPECT transitions, returning HEALTHY after one timer cycle. Mieru stayed HEALTHY throughout shown HA logs.
+- 60-second flow audit afterward: 349 Naive + 351 Mieru newly observed flows (49.9/50.1%); sampled byte deltas Naive 19.94 MiB (19.2%), Mieru 84.02 MiB (80.8%). Connection count vs bytes diverged considerably; MUST render separately and NOT claim byte-balanced.
+- Synthetic HTTP204 tests after incident: Naive :7991 6/6 pass avg 409ms, Mieru :7992 6/6 pass avg 635ms. Successful small synthetic probes don't prove sustained application quality.
+- Status at 15:30:59 UTC: DUAL-AUTO, both HEALTHY; Naive incident=1, last_restart_at=2026-10-27T15:16:17+00:00. HA showed 22 total event sequence count including repeated short SUSPECT transitions.
+- The logs prove *automatic role-local restart* worked once, but DO NOT prove a failed-restart -> quarantine -> Mieru-only transition, and do NOT validate SMS integration (not yet connected).
+- Design Control Room to distinguish HEALTHY (currently passing probes), intermittently unstable / recurring SUSPECT, and QUARANTINED. Add alert rules for repeated flapping within an hour without duplicate SMS spam. Alert for actual role restart event if useful; never label every transient SUSPECT as proven filtering.
+
 ## DIRECT PROMPT TO PASTE INTO NEXT CHAT
 Continue Hesab VPN panel in aliiitavazoeiii-afk/vpn-managrer. Before ANY modification, completely read docs/CONTROL_ROOM_TUNNEL_TELEMETRY_HANDOFF.md plus the current real production panel and SMS app. Implement a non-destructive multi-Iran Control Room using the signed heartbeat contract, live Naive/Mieru status, persisted events and deduped SMS notifications via the existing provider. Read the latest HA implementation in frp-tunnel branch naive-mieru-live-safe-v1. NEVER run install.sh or reset customer/payment DB. Verify with staging and backups before deployment.
