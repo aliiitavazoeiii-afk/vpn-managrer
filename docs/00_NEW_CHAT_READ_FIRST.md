@@ -147,3 +147,12 @@ I am continuing the long-running Hesab VPN project (GitHub aliiitavazoeiii-afk/v
 ## L. Exact screenshot visual V5 prepared (NOT YET DEPLOYED)
 - User selected exact screenshot styling: 3D server green LEDs, 3D speedometer/globe, large support agent protruding above card. The release source with actual screenshot-derived assets is base64-encoded ZIP in `releases/hesab_exact_visual_v5.zip.b64`; ZIP SHA-256 `4f88a25a32777f19d6adecbcff5d678671c7993735e87579f7714852b3c04841`.
 - Release documentation and full risk checklist: `docs/HESAB_SERVICES_EXACT_VISUAL_V5.md`. Production **not verified/deployed** yet. Installer inside ZIP preserves existing V3 image-baked V2 landing and mounted login-activity wrapper, including optional V4. Builds/recreates **only** customer-portal, with backups and rollback attempt. No production live health or fake 99.9% uptime.
+
+
+## M. Customer V8 pending deployment (prepared 2026-10-28)
+- V7 live successfully installed, user now requests first-login display of custom dashboard, mapping each phone's subscriptions to Maya1/S3/4 with read-only stats, direct Iran 24h Cloudflare Radar traffic link, and speedtest jet+timer / reduced requests.
+- Source is in GitHub release `releases/hesab_customer_v8_release.zip.b64`, SHA256 decoded ZIP `1cca643f513eab2f462df9bebfb617bb4abe28042a018729052e105486d0d9a1`. Installer `install_hesab_customer_v8.sh` in ZIP targets **customer-portal only** plus isolated read-only status exporter timer.
+- First-login bug from `v2_login` redirect `/?welcome=1` and V7 home guard on `welcome`; new version redirects successful login to `/`, keeps original financial view at `/?view=payments` and payment failure/return flow.
+- Maya status exporter reads existing live Unix bridge snapshots (no XUI writes), approved links and RO finance mapping; only sanitized sid:server and aggregates mounted RO into portal. Enabled user counts are **not live-online concurrency**, last-5-min activity is a heuristic, panel response time is **not VPN ping**. Unknown/stale data must remain unknown. New Maya1 IP may cause broker failure until separately repaired.
+- `/speed-test` uses CSS jet animation and timer with a smaller real Cloudflare measurement set. Radar home link goes directly to `https://radar.cloudflare.com/traffic/ir?dateRange=1d`. No Cloudflare API token required for link.
+- Status: V8 GitHub source committed, local syntax/template tests passed, **production installation and real browser check NOT yet confirmed**. Backup and rollback in installer. Full notes: docs/PROJECT_HISTORY_2026-10-26.md.
