@@ -121,5 +121,19 @@ When two-client sharding becomes live:
 - The panel is read-only and MUST NOT run a remote Naive sharding cutover, gateway restart or shell command merely because it sees a shard degraded.
 - A HA UPDATE alone is not a new live sharded deployment; only the user's explicit and confirmed maintenance `cutover` activates the live topology.
 
+## MIERU XUDP / UDP ISSUE OBSERVED 2026-10-29 (MAYA11)
+Operator ran three independent `dual health --full all` passes at 05:28:45, 05:29:29, 05:30:18 UTC. Naive HTTP/Telegram and UDP XUDP passed (2/2 per run = 6/6 UDP). Mieru direct and split TCP HTTPS and Telegram all passed but Mieru UDP XUDP via SOCKS :7992 **failed 0/2 on every run, 0/6 total**. Dual :7990 UDP varied 2/2, 1/2, 1/2. HA at 05:31:09 UTC reported `DUAL-AUTO` and both roles HEALTHY because current agent uses only HTTP/Telegram in its health classifier; it does **NOT** include UDP, so panel must not infer UDP health from role HEALTHY.
+
+The existing UDP probe performs SOCKS5 UDP ASSOCIATE then DNS A query for youtube.com against only 1.1.1.1:53, without reporting the failure stage. This proves a reproducible failure of THAT test through Mieru XUDP, not blanket internet censorship or necessarily every UDP destination. No warning-level journal entries were found for Mieru carrier/XUDP bridge in last 30m.
+
+New read-only differential tool (source in frp-tunnel `dual-trust-mieru/nm-mieru-udp-diagnose.py`) probes:
+- Iran SOCKS :7991 Naive XUDP, :7992 Mieru XUDP, :7994 optional native Mieru UDP, :7990 dual;
+- distinct DNS A responses from 1.1.1.1, 8.8.8.8, 9.9.9.9 with strict transaction ID checks and error-stage reporting;
+- SOCKS TCP CONNECT via :7994 to *foreign* loopback 127.0.0.1:2443, Xray endpoint;
+- Mieru foreign itself tests 127.0.0.1:2443 listener and UDP egress to those 3 DNS resolvers.
+No restarts/config/selector changes. Need results before diagnosing exact layer. DO NOT automatically quarantine full Mieru based on UDP failures while TCP is healthy; that may overload Naive. Long-term UDP-aware control policy should be separately engineered, with explicit routing plan and tests.
+
+For Control Room UI: show `TCP/HTTPS health` and `UDP/XUDP health` separately, `UNKNOWN` for uninstrumented UDP and a warning `UDP test failing` on explicit observed failure. Do not assume current HA status.json contains UDP measurements; a future agent schema extension and safe migration are required. Notify only on confirmed persistent UDP outage with cooldown/dedup and severity below BOTH-path total failure.
+
 ## DIRECT PROMPT TO PASTE INTO NEXT CHAT
 Continue Hesab VPN panel in aliiitavazoeiii-afk/vpn-managrer. Before ANY modification, completely read docs/CONTROL_ROOM_TUNNEL_TELEMETRY_HANDOFF.md plus the current real production panel and SMS app. Implement a non-destructive multi-Iran Control Room using the signed heartbeat contract, live Naive/Mieru status, persisted events and deduped SMS notifications via the existing provider. Read the latest HA implementation in frp-tunnel branch naive-mieru-live-safe-v1. NEVER run install.sh or reset customer/payment DB. Verify with staging and backups before deployment.
