@@ -23,6 +23,11 @@ assert "position:sticky" not in labels["_P1_CSS"]
 assert "thead{display:none!important}" in labels["_P1_CSS"]
 assert "tbody{display:grid!important}" in labels["_P1_CSS"]
 assert "p1-monitor" in labels["_P1_METRICS"]
+from jinja2 import Environment
+jinja_snippet=labels["_P1_CSS"]+labels["_P1_HEADER"]+labels["_P1_METRICS"]+labels["_P1_SCRIPT"]
+assert "{#" not in jinja_snippet,"Unsafe Jinja comment opener in CSS/JS"
+Environment().parse(jinja_snippet)
+print("PHASE1_JINJA_TEMPLATE_SYNTAX_OK")
 with tempfile.TemporaryDirectory() as tmp:
     js=Path(tmp)/"phase1.js"
     js.write_text(labels["_P1_SCRIPT"].replace("<script>","").replace("</script>",""),encoding="utf-8")
