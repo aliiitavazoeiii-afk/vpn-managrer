@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install template parser
+        run: python3 -m pip install 'jinja2>=3.1,<4'
       - name: Python, JavaScript and quota tests
         run: |
           python3 scripts/test_control_room_phase1_v1.py
