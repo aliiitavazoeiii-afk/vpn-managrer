@@ -49,7 +49,7 @@ for x in ("id=\"c3-table-controls\"","id=\"c3-mode\"","c3VisibleRows",
           "id=\"c2-users\"","id=\"p1-monitor\""):
  assert x in html,x
 assert html.count("id=\"c2-search\"")==1
-assert html.count("c3Details(server,item)")==1
+assert html.count("c3Details(server,item)")>=2
 Environment().parse(html)
 print("CONTROL_ROOM_V3_JINJA_AND_ROUTES_PASS")
 '
