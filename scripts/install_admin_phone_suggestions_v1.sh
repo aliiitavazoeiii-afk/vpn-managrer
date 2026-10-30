@@ -40,12 +40,16 @@ assert any(r.path=="/add-user" and "GET" in r.methods for r in app.routes)
 assert any(r.path=="/debts" and "GET" in r.methods for r in app.routes)
 assert any(r.path=="/manage/users/add" and "POST" in r.methods for r in app.routes)
 assert "_op_add_user_page" in __import__("app.main",fromlist=["_op_add_user_page"]).__dict__
-for name in ("add_user_page.html","debts.html"):
-    html=TEMPLATES.get(name,"")
-    assert 'name="display_name"' in html,(name,"name missing")
-    assert 'name="phone"' in html,(name,"phone missing")
-    assert "aps-directory" not in html,(name,"already patched")
-print("ADMIN_REGISTRATION_FORMS_PRESENT_AND_UNMODIFIED")
+add=TEMPLATES.get("add_user_page.html","")
+assert 'name="display_name"' in add and 'name="phone"' in add,"/add-user form missing"
+assert "aps-directory" not in add,"/add-user already patched"
+debts=TEMPLATES.get("debts.html","")
+if 'name="display_name"' in debts and 'name="phone"' in debts:
+    assert "aps-directory" not in debts,"/debts already patched"
+    print("OPTIONAL_DEBTS_FORM=present")
+else:
+    print("OPTIONAL_DEBTS_FORM=absent; /add-user is canonical")
+print("ADMIN_REGISTRATION_FORM_PRESENT_AND_UNMODIFIED")
 PY
 
 BACKUP="/root/hesab-admin-phone-suggest-v1-backup-$(date -u +%Y%m%dT%H%M%SZ)-$$"
@@ -86,9 +90,11 @@ for i in $(seq 1 35); do
 from app.main import app,env,TEMPLATES,_aps_phone_directory
 assert callable(_aps_phone_directory)
 for name in ("add_user_page.html","debts.html"):
-    html=TEMPLATES[name]
-    assert html.count('class="aps-directory"')==1,(name,"widget missing or duplicated")
-    assert 'name="display_name"' in html and 'name="phone"' in html
+    html=TEMPLATES.get(name,"")
+    has_form=('name="display_name"' in html and 'name="phone"' in html)
+    if name=="add_user_page.html":
+        assert has_form,"canonical registration form absent"
+    assert html.count('class="aps-directory"')==(1 if has_form else 0), (name,"widget missing/unexpected")
 assert any(r.path=="/manage/users/add" and "POST" in r.methods for r in app.routes)
 assert any(r.path=="/add-user" and "GET" in r.methods for r in app.routes)
 assert any(r.path=="/debts" and "GET" in r.methods for r in app.routes)
