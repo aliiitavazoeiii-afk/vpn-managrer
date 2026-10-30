@@ -70,9 +70,9 @@ trap revert_if_needed EXIT
 
 # The SMS native overlay is mounted read-only inside 'app' and appended LAST
 # to /app/app/main.py at container start; append our read-only UI logic LAST.
+MODIFIED=1
 printf '\n\n' >> "$LIVE"
 cat "$PATCH" >> "$LIVE"
-MODIFIED=1
 python3 -m py_compile "$LIVE"
 
 echo "RECREATE: main admin app ONLY, no image build and no DB changes"
