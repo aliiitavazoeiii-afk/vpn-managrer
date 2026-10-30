@@ -146,6 +146,10 @@ chmod 644 "$CRON"
 grep -Fq 'HESAB_MAYA_XUI_HOST_METRICS_V1' "$CRON"
 trap - EXIT
 echo "SUCCESS: CONTROL ROOM LIVE VISUAL V4 INSTALLED"
-echo "XUI_SNAPSHOT_METRICS=READ_ONLY_EVERY_2_MINUTES"
+if systemctl is-active --quiet cron;then
+ echo "XUI_SNAPSHOT_METRICS=READ_ONLY_EVERY_2_MINUTES"
+else
+ echo "WARNING: cron service is inactive; periodic CPU/RAM refresh is not yet running"
+fi
 echo "BACKUP=$BACKUP"
 echo "NOTE: Purchased-provider traffic quota is not sourced by 3x-ui status; stays unknown until verified."
