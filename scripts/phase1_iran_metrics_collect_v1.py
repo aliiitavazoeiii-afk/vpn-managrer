@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """HESAB_PHASE1_IRAN_METRICS_COLLECTOR_V1.
-Root-host, optional SSH sensor with strict host key checks. NO billing/XUI writes.
+Root-host, optional fixed-command SSH sensor with strict host key checks. NO billing/XUI writes.
 No automatic claim that interface counters equal hosting-provider quota.
 """
 import ipaddress,json,os,re,subprocess,sys,tempfile,time
@@ -52,9 +52,8 @@ def sensor(name,item):
          "-o","StrictHostKeyChecking=yes","-o","ConnectTimeout=6",
          "-o","ConnectionAttempts=1","-o","ControlMaster=no",
          "-o","ForwardAgent=no","-o","ClearAllForwardings=yes",
-         f"{user}@{host}",f"python3 -I - {interface}"]
-    result=subprocess.run(cmd,input=SENSOR.read_text(encoding="utf-8"),
-                          capture_output=True,text=True,timeout=22,check=False)
+         f"{user}@{host}",f"/usr/local/sbin/hesab-phase1-sensor {interface}"]
+    result=subprocess.run(cmd,capture_output=True,text=True,timeout=22,check=False)
     if result.returncode:raise RuntimeError("SSH sensor failed (check key, host fingerprint and NIC)")
     if len(result.stdout)>8192:raise ValueError("sensor output too large")
     response=json.loads(result.stdout)
