@@ -124,13 +124,14 @@ def calculate(config,sample,previous,now):
     data={"role":"iran","state":"ok","traffic_source":"physical_nic",
           "probe_state":"not_configured",
           "sample_age_s":0,
-          "rx_period_gb":round(accum_rx/GB,3),"tx_period_gb":round(accum_tx/GB,3),
           "traffic_state":"direction_unconfirmed"}
     direction=config.get("direction")
     period=config.get("period_id")
     quota=config.get("quota_gb")
     initial=config.get("initial_provider_used_gb")
     if not period or direction not in ("rx","tx") or quota is None or initial is None:
+        data["rx_period_gb"]=round(accum_rx/GB,3)
+        data["tx_period_gb"]=round(accum_tx/GB,3)
         return data,stored
     if not isinstance(period,str) or not re.fullmatch(r"[A-Za-z0-9_.-]{4,70}",period):
         raise ValueError("invalid provider period_id")
@@ -149,6 +150,8 @@ def calculate(config,sample,previous,now):
                        "accum_rx":0,"accum_tx":0,"first_sample_at":now,
                        "uncertain":False,"uncertain_reason":"","gaps":0})
         accum_rx=accum_tx=0;uncertain=False
+    data["rx_period_gb"]=round(accum_rx/GB,3)
+    data["tx_period_gb"]=round(accum_tx/GB,3)
     measured=accum_rx if direction=="rx" else accum_tx
     used=initial+measured/GB
     remaining=max(0,quota-used)
