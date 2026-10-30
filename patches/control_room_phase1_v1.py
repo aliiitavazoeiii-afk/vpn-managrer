@@ -97,8 +97,8 @@ _P1_CSS = r'''
 #c2-root .c2-table-wrap tbody td:nth-child(9) button{width:100%;min-height:42px}
 #c2-root .c2-table-wrap tbody tr:has(td[colspan]){display:block!important}
 #c2-root .c2-table-wrap tbody tr:has(td[colspan]) td:before{display:none}
-@media(max-width:950px){#p1-monitor{grid-template-columns:1fr}}
-@media(max-width:800px){#c2-root .c2-table-wrap tbody{grid-template-columns:1fr}}
+@media(max-width:950px){ #p1-monitor{grid-template-columns:1fr}}
+@media(max-width:800px){ #c2-root .c2-table-wrap tbody{grid-template-columns:1fr}}
 </style>
 '''
 _P1_HEADER = r'''
