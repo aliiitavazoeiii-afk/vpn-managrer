@@ -25,6 +25,13 @@ done
 if grep -Fq '# HESAB_CONTROL_ROOM_NET_METER_V2_UI' "$LIVE";then
  echo "ALREADY_INSTALLED: refuse duplicate";exit 0;
 fi
+# Two independent writers to the same phase1/status.json would corrupt the dashboard.
+if grep -Rqs -- 'phase1_iran_metrics_collect_v1.py' /etc/cron.d /etc/systemd/system 2>/dev/null;then
+ echo "STOP: legacy Phase1 NIC collector is still scheduled; disable it safely before installing V2";exit 3;
+fi
+if [[ -e /etc/cron.d/hesab-maya-net-meter-v2 ]];then
+ echo "STOP: unexpected legacy meter cron may race with systemd timer";exit 3;
+fi
 for name in $FILES;do
  [[ -s "$SRC/scripts/$name" ]] || { echo "STOP: missing $name";exit 3; }
 done
