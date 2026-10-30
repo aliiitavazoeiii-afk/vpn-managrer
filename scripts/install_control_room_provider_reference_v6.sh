@@ -116,9 +116,11 @@ assert html.count('id="b6-reference-style"')==1
 assert "آخرین مانده اعلامی دیتاسنتر" in html
 Environment().parse(html)
 response=json.loads(m._b6_status(None).body)
-for key,value in (("maya1",144),("maya-s3",189),("maya4",144)):
+from pathlib import Path
+src=json.loads(Path("/srv/maya-live/phase1/provider_balance_reference_v1.json").read_text())
+for key in ("maya1","maya-s3","maya4"):
  assert response["servers"][key]["state"]=="reported_not_live"
- assert response["servers"][key]["remaining_gb"]==value
+ assert response["servers"][key]["remaining_gb"]==src["servers"][key]["remaining_gb"]
 PY
  then READY=1;break;fi
  sleep 2
