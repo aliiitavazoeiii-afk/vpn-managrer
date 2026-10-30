@@ -5,9 +5,13 @@ on:
     paths:
       - 'patches/control_room_phase1_v1.py'
       - 'patches/control_room_table_v3.py'
+      - 'patches/control_room_live_visual_v4.py'
       - 'scripts/phase1_iran_*_v1.py'
       - 'scripts/test_control_room_phase1_v1.py'
       - 'scripts/test_control_room_table_v3.py'
+      - 'scripts/maya_xui_host_metrics_v1.py'
+      - 'scripts/test_control_room_live_visual_v4.py'
+      - 'scripts/install_control_room_live_visual_v4.sh'
       - 'scripts/install_control_room_table_v3.sh'
       - '.github/workflows/test-control-room-phase1-v1.yml'
   workflow_dispatch:
@@ -25,8 +29,10 @@ jobs:
         run: |
           python3 scripts/test_control_room_phase1_v1.py
           python3 scripts/test_control_room_table_v3.py
+          python3 scripts/test_control_room_live_visual_v4.py
       - name: Bash syntax
         run: |
           bash -n scripts/diagnose_phase1_maya_payments_v1.sh
           bash -n scripts/install_control_room_phase1_v1.sh
           bash -n scripts/install_control_room_table_v3.sh
+          bash -n scripts/install_control_room_live_visual_v4.sh
