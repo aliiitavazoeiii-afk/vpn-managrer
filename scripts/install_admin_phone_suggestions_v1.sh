@@ -83,11 +83,11 @@ NEW="$(compose ps -q app)"
 READY=0
 for i in $(seq 1 35); do
   if compose exec -T app python - <<'PY' >/dev/null 2>&1
-from app.main import app,env,TEMPLATES,admin_phone_suggestion_directory
-assert callable(admin_phone_suggestion_directory)
+from app.main import app,env,TEMPLATES,_aps_phone_directory
+assert callable(_aps_phone_directory)
 for name in ("add_user_page.html","debts.html"):
     html=TEMPLATES[name]
-    assert html.count("aps-directory")==1,(name,"widget missing or duplicated")
+    assert html.count('class="aps-directory"')==1,(name,"widget missing or duplicated")
     assert 'name="display_name"' in html and 'name="phone"' in html
 assert any(r.path=="/manage/users/add" and "POST" in r.methods for r in app.routes)
 assert any(r.path=="/add-user" and "GET" in r.methods for r in app.routes)
@@ -101,8 +101,8 @@ done
 
 echo "=== CHECK READ ONLY SUGGESTIONS ==="
 compose exec -T app python - <<'PY'
-from app.main import admin_phone_suggestion_directory
-groups=admin_phone_suggestion_directory()
+from app.main import _aps_phone_directory
+groups=_aps_phone_directory()
 assert isinstance(groups,list)
 for g in groups:
     assert len(g["phone"])==11 and g["phone"].startswith("09")
