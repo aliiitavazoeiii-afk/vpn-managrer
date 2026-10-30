@@ -80,7 +80,7 @@ _C3_CSS = r'''
 #c2-root .c2-table-wrap th{position:static!important;top:auto!important;
  z-index:auto!important;background:#242545!important;color:#e0daf9!important;
  font-size:11px!important;font-weight:800!important;white-space:nowrap!important}
-#c2-root .c2-table-wrap td{display:table-cell!important;width:auto!important;
+#c2-root .c2-table-wrap tbody td{display:table-cell!important;width:auto!important;
  white-space:normal!important;vertical-align:middle!important;
  text-align:right!important;padding:13px 10px!important;overflow-wrap:anywhere;
  font-size:12px!important;border-bottom:1px solid rgba(157,161,255,.11)!important}
