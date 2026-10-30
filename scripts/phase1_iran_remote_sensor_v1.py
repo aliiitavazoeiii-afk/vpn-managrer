@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""HESAB_PHASE1_IRAN_REMOTE_SENSOR_V1 — stdin-delivered read-only Linux sensor.
-On the Iran host: python3 - <interface>; no installation, no XUI touches.
+"""HESAB_PHASE1_IRAN_REMOTE_SENSOR_V1 — installed read-only Linux sensor.
+On the Iran host via restricted SSH: /usr/local/sbin/hesab-phase1-sensor <interface>.
+No XUI process, configuration or user data touched.
 """
 import json,os,re,sys,time
 from pathlib import Path
