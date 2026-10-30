@@ -1,0 +1,25 @@
+name: Control Room Phase1 isolated checks
+on:
+  push:
+    branches: [manual-sms-batch-operator-open]
+    paths:
+      - 'patches/control_room_phase1_v1.py'
+      - 'scripts/phase1_iran_*_v1.py'
+      - 'scripts/test_control_room_phase1_v1.py'
+      - '.github/workflows/test-control-room-phase1-v1.yml'
+  workflow_dispatch:
+jobs:
+  source-and-logic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python, JavaScript and quota tests
+        run: |
+          python3 scripts/test_control_room_phase1_v1.py
+      - name: Bash syntax
+        run: |
+          bash -n scripts/diagnose_phase1_maya_payments_v1.sh
+          bash -n scripts/install_control_room_phase1_v1.sh
