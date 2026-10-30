@@ -61,7 +61,15 @@ for marker in ("id=\"n5-net-traffic\"","n5FetchTraffic()","RX اندازه‌گ�
  assert marker in t,marker
 assert t.count("id=\"c2-search\"")==1
 Environment().parse(t)
-assert m._n5_read(None).status_code==200
+sample=m._n5_read(None)
+assert sample.status_code==200
+import json
+data=json.loads(sample.body)
+for name in ("maya1","maya-s3","maya4"):
+ item=data["servers"][name]
+ assert item["state"]=="ok", (name,item["state"])
+ assert "rx_period_gb" in item and "tx_period_gb" in item,name
+print("NIC_V5_LIVE_SAMPLE_READABLE_IN_APP")
 print("NIC_V5_JINJA_API_PREFLIGHT_PASS")
 '
 B="/root/hesab-nic-live-v5-backup-$(date -u +%Y%m%dT%H%M%SZ)-$$"
@@ -105,7 +113,12 @@ assert template.count('id="n5-net-traffic"')==1
 assert 'RX اندازه‌گیری‌شده' in template
 assert 'TX اندازه‌گیری‌شده' in template
 Environment().parse(template)
-assert m._n5_read(None).status_code==200
+import json
+data=json.loads(m._n5_read(None).body)
+assert all(data["servers"][name]["state"]=="ok" and
+ "rx_period_gb" in data["servers"][name] and
+ "tx_period_gb" in data["servers"][name]
+ for name in ("maya1","maya-s3","maya4"))
 PY
  then READY=1;break;fi
  sleep 2
