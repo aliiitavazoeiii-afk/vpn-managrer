@@ -85,3 +85,14 @@
 - UI قبلی فاز یک، V3 جدول، جست‌وجوی مستقل و فیلترهای ۴۸ ساعت/امروز/۳۰ روز/غیرعادی، پنجره جزئیات، CSRF و عملیات دقیق X-UI حفظ می‌شوند. با انتخاب کارت سرور، جدول همان سرور نمایش داده می‌شود.
 - `patches/control_room_live_visual_v4.py` باید **بعد از** V3 در runtime overlay `patches/maya1_control.py` اجرا شود. `scripts/install_control_room_live_visual_v4.sh` source را preflight می‌کند، بکاپ می‌گیرد، فقط سرویس `app` را recreate می‌کند، Cron read-only می‌گذارد و روی خطا rollback می‌کند. پایگاه PostgreSQL، XUI، SMS، customer-portal و طراحی صفحه اصلی تغییر نمی‌کنند.
 - آزمایش ایزوله `scripts/test_control_room_live_visual_v4.py` قالب واقعی V2→Phase1→V3→V4 را بدون network اجرا می‌کند و Jinja/inline JS و API read-only را بررسی می‌کند. تست کارکرد مرورگر و تأیید ۳ سرور فقط بعد از نصب واقعی امکان‌پذیر است.
+
+
+## V5 — RX/TX readouts visible before billing-direction calibration
+
+Diagnosed 2026-10-31 from operator samples: `maya1` RX 1.437 GB TX 1.396 GB; `maya-s3` RX 1.166 GB TX 1.167 GB; `maya4` RX 0.709 GB TX 0.695 GB (observations from an earlier moment, not current numbers). Meter state was `direction_unconfirmed` on all servers and no remaining value appeared on website.
+
+**Root cause:** `/control-room/phase1/status` whitelisted only `traffic_used_gb`, `remaining_gb`, `traffic_quota_gb`, CPU/RAM, but not `rx_period_gb` and `tx_period_gb`. V4 `quotaUsable` additionally requires an operator-confirmed billing period/direction. As a result, NIC data was captured properly on Linux yet invisible in V4 cards.
+
+**Remedy:** additive read-only route `GET /control-room/v5/nic-traffic` reads `/srv/maya-live/phase1/status.json` with fresh-age (<= 180 s), format, type and range checks. It provides only sanitized three-server RX/TX samples. `patches/control_room_nic_live_v5.py` patches existing V4 cards to display both measurements even while billing direction remains unconfirmed; warning text distinguishes uncalibrated/stale/unavailable values. Existing remaining GB continues to show `—` until direction and baseline are confirmed, no financial effects. Installer `scripts/install_control_room_nic_live_v5.sh` refuses absent V4/M2 prerequisites, requires three real samples in the admin container preflight, backs up existing overlay, recreates only app and rolls back on runtime verification failure. CI includes full template chain Jinja/inline JS sanity test `scripts/test_control_room_nic_live_v5.py`.
+
+**Caution:** Provider balance snapshot provided by operator for Maya1 144 GB, Maya3 189 GB and Maya4 144 GB has no timestamp and is NOT currently a live measured remaining balance. Do not present it as real-time or silently calculate with `rx` until billing direction and the appropriate initial balance are confirmed against provider. Never reset the NIC measurement ledger just to expose the values.
