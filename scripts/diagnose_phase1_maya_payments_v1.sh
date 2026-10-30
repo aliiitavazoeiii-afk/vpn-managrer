@@ -6,7 +6,7 @@ c(){ docker compose -f docker-compose.yml -f docker-compose.sms.yml "$@"; }
 echo "=== CONTROL ROOM / PAYMENT SAFETY DIAGNOSTIC — READ ONLY ==="
 echo "CURRENT_UTC=$(date -u +%FT%TZ)"
 echo "-- COMPOSE SERVICES --"
-c ps --format 'table {{.Service}}\t{{.State}}\t{{.Health}}'
+c ps
 echo "-- MAYA LIVE SOCKET --"
 if systemctl is-active --quiet hesab-maya-live.service;then echo MAYA_BROKER=ACTIVE;else echo MAYA_BROKER=NOT_ACTIVE;fi
 if test -S maya_extra_sync/live.sock;then echo MAYA_SOCKET=PRESENT;else echo MAYA_SOCKET=MISSING;fi
