@@ -140,10 +140,12 @@ function render(){
    el("small",name,one);el("b",value,one);}
   metric("CPU سرور ایران",iran?fmt(d.cpu_pct)+"٪":"—");
   metric("RAM سرور ایران",iran?fmt(d.ram_pct)+"٪":"—");
-  metric("حجم باقی‌مانده",iran&&d.traffic_state==="verified"?fmt(d.remaining_gb)+" GB":"—");
+  metric("حجم باقی‌مانده",iran&&["verified","estimated"].includes(d.traffic_state)?
+    (d.traffic_state==="verified"?"":"حدودی: ")+fmt(d.remaining_gb)+" GB":"—");
   metric("وضعیت مسیر VPN",d.probe_state==="ok"?"تست موفق":
     d.probe_state==="failed"?"اختلال تأییدشده":"تست تنظیم نشده");
   el("div",!iran?"پایش منابع برای سرور خارج فعال نیست.":
+    d.traffic_state==="estimated"&&d.remaining_gb<=10?"هشدار اولیه: برآورد کمتر از ۱۰ گیگ است؛ با پنل دیتاسنتر تطبیق بده.":
     d.traffic_state!=="verified"?"حجم باقی‌مانده هنوز با سهمیه واقعی دیتاسنتر تأیید نشده است.":
     "مقدار سهمیه طبق شمارنده پیکربندی‌شده میزبان.",card,"p1-note");
  }
