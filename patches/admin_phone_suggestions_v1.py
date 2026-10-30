@@ -173,11 +173,17 @@ else init();
 </script>
 '''
 
+# /add-user is always the registration screen. The /debts form is optional:
+# newer live operator overlays may replace it with a link to /add-user.
+_aps_patched_pages = []
 for _aps_page in ("add_user_page.html", "debts.html"):
     _aps_template = TEMPLATES.get(_aps_page, "")
-    if not (_aps_template and 'name="display_name"' in _aps_template
-            and 'name="phone"' in _aps_template):
-        raise RuntimeError("Phone suggestions: expected admin form missing in " + _aps_page)
+    _aps_has_form = ('name="display_name"' in _aps_template
+                     and 'name="phone"' in _aps_template)
+    if not _aps_has_form:
+        if _aps_page == "add_user_page.html":
+            raise RuntimeError("Phone suggestions: registration form missing in /add-user")
+        continue
     if "aps-directory" in _aps_template:
         raise RuntimeError("Phone suggestions: already installed in " + _aps_page)
     _aps_end = _aps_template.rfind("{% endblock %}")
@@ -186,5 +192,6 @@ for _aps_page in ("add_user_page.html", "debts.html"):
     TEMPLATES[_aps_page] = (
         _aps_template[:_aps_end] + _APS_WIDGET + _aps_template[_aps_end:]
     )
+    _aps_patched_pages.append(_aps_page)
 if hasattr(env.loader, "mapping"):
     env.loader.mapping.update(TEMPLATES)
