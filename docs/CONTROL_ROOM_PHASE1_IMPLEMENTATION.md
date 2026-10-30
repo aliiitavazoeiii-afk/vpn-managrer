@@ -73,3 +73,15 @@
 - **منطق مصرف غیرعادی:** فقط با حداقل ۳ روز سابقه معتبر از ۷ روز پیش از امروز، هر روز با حداقل ۲۴ نمونه موجود، امروز بیش از `max(2 GiB, 3 × میانگین روزهای معتبر)` باید باشد. این فقط یک پرچم آماری هشدار است، نه قطع خودکار، تشخیص اشتراک‌گذاری یا اثبات مصرف بیش از سهمیه فروشنده؛ تاریخچه ناکافی = غیرقابل ارزیابی. SQLite فقط خوانده می‌شود.
 - نصب `scripts/install_control_room_table_v3.sh` باید از یک Git commit **ثابت** با بکاپ، پیش‌بررسی روی کد واقعی production و rollback در صورت شکست باشد. فقط سرویس `app` بازسازی بدون build می‌شود. تست ایزوله `scripts/test_control_room_table_v3.py` و CI کنترل Jinja/JS و سه حالت anomaly را انجام می‌دهند.
 - سورس GitHub و preflight به تنهایی به معنای موفقیت نصب production یا تأیید مرورگر نیستند؛ بعد از `SUCCESS: CONTROL ROOM TABLE V3 INSTALLED` جدول/فیلترهای واقعی در مرورگر و یک نمونه سابقه تست شود.
+
+
+## V4 — یکپارچه‌سازی طراحی کارت‌های اصلی با خود اتاق کنترل (2026-10-30)
+
+- **وضعیت: کد در GitHub، نیازمند نصب/تأیید کاربر روی production.**
+- همان ساختار گرافیکی کارت‌های `focus-server-card` نمای اصلی (حلقه، آمار منابع و باکس‌های ظرفیت) در `/control-room` استفاده می‌شود. به جای ۸ سرور آزمایشی `IR-1..4` و `Foreign-1..4`، **فقط ۳ شناسه واقعی** `maya1`, `maya-s3` (= مایا ۳), `maya4` نمایش می‌یابند. چون نقش جغرافیایی هر سرور از config معتبر اعلام نشده، در UI با عنوان دقیق «سرورهای تحت مدیریت» نمایش داده می‌شوند؛ ادعای نادرست ایران/خارج نداریم.
+- داده اکانت‌ها از **همان** `/control-room/v2/data` و broker زنده، شامل آمار کل، فعال و تطبیق، می‌آیند. موفقیت X-UI فقط به معنی پاسخ‌گویی پنل است، **نه** تأیید عملکرد end-to-end کانفیگ VPN.
+- برای CPU/RAM یک منبع سریع‌تر و بدون نصب Agent کشف شد: API مستند 3x-ui `GET /panel/api/server/status`. فایل `scripts/maya_xui_host_metrics_v1.py` با اتصال موجود `maya_multi_panel_sync.py` فقط GET می‌زند (HTTPS معتبر یا verified SSH local forward). تنها اعداد sanitized را در `maya_extra_sync/phase1/xui_status_v1.json` ثبت می‌کند، اطلاعات رمز/کلاینت/پاسخ کامل ذخیره نمی‌شوند. برای پنل‌های ناسازگار وضعیت `unavailable` نشان داده می‌شود. Cron هر ۲ دقیقه، endpoint admin `/control-room/v4/host-metrics` بازخوانی فایل فقط‌خواندنی را فراهم می‌کند.
+- حلقه درصد و ترافیک باقی‌مانده تا نصب و تأیید quota provider واقعی «—» است؛ API `server/status` مصرف رابط شبکه را می‌دهد، **نه لزوماً سهمیه خریداری‌شده نزد ارائه‌دهنده**. هیچ هشدار Push، Auto-off یا تست VPN end-to-end در V4 ساخته نشده است.
+- UI قبلی فاز یک، V3 جدول، جست‌وجوی مستقل و فیلترهای ۴۸ ساعت/امروز/۳۰ روز/غیرعادی، پنجره جزئیات، CSRF و عملیات دقیق X-UI حفظ می‌شوند. با انتخاب کارت سرور، جدول همان سرور نمایش داده می‌شود.
+- `patches/control_room_live_visual_v4.py` باید **بعد از** V3 در runtime overlay `patches/maya1_control.py` اجرا شود. `scripts/install_control_room_live_visual_v4.sh` source را preflight می‌کند، بکاپ می‌گیرد، فقط سرویس `app` را recreate می‌کند، Cron read-only می‌گذارد و روی خطا rollback می‌کند. پایگاه PostgreSQL، XUI، SMS، customer-portal و طراحی صفحه اصلی تغییر نمی‌کنند.
+- آزمایش ایزوله `scripts/test_control_room_live_visual_v4.py` قالب واقعی V2→Phase1→V3→V4 را بدون network اجرا می‌کند و Jinja/inline JS و API read-only را بررسی می‌کند. تست کارکرد مرورگر و تأیید ۳ سرور فقط بعد از نصب واقعی امکان‌پذیر است.
