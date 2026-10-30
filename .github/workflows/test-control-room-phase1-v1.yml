@@ -7,6 +7,7 @@ on:
       - 'patches/control_room_table_v3.py'
       - 'patches/control_room_live_visual_v4.py'
       - 'patches/control_room_net_meter_v2_ui.py'
+      - 'patches/control_room_nic_live_v5.py'
       - 'scripts/phase1_iran_*_v1.py'
       - 'scripts/test_control_room_phase1_v1.py'
       - 'scripts/test_control_room_table_v3.py'
@@ -16,6 +17,8 @@ on:
       - 'scripts/maya_net_meter_*_v2.py'
       - 'scripts/maya_net_meter_*_v2.sh'
       - 'scripts/test_maya_net_meter_v2.py'
+      - 'scripts/test_control_room_nic_live_v5.py'
+      - 'scripts/install_control_room_nic_live_v5.sh'
       - 'scripts/install_control_room_table_v3.sh'
       - '.github/workflows/test-control-room-phase1-v1.yml'
   workflow_dispatch:
@@ -35,6 +38,7 @@ jobs:
           python3 scripts/test_control_room_table_v3.py
           python3 scripts/test_control_room_live_visual_v4.py
           python3 scripts/test_maya_net_meter_v2.py
+          python3 scripts/test_control_room_nic_live_v5.py
       - name: Bash syntax
         run: |
           bash -n scripts/diagnose_phase1_maya_payments_v1.sh
@@ -44,3 +48,4 @@ jobs:
           bash -n scripts/install_maya_net_meter_hub_v2.sh
           bash -n scripts/maya_net_meter_remote_setup_v2.sh
           bash -n scripts/maya_net_meter_pair_v2.sh
+          bash -n scripts/install_control_room_nic_live_v5.sh
