@@ -11,7 +11,7 @@ LIVE=patches/maya1_control.py
 PATCH="$SRC/patches/control_room_net_meter_v2_ui.py"
 SERVICE=/etc/systemd/system/hesab-maya-net-meter-v2.service
 TIMER=/etc/systemd/system/hesab-maya-net-meter-v2.timer
-FILES="maya_net_meter_sensor_v2.py maya_net_meter_remote_setup_v2.sh maya_net_meter_collect_v2.py maya_net_meter_manage_v2.py"
+FILES="maya_net_meter_sensor_v2.py maya_net_meter_remote_setup_v2.sh maya_net_meter_collect_v2.py maya_net_meter_manage_v2.py maya_net_meter_pair_v2.sh"
 for f in .env docker-compose.yml docker-compose.sms.yml "$LIVE" "$PATCH";do
  [[ -s "$f" ]] || { echo "STOP: missing $f";exit 3; }
 done
@@ -23,7 +23,20 @@ for tag in HESAB_CONTROL_ROOM_PHASE1_V1 HESAB_CONTROL_ROOM_TABLE_V3 HESAB_CONTRO
  grep -Fq "$tag" "$LIVE" || { echo "STOP: prerequisite $tag not installed";exit 3; }
 done
 if grep -Fq '# HESAB_CONTROL_ROOM_NET_METER_V2_UI' "$LIVE";then
- echo "ALREADY_INSTALLED: refuse duplicate";exit 0;
+ # Previous release omitted the guided pairing helper. Repair this single file
+ # without app/container restart, without changing meter state or existing keys.
+ if [[ ! -e scripts/maya_net_meter_pair_v2.sh ]];then
+  [[ -s "$SRC/scripts/maya_net_meter_pair_v2.sh" ]] || {
+   echo "STOP: pairing helper missing in checkout";exit 3;
+  }
+  bash -n "$SRC/scripts/maya_net_meter_pair_v2.sh"
+  install -o root -g root -m 0700 "$SRC/scripts/maya_net_meter_pair_v2.sh" scripts/maya_net_meter_pair_v2.sh
+  echo "PAIR_HELPER_REPAIRED: scripts/maya_net_meter_pair_v2.sh"
+ else
+  bash -n scripts/maya_net_meter_pair_v2.sh
+  echo "ALREADY_INSTALLED: meter hub and pairing helper present"
+ fi
+ exit 0
 fi
 # Two independent writers to the same phase1/status.json would corrupt the dashboard.
 if grep -Rqs -- 'phase1_iran_metrics_collect_v1.py' /etc/cron.d /etc/systemd/system 2>/dev/null;then
@@ -37,7 +50,7 @@ for name in $FILES;do
 done
 python3 -m py_compile "$PATCH" "$SRC/scripts/maya_net_meter_sensor_v2.py" \
  "$SRC/scripts/maya_net_meter_collect_v2.py" "$SRC/scripts/maya_net_meter_manage_v2.py"
-bash -n "$SRC/scripts/maya_net_meter_remote_setup_v2.sh"
+bash -n "$SRC/scripts/maya_net_meter_remote_setup_v2.sh" "$SRC/scripts/maya_net_meter_pair_v2.sh"
 compose config -q
 for file in "$SERVICE" "$TIMER";do
  if [[ -e "$file" ]] && ! grep -Fq 'HESAB_MAYA_NET_METER_V2' "$file";then
