@@ -120,3 +120,17 @@ V7 implementation:
 - `scripts/install_control_room_provisional_remaining_v7.sh` refuses already-baselined/mismatched collector, verifies the 1-minute timer is active, runs an isolated admin preflight, takes app+collector backups, replaces only the collector and app patch and initialises a fresh immutable baseline, recreates only `app`, verifies route and readback then rolls back on error.
 - `scripts/test_control_room_provisional_remaining_v7.py` verifies full Jinja/JS overlay chain, forward subtraction, RX-only assumption, reset fail-closed, and disabled alerts.
 - **Crucial limitation:** last night's time of provider observation has not been established. Therefore V7 is a *moving trend from activation*, not reliable actual remaining GB. Avoid using for automatic network cutoff decisions or provider expiry alerts. For accurate remaining GB, obtain the **current provider balance** concurrently with RX/TX sample, determine provider-billed direction, then configure approved quota baseline; do not pretend historical usage can be backfilled.
+
+
+## V8: گزارش تازه کاربر و تنظیم دوباره مبنای RX به‌صورت صریح (2026-10-31)
+
+کاربر از پنل دیتاسنتر مانده‌های تازه اعلام کرده است: `maya1=82 GB`, `maya-s3=140 GB`, `maya4=137.66 GB`. مانده‌های قبلی (از شب گذشته): `144/189/144 GB`. تفاوت‌ها: `62/49/6.34 GB`. مجموع جدید `359.66 GB`. **این مقادیر در زمان گفتگوی کاربر از پنل اعلام شده‌اند اما وقت دقیق مشاهده با snapshot سنسور یکی نشده است**. زمان گرفتن snapshot نباید زمان مشاهده دیتاسنتر جا زده شود.
+
+`scripts/maya_operator_rebaseline_v8.py --apply 82 140 137.66` در صورت نصب V7:
+- وضعیت واقعی `maya_extra_sync/phase1/status.json` را با نمونه تازه (<=120s)، سنسورهای سالم، `counter_uncertain=false`, و `direction_unconfirmed` بررسی می‌کند.
+- به صورت صریح و اتمیک هم فایل V6 گزارش `provider_balance_reference_v1.json` و هم فایل مبنای V7 `provisional_meter_baseline_v7.json` را به مانده‌های جدید و شمارنده RX *لحظه ثبت مبنا* وصل می‌کند. فایل‌های قبلی را در `/root/hesab-maya-v8-rebaseline-...` بکاپ می‌گیرد و هنگام شکست نوشتن، rollback می‌کند. هیچ تغییر روی `/var/lib/hesab-maya-net-meter-v2/state.json`، quota مالی، خرید ترافیک، XUI، یا VPN نمی‌دهد. بدون restart، در بارگذاری بعدی API تغییر اعمال می‌شود.
+- V7 عدد تقریبی جدید را از `new_reported_remaining - post_rebaseline_RX` حساب می‌کند. `rx` فقط فرض قبلی است؛ به همین علت خطای ممکن نسبت به مانده واقعی دیتاسنتر را اعلام می‌کند و هشدار خودکار ۱۰GB همچنان غیرفعال است.
+- اگر V7 نصب نبوده، ابتدا V6 reference را با `scripts/maya_provider_balance_reference_v1.py set 82 140 137.66` به‌روزرسانی کن و V7 guarded installer را اجرا کن؛ سپس دستور rebaseline V8 بزن. وقتی V7 نصب است هیچ نصب مجدد و app restart لازم نیست.
+- تست محافظتی `scripts/test_maya_operator_rebaseline_v8.py` برای اعداد جدید، backup، نوشتن جفتی، امتناع از سنسور stale/reset و عدم دستکاری داده‌های قبلی در مسیر CI وجود دارد.
+
+هیچ عدد مرجع اعلام‌شده شب گذشته نباید به‌عنوان «مانده زنده» معرفی شود؛ بعد از V8 هم برای صحت حسابداری باید افت واقعی پنل دیتاسنتر و `RX/TX` در یک بازه یکسان مقایسه شوند.
