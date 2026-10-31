@@ -134,3 +134,16 @@ V7 implementation:
 - تست محافظتی `scripts/test_maya_operator_rebaseline_v8.py` برای اعداد جدید، backup، نوشتن جفتی، امتناع از سنسور stale/reset و عدم دستکاری داده‌های قبلی در مسیر CI وجود دارد.
 
 هیچ عدد مرجع اعلام‌شده شب گذشته نباید به‌عنوان «مانده زنده» معرفی شود؛ بعد از V8 هم برای صحت حسابداری باید افت واقعی پنل دیتاسنتر و `RX/TX` در یک بازه یکسان مقایسه شوند.
+
+
+## V9 — بسته ۱۰۰/۲۰۰/۵۰۰ گیگابایتی، تاریخچه خرید، هشدار تخمینی داخل اتاق کنترل
+
+در 2026-10-31 کاربر اعلام کرد **۵۰۰ گیگابایت برای maya1 خریده است** و خواست بسته‌های قابل انتخاب 100/200/500 GB برای هر سه مایا، افزایش مانده و notification زیر ۱۰ GB در اپ مدیریت داشته باشد.
+
+Implementation:
+- `patches/control_room_traffic_topup_v9.py` به overlay زنده V7 اضافه می‌شود؛ UI انتخاب سرور maya1 / maya-s3 / maya4، سه بسته 100/200/500، تأیید human، history و پیغام موفقیت دارد.
+- POST امن `/control-room/v9/topup` نیازمند session CSRF معتبر `maya1_control_csrf`، Origin دقیق https://hesab.filmjadiid.ir، same-origin fetch metadata، amount از whitelist و `request_key` تصادفی (idempotent) است.
+- خریدهای ثبت‌شده در جدول اختصاصی PostgreSQL `hesab_maya_traffic_topups_v9` با `request_key UNIQUE` و `meter_epoch` ذخیره می‌شود، نه جدول پرداخت‌ها یا متریک‌های XUI. `GET /control-room/v9/traffic` جمع خریدهای همان epoch را به V7 provisional RX estimate اضافه می‌کند. خریدهای epoch قبلی در تاریخچه می‌مانند ولی بعد از provider rebaseline مجدداً به مانده جدید اضافه نمی‌شوند.
+- installer `scripts/install_control_room_traffic_topup_v9.sh` نیازمند V7 + V8 مرجع درست **قبل از شارژ** `maya1=82GB, maya-s3=140GB, maya4=137.66GB` و timer فعال است. پس از بکاپ UI، فقط app را recreate می‌کند، جدول جداگانه می‌سازد و یک‌بار خرید ۵۰۰ گیگ مایا ۱ را با request_key ثابت `INITIAL_MAYA1_500GB_20261031_OPERATOR_ONCE` ثبت می‌کند (دوباره ثبت نمی‌شود). اگر baseline 82/140/137.66 نباشد، نصب متوقف می‌شود تا جمع کاذب نداشته باشیم. امکان ادامه سالم و بدون نصب مجدد XUI لازم است.
+- هشدار زیر 10 GB در خود صفحه اتاق کنترل و browser Notification API با opt-in کاربر و فقط **وقتی پنل در مرورگر باز است** اجرا می‌شود؛ با خاموش بودن مرورگر/اپ push background پیاده‌سازی نشده است. به علت نامشخص بودن جهت صورتحساب دیتاسنتر (RX فقط فرض) و اختلاف زمان پنل، تمام هشدارها با برچسب «تخمینی» هستند و هیچ خاموشی خودکار، پیامک، صف push دائمی یا تصمیم مالی بر اساس آن انجام نمی‌شود. قابلیت اعلان موبایل با app بسته نیازمند FCM/WebPush و سرور push/registration جدا است.
+- دستور `scripts/test_control_room_traffic_topup_v9.py` زنجیره قالب، تاریخچه، idempotency، epoch/rebaseline و JS را تست می‌کند؛ در CI افزوده شده است.
