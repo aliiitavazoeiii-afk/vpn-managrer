@@ -291,7 +291,7 @@ t9Notify.addEventListener("click",async()=>{
  "دسترسی اعلان تأیید نشده است.";
 });
 t9Refresh();
-setInterval(()=>{if(!document.hidden)t9Refresh();},60000);
+setInterval(t9Refresh,60000);
 '''
 # One-click purchases affect displayed V7 provisional remaining, not underlying
 # meter ledger (which must remain independent).
