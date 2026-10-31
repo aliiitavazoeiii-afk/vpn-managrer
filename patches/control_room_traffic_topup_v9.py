@@ -220,7 +220,7 @@ const t9Feedback=document.getElementById("t9-feedback");
 const t9Alerts=document.getElementById("t9-alerts");
 const t9History=document.getElementById("t9-history");
 const t9Notify=document.getElementById("t9-notify-enable");
-const t9CSRF="{{ mc.csrf_token }}";
+const t9CSRF="{{ ctrl_csrf }}";
 let t9Pending=null;
 function t9Num(value){return Number(value).toLocaleString("fa-IR",{minimumFractionDigits:2,maximumFractionDigits:3});}
 async function t9Refresh(){
