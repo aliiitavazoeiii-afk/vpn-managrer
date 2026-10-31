@@ -99,6 +99,8 @@ if "e7-provisional-style" in _E7_TEMPLATE:
     raise RuntimeError("V7 already present")
 _E7_HELPERS=r'''
 const e7Estimate={};
+const e7Gb=(v)=>Number(v).toLocaleString("fa-IR",
+    {minimumFractionDigits:2,maximumFractionDigits:3})+" GB";
 async function e7Fetch(){
  try {
   const r=await fetch("/control-room/v7/provisional-remaining",
@@ -124,7 +126,7 @@ _E7_NEW_REMAIN='''const provider=b6Provider[id]||{},forecast=e7Estimate[id]||{};
        Number.isFinite(forecast.estimate_remaining_gb);
    const remaining=quotaUsable?
        (quota.traffic_state==="estimated"?"حدودی ":"")+c4Str(quota.remaining_gb," GB"):
-       hasEstimated?"≈ "+c4Str(forecast.estimate_remaining_gb," GB"):
+       hasEstimated?"≈ "+e7Gb(forecast.estimate_remaining_gb):
        hasProviderReference?c4Str(provider.remaining_gb," GB"):"—";
    c4CardLabel(quotaUsable?"مانده تخمینی از سنسور":
       hasEstimated?"برآورد موقت از مرجع قدیمی · RX":
