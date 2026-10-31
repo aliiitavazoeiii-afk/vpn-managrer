@@ -22,6 +22,8 @@ on:
       - 'scripts/test_control_room_nic_live_v5.py'
       - 'scripts/test_control_room_provider_reference_v6.py'
       - 'scripts/test_control_room_provisional_remaining_v7.py'
+      - 'scripts/maya_operator_rebaseline_v8.py'
+      - 'scripts/test_maya_operator_rebaseline_v8.py'
       - 'scripts/maya_provider_provisional_baseline_v7.py'
       - 'scripts/install_control_room_provisional_remaining_v7.sh'
       - 'scripts/maya_provider_balance_reference_v1.py'
@@ -49,6 +51,7 @@ jobs:
           python3 scripts/test_control_room_nic_live_v5.py
           python3 scripts/test_control_room_provider_reference_v6.py
           python3 scripts/test_control_room_provisional_remaining_v7.py
+          python3 scripts/test_maya_operator_rebaseline_v8.py
       - name: Bash syntax
         run: |
           bash -n scripts/diagnose_phase1_maya_payments_v1.sh
