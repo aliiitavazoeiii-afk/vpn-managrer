@@ -68,6 +68,19 @@ assert t.count("id=\"c2-cards\"")==1
 assert t.count("id=\"c2-search\"")==1
 Environment().parse(t)
 assert m._t9_epochs()["maya1"]
+assert "{{ ctrl_csrf }}" in t
+assert "{{ mc.csrf_token }}" not in t
+from starlette.requests import Request
+scope={"type":"http","asgi":{"version":"3.0"},"http_version":"1.1",
+       "method":"GET","scheme":"https","path":"/control-room",
+       "root_path":"","query_string":b"",
+       "headers":[(b"host",b"hesab.filmjadiid.ir")],
+       "server":("hesab.filmjadiid.ir",443),"client":("127.0.0.1",1234),
+       "session":{},"app":m.app}
+response=m._cr2_page(Request(scope))
+assert response.status_code==200
+assert b"t9-topup-panel" in response.body
+print("MAYA_TOPUP_V9_ACTUAL_CONTROL_ROOM_RENDER_OK")
 print("MAYA_TOPUP_V9_PREFLIGHT_OK")
 '
 BACKUP="/root/hesab-topup-v9-$(date -u +%Y%m%dT%H%M%SZ)-$$"
@@ -138,7 +151,19 @@ for path in ("/control-room","/control-room/v9/traffic","/control-room/v9/topup"
     assert routes.count(path)==1,path
 html=m.TEMPLATES["control_room.html"]
 assert html.count('id="t9-topup-panel"')==1
+assert "{{ mc.csrf_token }}" not in html
 Environment().parse(html)
+from starlette.requests import Request
+scope={"type":"http","asgi":{"version":"3.0"},"http_version":"1.1",
+       "method":"GET","scheme":"https","path":"/control-room",
+       "root_path":"","query_string":b"",
+       "headers":[(b"host",b"hesab.filmjadiid.ir")],
+       "server":("hesab.filmjadiid.ir",443),"client":("127.0.0.1",1234),
+       "session":{},"app":m.app}
+response=m._cr2_page(Request(scope))
+assert response.status_code==200
+assert b"t9-topup-panel" in response.body
+print("MAYA_TOPUP_V9_HTTP_TEMPLATE_RENDER_OK")
 source=m.get_db()
 db=next(source)
 try:
