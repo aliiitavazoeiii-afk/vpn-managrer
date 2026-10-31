@@ -30,6 +30,7 @@ on:
       - 'scripts/maya_daily_nic_v10.py'
       - 'scripts/install_control_room_compact_v10.sh'
       - 'scripts/test_control_room_compact_v10.py'
+      - 'scripts/test_install_control_room_compact_v10_syntax.py'
       - 'scripts/install_control_room_traffic_topup_v9.sh'
       - 'scripts/maya_provider_provisional_baseline_v7.py'
       - 'scripts/install_control_room_provisional_remaining_v7.sh'
@@ -61,6 +62,7 @@ jobs:
           python3 scripts/test_maya_operator_rebaseline_v8.py
           python3 scripts/test_control_room_traffic_topup_v9.py
           python3 scripts/test_control_room_compact_v10.py
+          python3 scripts/test_install_control_room_compact_v10_syntax.py
       - name: Bash syntax
         run: |
           bash -n scripts/diagnose_phase1_maya_payments_v1.sh
