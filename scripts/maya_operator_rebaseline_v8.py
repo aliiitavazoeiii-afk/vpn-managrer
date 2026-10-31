@@ -22,6 +22,7 @@ STATUS=ROOT/"maya_extra_sync/phase1/status.json"
 REFERENCE=ROOT/"maya_extra_sync/phase1/provider_balance_reference_v1.json"
 BASELINE=ROOT/"maya_extra_sync/phase1/provisional_meter_baseline_v7.json"
 LOCK=Path("/var/lib/hesab-maya-net-meter-v2/operator-rebaseline.lock")
+BACKUP_ROOT=Path("/root")
 NAMES=("maya1","maya-s3","maya4")
 
 def read(path, fmt):
@@ -92,7 +93,7 @@ def execute(raw):
                 "baseline_meter_time":captured
             }
         stamp=datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        backup=Path("/root")/("hesab-maya-v8-rebaseline-"+stamp+"-"+str(os.getpid()))
+        backup=BACKUP_ROOT/("hesab-maya-v8-rebaseline-"+stamp+"-"+str(os.getpid()))
         backup.mkdir(mode=0o700)
         # Preserve BOTH earlier input and baseline so operator can audit changes.
         oldrefbytes=REFERENCE.read_bytes()
