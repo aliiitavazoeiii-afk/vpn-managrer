@@ -25,6 +25,9 @@ done
 grep -Fq './maya_extra_sync:/srv/maya-live:ro' docker-compose.sms.yml || {
  echo "STOP: readonly meter mount missing";exit 3;
 }
+systemctl is-active --quiet hesab-maya-net-meter-v2.timer || {
+ echo "STOP: automatic NIC meter timer inactive; verify/activate the metering timer first";exit 3;
+}
 if grep -Fq '# HESAB_MAYA_PROVISIONAL_REMAINING_V7' "$LIVE";then
  echo "ALREADY_INSTALLED: V7, no rebaseline or reset";exit 0
 fi
