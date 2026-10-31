@@ -291,6 +291,10 @@ if n!=1:raise RuntimeError("Could not remove large topup form")
 a=_T10_TEMPLATE.index("function renderCards(){")
 b=_T10_TEMPLATE.index("\nfunction renderRank(",a)
 _T10_TEMPLATE=_T10_TEMPLATE[:a]+_T10_CARDS+_T10_TEMPLATE[b:]
+_T10_TEMPLATE,n=_t10_re.subn(r'<p class="c4-open-hint">[\s\S]*?</p>','',
+                              _T10_TEMPLATE,count=1)
+if n!=1:raise RuntimeError("Could not remove legacy card instruction")
+
 _T10_TEMPLATE=_T10_TEMPLATE.replace("{% block content %}",
                                      "{% block content %}"+_T10_CSS,1)
 # Put the small notification opt-in in the current section head; no extra panel.
