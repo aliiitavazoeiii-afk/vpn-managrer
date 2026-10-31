@@ -42,12 +42,12 @@ exec(compile(sys.stdin.read(),"<compact-v10-preflight>","exec"),vars(m))
 assert [r.path for r in m.app.routes]==before+["/control-room/v10/daily"]
 t=m.TEMPLATES["control_room.html"]
 for name in ("t10-compact-css","t10-purchase","ترافیک روز","t10FetchDaily",
-             "t10Topup","t10-notify",'id="c3-mode"','id="c2-users"'):
+             "t10Topup","t10-notify","id=\"c3-mode\"","id=\"c2-users\""):
  assert name in t,name
-assert 'id="t9-topup-panel"' not in t
+assert "id=\"t9-topup-panel\"" not in t
 assert "const t10CSRF=\"{{ ctrl_csrf }}\"" in t
 assert "{{ mc.csrf_token }}" not in t
-assert t.count('id="c2-cards"')==1
+assert t.count("id=\"c2-cards\"")==1
 Environment().parse(t)
 scope={"type":"http","asgi":{"version":"3.0"},"http_version":"1.1",
  "method":"GET","scheme":"https","path":"/control-room","root_path":"",
@@ -56,7 +56,7 @@ scope={"type":"http","asgi":{"version":"3.0"},"http_version":"1.1",
  "session":{},"app":m.app}
 page=m._cr2_page(Request(scope))
 assert page.status_code==200
-assert b"t10-purchase" in page.body and b'id="t9-topup-panel"' not in page.body
+assert b"t10-purchase" in page.body and b"id=\"t9-topup-panel\"" not in page.body
 print("V10_ACTUAL_PAGE_RENDER_PREFLIGHT_OK")
 '
 echo "=== VERIFY EXISTING 500GB PURCHASE EXACTLY ONCE ==="
