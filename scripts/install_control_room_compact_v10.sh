@@ -25,6 +25,7 @@ fi
 systemctl is-active --quiet hesab-maya-net-meter-v2.timer ||
  { echo "STOP: original NIC collector timer inactive";exit 3; }
 python3 -m py_compile "$PATCH" "$DAILY"
+python3 "$SOURCE/scripts/test_install_control_room_compact_v10_syntax.py"
 compose config -q
 OLD="$(compose ps -q app)"
 [[ -n "$OLD" ]] && [[ "$(docker inspect -f '{{.State.Running}}' "$OLD")" == true ]] ||
