@@ -174,6 +174,7 @@ _T9_AREA=r'''
   </div>
   <button id="t9-topup-submit" type="button">ثبت خرید ترافیک</button>
  </div>
+ <p class="t9-existing-seed">شارژ ۵۰۰ گیگ امروزِ مایا ۱ هنگام نصب فقط یک‌بار ثبت می‌شود؛ آن خرید را دوباره ثبت نکن.</p>
  <div id="t9-feedback" role="status" aria-live="polite"></div>
  <div id="t9-alerts" aria-live="polite"></div>
  <details><summary>سابقه خریدهای ثبت‌شده</summary><div id="t9-history"></div></details>
