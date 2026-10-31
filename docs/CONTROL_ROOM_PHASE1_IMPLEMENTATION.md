@@ -107,3 +107,16 @@ Diagnosed 2026-10-31 from operator samples: `maya1` RX 1.437 GB TX 1.396 GB; `ma
 - installer `scripts/install_control_room_provider_reference_v6.sh 144 189 144`: پیش‌بررسی ادغام قالب روی app زنده در فرایند جدا، نسخه پشتیبان `patches/maya1_control.py` و فایل گزارش، recreate **فقط** app، احراز دقیق ارقام خوانده‌شده در داخل کانتینر و rollback خودکار. اگر قبلاً نصب باشد، فقط ارقام مرجع جدید به‌روزرسانی می‌شوند، بدون restart.
 - پس از آن، برای محاسبه زنده: ابتدا جهت واقعی قابل‌صورتحساب `rx` یا `tx` و timestamp هم‌زمان با اعداد دیتاسنتر باید تأیید شود؛ سپس period-baseline با داده معتبر تعریف می‌شود. بدون این کار اعداد به روز نمی‌شوند.
 - تست مستقل `scripts/test_control_room_provider_reference_v6.py` زنجیره V2→Phase1→V3→V4→M2→V5→V6 را برای syntax قالب و JavaScript و بازگرداندن reference معتبر یا ناامن بررسی می‌کند.
+
+
+## V7 (2026-10-31): مانده آزمایشی کاهشی، فقط از لحظه جدید
+
+Issue: after V6 displaying last reported provider balances `maya1=144GB, maya-s3=189GB, maya4=144GB`, values remained unchanged overnight because V6 intentionally stores a static operator-provided **historical reference**; independent NIC RX/TX counters do increment but never influence V6.
+
+V7 implementation:
+- `scripts/maya_provider_provisional_baseline_v7.py` creates a fresh, immutable RX+TX baseline on activation for all three hosts, using a current `status.json` and the operator's old V6 balance file. No attempt to infer the unmeasured time difference between historical provider observation and new baseline.
+- `scripts/maya_net_meter_collect_v2.py` adds a boolean `counter_uncertain` field to the existing read-only summary; no changes to NIC accounting, XUI, finance, SSH or purchased provider quota. Expose counter-reboot/reset uncertainty in meter output even when billing direction remains unconfirmed.
+- `patches/control_room_provisional_remaining_v7.py` adds read-only `GET /control-room/v7/provisional-remaining` with age/format/value/uncertainty checks, calculates `max(0, old_provider_report_gb - (current_rx_period_gb - activation_rx_baseline_gb))` ONLY when sample is fresh and no reset uncertainty. UI labels it “برآورد موقت از مرجع قدیمی · RX”, with 0.001GB display precision; retains old reference on unavailable reading. Never treats this provisional estimate as verified, and **does not trigger 10GB alerts**.
+- `scripts/install_control_room_provisional_remaining_v7.sh` refuses already-baselined/mismatched collector, verifies the 1-minute timer is active, runs an isolated admin preflight, takes app+collector backups, replaces only the collector and app patch and initialises a fresh immutable baseline, recreates only `app`, verifies route and readback then rolls back on error.
+- `scripts/test_control_room_provisional_remaining_v7.py` verifies full Jinja/JS overlay chain, forward subtraction, RX-only assumption, reset fail-closed, and disabled alerts.
+- **Crucial limitation:** last night's time of provider observation has not been established. Therefore V7 is a *moving trend from activation*, not reliable actual remaining GB. Avoid using for automatic network cutoff decisions or provider expiry alerts. For accurate remaining GB, obtain the **current provider balance** concurrently with RX/TX sample, determine provider-billed direction, then configure approved quota baseline; do not pretend historical usage can be backfilled.
