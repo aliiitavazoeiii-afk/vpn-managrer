@@ -193,6 +193,8 @@ async function t10Permission(){
  const button=document.getElementById("t10-notify");
  if(button)button.textContent=value==="granted"?"اعلان فعال است":"فعال‌سازی اعلان";
 }
+const t10Bell=document.getElementById("t10-notify");
+if(t10Bell)t10Bell.addEventListener("click",t10Permission);
 t9Refresh();t10FetchDaily();
 setInterval(t9Refresh,60000);
 setInterval(t10FetchDaily,60000);
