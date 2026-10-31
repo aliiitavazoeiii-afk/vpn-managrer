@@ -9,6 +9,7 @@ on:
       - 'patches/control_room_net_meter_v2_ui.py'
       - 'patches/control_room_nic_live_v5.py'
       - 'patches/control_room_provider_reference_v6.py'
+      - 'patches/control_room_provisional_remaining_v7.py'
       - 'scripts/phase1_iran_*_v1.py'
       - 'scripts/test_control_room_phase1_v1.py'
       - 'scripts/test_control_room_table_v3.py'
@@ -20,6 +21,9 @@ on:
       - 'scripts/test_maya_net_meter_v2.py'
       - 'scripts/test_control_room_nic_live_v5.py'
       - 'scripts/test_control_room_provider_reference_v6.py'
+      - 'scripts/test_control_room_provisional_remaining_v7.py'
+      - 'scripts/maya_provider_provisional_baseline_v7.py'
+      - 'scripts/install_control_room_provisional_remaining_v7.sh'
       - 'scripts/maya_provider_balance_reference_v1.py'
       - 'scripts/install_control_room_provider_reference_v6.sh'
       - 'scripts/install_control_room_nic_live_v5.sh'
@@ -44,6 +48,7 @@ jobs:
           python3 scripts/test_maya_net_meter_v2.py
           python3 scripts/test_control_room_nic_live_v5.py
           python3 scripts/test_control_room_provider_reference_v6.py
+          python3 scripts/test_control_room_provisional_remaining_v7.py
       - name: Bash syntax
         run: |
           bash -n scripts/diagnose_phase1_maya_payments_v1.sh
@@ -55,3 +60,4 @@ jobs:
           bash -n scripts/maya_net_meter_pair_v2.sh
           bash -n scripts/install_control_room_nic_live_v5.sh
           bash -n scripts/install_control_room_provider_reference_v6.sh
+          bash -n scripts/install_control_room_provisional_remaining_v7.sh
