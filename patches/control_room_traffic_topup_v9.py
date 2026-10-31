@@ -4,6 +4,7 @@
 # V7 provisional RX estimate + sum of topups, with honestly provisional alerts.
 import json as _t9_json
 import secrets as _t9_secrets
+from pathlib import Path as _t9_Path
 import re as _t9_re
 from fastapi import Request as _t9_Request,Depends as _t9_Depends,HTTPException as _t9_Error,Form as _t9_Form
 from fastapi.responses import JSONResponse as _t9_JSON
@@ -21,15 +22,36 @@ CREATE TABLE IF NOT EXISTS hesab_maya_traffic_topups_v9 (
  server_id VARCHAR(16) NOT NULL CHECK(server_id IN ('maya1','maya-s3','maya4')),
  gb INTEGER NOT NULL CHECK(gb IN (100,200,500)),
  request_key VARCHAR(64) NOT NULL UNIQUE,
+ meter_epoch VARCHAR(100) NOT NULL,
  origin VARCHAR(32) NOT NULL CHECK(origin IN ('operator_ui','initial_operator_purchase')),
  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 )
 """
 
+_T9_BASELINE=_t9_Path("/srv/maya-live/phase1/provisional_meter_baseline_v7.json")
+def _t9_epochs():
+    try:
+        raw=_t9_json.loads(_T9_BASELINE.read_text(encoding="utf8"))
+        if (raw.get("format")!="HESAB_MAYA_PROVISIONAL_BASELINE_V7" or
+            raw.get("direction_assumption")!="rx" or
+            raw.get("alert_eligible") is not False):
+            raise ValueError("Unexpected meter baseline")
+        result={}
+        for name in _T9_NAMES:
+            b=raw["servers"][name]
+            epoch=f'{raw["created_at"]}|{b["rx_baseline_gb"]}'
+            if not _t9_re.fullmatch(r"[0-9.]{2,100}\\|[0-9.]{1,40}",epoch):
+                raise ValueError("Invalid meter epoch")
+            result[name]=epoch
+        return result
+    except (OSError,ValueError,TypeError,KeyError):
+        return {}
+
 def _t9_get_data(db):
     rows=db.execute(_t9_text(
        "SELECT id,server_id,gb,origin,created_at FROM "+_T9_TABLE+
        " ORDER BY id DESC LIMIT 100")).all()
+    epochs=_t9_epochs()
     sums={k:0 for k in _T9_NAMES}
     recent=[]
     # Last 100 for UI; total MUST be query over all rows, never last 100.
@@ -37,10 +59,14 @@ def _t9_get_data(db):
         recent.append({"id":int(row.id),"server":row.server_id,
                        "gb":int(row.gb),"origin":row.origin,
                        "at":row.created_at.isoformat()})
+    # Only credit purchases recorded AFTER the CURRENT V7 RX baseline.
+    # A future V8 rebaseline already includes earlier purchases in the new
+    # provider reference; old ledger rows must not be credited twice.
     for row in db.execute(_t9_text(
-          "SELECT server_id,COALESCE(SUM(gb),0) AS total FROM "+
-          _T9_TABLE+" GROUP BY server_id")).all():
-        if row.server_id in sums:sums[row.server_id]=int(row.total)
+        "SELECT server_id,meter_epoch,COALESCE(SUM(gb),0) AS total FROM "+
+        _T9_TABLE+" GROUP BY server_id,meter_epoch")).all():
+        if row.server_id in sums and epochs.get(row.server_id)==row.meter_epoch:
+            sums[row.server_id]=int(row.total)
     return sums,recent
 
 def _t9_status(request:_t9_Request,db:_t9_Session=_t9_Depends(get_db)):
@@ -91,12 +117,15 @@ def _t9_add(request:_t9_Request,
     if (server not in _T9_NAMES or amount not in _T9_AMOUNTS or
         not _t9_re.fullmatch(r"[A-Za-z0-9_-]{20,64}",request_key)):
         raise _t9_Error(status_code=422,detail="Invalid server, amount or request identifier")
+    epochs=_t9_epochs()
+    if server not in epochs:
+        raise _t9_Error(status_code=409,detail="Meter baseline not configured; cannot apply credit safely")
     try:
         inserted=db.execute(_t9_text("""
-INSERT INTO hesab_maya_traffic_topups_v9(server_id,gb,request_key,origin)
-VALUES(:server,:gb,:key,'operator_ui')
+INSERT INTO hesab_maya_traffic_topups_v9(server_id,gb,request_key,meter_epoch,origin)
+VALUES(:server,:gb,:key,:epoch,'operator_ui')
 ON CONFLICT(request_key) DO NOTHING RETURNING id
-"""),{"server":server,"gb":amount,"key":request_key}).first()
+"""),{"server":server,"gb":amount,"key":request_key,"epoch":epochs[server]}).first()
         if inserted is None:
             existing=db.execute(_t9_text("""
 SELECT server_id,gb FROM hesab_maya_traffic_topups_v9 WHERE request_key=:key
