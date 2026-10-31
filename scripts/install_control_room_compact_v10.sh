@@ -56,7 +56,7 @@ scope={"type":"http","asgi":{"version":"3.0"},"http_version":"1.1",
  "session":{},"app":m.app}
 page=m._cr2_page(Request(scope))
 assert page.status_code==200
-assert b"t10-purchase" in page.body and b\'id="t9-topup-panel"\' not in page.body
+assert b"t10-purchase" in page.body and b'id="t9-topup-panel"' not in page.body
 print("V10_ACTUAL_PAGE_RENDER_PREFLIGHT_OK")
 '
 echo "=== VERIFY EXISTING 500GB PURCHASE EXACTLY ONCE ==="
@@ -162,7 +162,7 @@ scope={"type":"http","asgi":{"version":"3.0"},"http_version":"1.1",
  "session":{},"app":m.app}
 page=m._cr2_page(Request(scope))
 assert page.status_code==200
-assert b"t10-purchase" in page.body and b\'id="t9-topup-panel"\' not in page.body
+assert b"t10-purchase" in page.body and b'id="t9-topup-panel"' not in page.body
 daily=json.loads(m._t10_daily(None).body)["servers"]
 assert all(daily[k]["state"]=="ok" for k in ("maya1","maya-s3","maya4"))
 s=next(m.get_db())
