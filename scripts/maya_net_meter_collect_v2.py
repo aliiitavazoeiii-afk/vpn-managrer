@@ -124,6 +124,7 @@ def calculate(config,sample,previous,now):
     data={"role":"iran","state":"ok","traffic_source":"physical_nic",
           "probe_state":"not_configured",
           "sample_age_s":0,
+          "counter_uncertain":uncertain,
           "traffic_state":"direction_unconfirmed"}
     direction=config.get("direction")
     period=config.get("period_id")
