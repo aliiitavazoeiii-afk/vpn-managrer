@@ -61,7 +61,8 @@ class App:
         self.routes[path]=(method,methods)
 app=App()
 ns={"__builtins__":__builtins__,"TEMPLATES":templates,"env":env,
-    "app":app,"_cr2_one":lambda server,db:{"rows":[]}}
+    "app":app,"_cr2_one":lambda server,db:{"rows":[]},
+    "get_db":lambda:None}
 for path in order:
     src=(ROOT/path).read_text(encoding="utf8")
     ast.parse(src)
@@ -80,6 +81,8 @@ assert app.routes["/control-room/v6/provider-reference"][1]==["GET"]
 assert app.routes["/control-room/v7/provisional-remaining"][1]==["GET"]
 assert app.routes["/control-room/v9/topup"][1]==["POST"]
 assert app.routes["/control-room/v9/traffic"][1]==["GET"]
+assert "{{ ctrl_csrf }}" in final
+assert "{{ mc.csrf_token }}" not in final
 
 with tempfile.TemporaryDirectory() as d:
     temp=Path(d)
