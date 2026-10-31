@@ -205,7 +205,8 @@ border-radius:10px;padding:12px;margin:9px 0;font-size:12px;line-height:1.8}
 #t9-topup-panel details{font-size:11px;color:#adbce0;border-top:1px solid #ffffff24;padding-top:10px;margin-top:10px}
 #t9-topup-panel summary{cursor:pointer}
 #t9-topup-panel .t9-history-item{padding:7px 0;border-bottom:1px solid #ffffff18}
-@media(max-width:650px){#t9-topup-panel{padding:13px}
+@media(max-width:650px){
+#t9-topup-panel{padding:13px}
 #t9-topup-panel .t9-layout{align-items:stretch;flex-direction:column}
 #t9-topup-panel .t9-choice label{flex:1;text-align:center}}
 </style>
