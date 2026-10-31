@@ -197,6 +197,11 @@ with tempfile.TemporaryDirectory() as d:
     try:ns["_t9_add"](req,**{**action,"amount":200})
     except HTTPException as e:assert e.status_code==409
     else:raise AssertionError("duplicate identifier changed purchase amount")
+    # Guard against a CSS media brace followed by an ID becoming a Jinja comment.
+    css=re.findall(r"<style[^>]*>(.*?)</style>",final,re.DOTALL)
+    assert css
+    assert all("{#" not in item for item in css)
+    assert 'id="t9-topup-style"' in final
     scripts=re.findall(r"<script>(.*?)</script>",final,re.DOTALL)
     assert scripts
     for index,script in enumerate(scripts):
