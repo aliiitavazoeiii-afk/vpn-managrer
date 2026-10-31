@@ -40,7 +40,7 @@ def _t9_epochs():
         for name in _T9_NAMES:
             b=raw["servers"][name]
             epoch=f'{raw["created_at"]}|{b["rx_baseline_gb"]}'
-            if not _t9_re.fullmatch(r"[0-9.]{2,100}\\|[0-9.]{1,40}",epoch):
+            if not _t9_re.fullmatch(r"[0-9.]{2,100}\|[0-9.]{1,40}",epoch):
                 raise ValueError("Invalid meter epoch")
             result[name]=epoch
         return result
