@@ -438,3 +438,22 @@ It also reports whether existing routes differ only by an injective
 renaming of opaque group IDs (`DIFF_ONLY_OPAQUE_GROUP_IDENTIFIERS=YES`).
 Even that diagnostic does not authorize a Caddy reload: perform human
 review of preserved grouping and order, backup and rollback first.
+
+## 15. Verified root cause of the strict Caddy structural diff (operator)
+
+2026-11-03 live, read-only diagnostic on the actual Caddyfile:
+- BASELINE_AND_CANDIDATE_ADAPT=PASS.
+- CANDIDATE_ROUTES_REMOVED=1.
+- DIFF_ONLY_OPAQUE_GROUP_IDENTIFIERS=YES.
+- Exactly two existing group label occurrences changed in the adapted JSON.
+- No hostnames, credentials, route values or adapted JSON were printed.
+- NO_CONFIG_CHANGES_NO_CADDY_RELOAD_NO_VPN_PROBES.
+
+Next audited script: audit_caddy_group_equivalence_v11.py alongside
+the previously audited audit_caddy_offline_regression_v11.py and
+audit_caddy_offline_candidate_v11.py, all sharing one local directory.
+This script requires a *bijective* old-to-new generated group ID map
+(preserves group membership), preserves all other adapted JSON objects
+and array/route order EXACTLY, requires one POST-only heartbeat route,
+and confirms it shares the existing exclusive Caddy handle group.
+Any conflict fails closed, and even PASS does NOT permit deployment.
