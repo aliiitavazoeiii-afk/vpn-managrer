@@ -389,3 +389,30 @@ SIGNED_HEARTBEAT_ROUTE=EXACT_POST_ROUTE_PRESENT.
 OTHER_EXISTING_ROUTES_REGRESSION=NOT_TESTED remains a blocker for rollout.
 The final proxy must be reviewed as an offline candidate and obtain
 explicit approval and a tested backup/rollback. Do not touch Maya hosts.
+
+
+## 13. Offline Caddy regression diff gate (2026-11-03)
+
+Read-only operator audit results:
+- BASELINE_ADAPT=PASS; CANDIDATE_ADAPT=PASS.
+- SIGNED_HEARTBEAT_ROUTE=EXACT_POST_ROUTE_PRESENT.
+- LIVE_CADDYFILE_EDITED=NO; CADDY_RELOAD_OR_RESTART=NO.
+
+The previous tool did not compare the OTHER routes. Next use
+`monitoring_v11/audit_caddy_offline_regression_v11.py` together with its
+sibling `audit_caddy_offline_candidate_v11.py` (both in same directory).
+It adapts original and candidate Caddyfiles entirely IN MEMORY, locates
+one candidate reverse_proxy guarded by exact `method POST` and exact
+`path /api/control-room/v11/heartbeat`, removes only that route from a
+copy of candidate adapted JSON, then requires the remaining adapted
+JSON document to equal the original adapted JSON document exactly.
+It prints verdicts only, never the Caddyfile or adapted JSON, and never
+applies/reloads live Caddy. Unrecognized route structures or any difference
+are BLOCKED / NOT_IDENTICAL_AFTER_STRIP. A passing result is
+`REGRESSION_COMPARISON UNCHANGED_EXCEPT_NEW_POST_ROUTE`.
+
+A passing *structural* diff is necessary but NOT sufficient for rollout:
+real reverse-proxy startup, authenticated admin/session isolation,
+existing payment flows, Docker DNS to new service, staging signed
+heartbeat, DB restore, and rollback remain unverified. No Production
+changes or Maya1 Agent deployment are authorized.
