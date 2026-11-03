@@ -228,6 +228,7 @@ _TV11_JS=r'''
  if(window.__hesabTelemetryV11)return;window.__hesabTelemetryV11=true;
  const csrf="{{ ctrl_csrf }}",ids=["maya1","maya-s3","maya4"];
  const labels={"maya1":"مایا ۱","maya-s3":"مایا ۳","maya4":"مایا ۴"};
+ const iranLastReportedIPs={"maya1":"94.184.4.38","maya-s3":"185.215.230.221","maya4":"5.10.249.206"};
  const root=document.getElementById("tv11-overview");
  if(!root)return;
  const by=id=>document.getElementById(id);
@@ -292,6 +293,7 @@ _TV11_JS=r'''
       add(head,"span",labels[sid]);
       const pill=add(head,"span",status(data.state),"tv11-pill");pill.dataset.state=data.state;
       const info=add(item,"div",null,"tv11-info"),sys=data.system||{};
+      field(info,"IP ایران (آخرین گزارش اپراتور، ۱۴۰۵/۰۸/۱۲)",iranLastReportedIPs[sid]||"نامشخص");
       field(info,"آخرین داده",data.updated_ts?time(data.updated_ts):"—");
       field(info,"نوع تونل",data.tunnel_type||"نامشخص");
       field(info,"CPU",amount(sys.cpu_pct,"٪"));
@@ -310,7 +312,7 @@ _TV11_JS=r'''
         const detail=add(item,"div",null,"tv11-route");
         const d=paths[lane]||{},h=stats[lane]||{};
         add(detail,"b",lane==="backhaul"?"Backhaul V2":"Mieru");
-        add(detail,"small","IP خارج: "+(data.foreign_ips?.[lane]||"نامشخص")+
+        add(detail,"small","IP خارج در تنظیمات: "+(data.foreign_ips?.[lane]||"نامشخص")+
           " · HAProxy: "+(h.status||"نامشخص"));
         add(detail,"small","HTTPS: "+(d.tcp_https==="ok"?"موفق":d.tcp_https==="degraded"?
           "ناموفق/نیاز به بررسی":"نامشخص")+
