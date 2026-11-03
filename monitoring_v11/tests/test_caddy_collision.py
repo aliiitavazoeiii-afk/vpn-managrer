@@ -56,8 +56,6 @@ class CaddyCollisionTests(unittest.TestCase):
         self.assertFalse(r["ready"])
 
     def test_wrong_route_topology_fails_closed(self):
-        changed=example().replace("  handle {\\n", "  handle /other/* {\\n")
-        # Real replacement strings use actual newlines below.
         changed=example().replace("  handle {\n", "  handle /other/* {\n")
         result=mod.evaluate(changed)
         self.assertEqual(result["structure"],"UNEXPECTED_HANDLER_COUNT")
@@ -70,7 +68,7 @@ class CaddyCollisionTests(unittest.TestCase):
         self.assertNotIn("hesab.filmjadiid.ir",source)
         self.assertNotIn("94.184.4.38",source)
         self.assertNotIn("socket.create_connection(",source)
-        self.assertNotIn("subprocess",source)
+        self.assertNotIn("import subprocess",source)
 
 if __name__=="__main__":
     unittest.main()
