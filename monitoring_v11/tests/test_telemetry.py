@@ -46,7 +46,7 @@ def payload(sid="maya1",tm=1762171200,nonce=None,a=True,b=True):
         "system":{
             "cpu_pct":12.4,"ram_pct":33.2,"disk_pct":40.0,"uptime_s":500,
             "interface":"ens160","rx_bytes":123456,"tx_bytes":789012,
-            "tcp443_loopback":"reachable",
+            "tcp443_listen":"listening",
         },
         "services":{"x-ui":"active","dual-ha-v2-health":"active"},
         "controller":{"state":"ok","age_s":3.0,
