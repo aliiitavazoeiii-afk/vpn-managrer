@@ -49,7 +49,11 @@ class RedirectTests(unittest.TestCase):
             ("{","BLOCK"),
         ]:
             with self.subTest(matcher=kind):
-                x=m.evaluate(config(matcher))
+                document=config(matcher)
+                if matcher=="{":
+                    document=document.replace("  @redir {\n  redir",
+                                              "  @redir {\n    path /old/*\n  }\n  redir")
+                x=m.evaluate(document)
                 self.assertEqual((x["kind"],x["match"]),(kind,"UNKNOWN"))
 
     def test_bad_redirect_and_topology_are_rejected(self):
