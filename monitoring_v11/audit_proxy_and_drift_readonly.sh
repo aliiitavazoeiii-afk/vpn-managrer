@@ -25,28 +25,14 @@ try:
    if len(vals) < 5:continue
    port=vals[3].rsplit(":",1)[-1]
    if port in {"80","443","8000","8080","8081","8090","8091","8199","8443","9000"}:
-    print(vals[3], "LISTENING", "process_visible" if len(vals)>5 else "process_unknown")
+    print("PORT", port, "LISTENING",
+          "scope="+("loopback" if vals[3].startswith("127.") or vals[3].startswith("[::1]")
+                   else "wildcard" if vals[3].startswith("0.0.0.0") or vals[3].startswith("[::]")
+                   else "specific_bind"))
 except (OSError,subprocess.TimeoutExpired):
  print("LISTENERS_UNAVAILABLE")
 PY
-echo "PUBLIC_DOMAIN_CONNECTIVITY"
-python3 - <<'PY'
-import socket,subprocess
-domain="hesab.filmjadiid.ir"
-try:
- ips=sorted({x[4][0] for x in socket.getaddrinfo(domain,443,type=socket.SOCK_STREAM)})
- print("DNS_AAAA",",".join(ips[:12]) if ips else "NONE")
-except OSError:
- print("DNS_UNAVAILABLE")
-try:
- p=subprocess.run(["curl","-sS","--max-time","8","-o","/dev/null",
-     "-w","HTTP=%{http_code} SSL_VERIFY=%{ssl_verify_result} REMOTE_IP=%{remote_ip}",
-     "https://"+domain+"/control-room"],capture_output=True,text=True,timeout=11)
- print("PUBLIC_TLS_REQUEST",p.stdout.strip() if p.stdout else "NONE",
-       "CURL_EXIT="+str(p.returncode))
-except (OSError,subprocess.TimeoutExpired):
- print("PUBLIC_TLS_REQUEST_UNAVAILABLE")
-PY
+echo "PUBLIC_HTTPS_ROUTE=NOT_TESTED (no DNS lookup or outbound HTTPS probe)"
 echo "DOCKER_RUNTIME_APP_IDENTITY"
 python3 - <<'PY'
 import json,subprocess
@@ -62,8 +48,7 @@ try:
   for mount in obj.get("Mounts",[]):
    dst=str(mount.get("Destination",""))
    if dst.startswith("/srv/maya-live") or dst.startswith("/sms-patch") or dst=="/app/app/main.py":
-    print("MOUNT",dst,"rw="+str(mount.get("RW",False)),
-          "source="+str(mount.get("Source","")))
+    print("MOUNT",dst,"rw="+str(mount.get("RW",False)),"source=REDACTED")
 except (OSError,ValueError,IndexError,subprocess.TimeoutExpired):
  print("DOCKER_APP_INSPECT=UNAVAILABLE")
 PY
