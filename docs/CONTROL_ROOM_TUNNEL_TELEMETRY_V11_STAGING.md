@@ -138,71 +138,68 @@ Before applying:
 Never run root install.sh, docker compose down -v, git reset --hard
 or database seed/import on this financial application.
 
-## 5. STAGING setup: independent receiver
+## 5. STAGING: receiver on existing shared Docker network (NO LIVE DEPLOY)
 
-Create directories privately on the management host:
-    install -d -o root -g root -m 0700 /etc/hesab-telemetry-v11
-    install -d -o root -g root -m 0700 /opt/vpn-control-center/maya_extra_sync/telemetry_v11
+Read-only audit on Nov 3 confirmed:
+- `darma-general-caddy-1` uses `darma-general_default` AND
+  `vpn-control-center_default` networks.
+- `vpn-control-center-app-1` is already on `vpn-control-center_default`.
+- The live Hesab Caddy site has TWO upstream ports (8090 and 8000),
+  but the routing/matcher rules have NOT been confirmed.
+- The live `/opt/darma-general/Caddyfile` is locally modified from Git;
+  preserve it exactly. It is bind-mounted read-only into Caddy.
 
-Install from reviewed feature checkout:
-    install -m 0755 monitoring_v11/receiver.py /usr/local/sbin/hesab-v11-receiver
+**Invalid earlier assumption:** a listener at host 127.0.0.1:8199
+is not reachable from the Caddy container via its own loopback.
+Do not install the old host systemd receiver or the old Caddy target.
 
-Generate THREE independent secrets privately, with no chat/log exposure:
-    umask 077
-    openssl rand -hex 32
+Prepared, NOT INSTALLED:
+- `monitoring_v11/docker-compose.telemetry-v11.yml` adds an isolated
+  `telemetry-receiver-v11` container to the EXISTING VPN Compose network,
+  implicitly reachable by Docker service DNS on that bridge.
+- No host `ports:` publication whatsoever; no new Iran inbound ports.
+- Receiver binds `0.0.0.0:8199` INSIDE that isolated container ONLY when
+  `HESAB_RECEIVER_DEPLOYMENT=docker-internal` is explicitly supplied.
+  The default receiver mode remains loopback-only.
+- Receiver checks that the immediate peer is a Docker/private address,
+  rejects unauthorized HMAC, replay, stale timestamp, invalid JSON/body
+  and unknown/disabled server IDs. A private peer alone is NEVER enough.
+- Container configuration includes readonly filesystem, dropped Linux
+  capabilities, disabled privilege escalation, 128MB memory and CPU limit,
+  no docker.sock and no host network mode.
+- Independent telemetry SQLite volume is mounted RW to receiver only;
+  the app sees it via existing `/srv/maya-live:ro` mount.
 
-Create /etc/hesab-telemetry-v11/receiver.json, chmod 0600, owner root.
-Example structure (replace ALL placeholder secrets with different values):
+Strict prerequisites before any container creation:
+1. Verify live Caddyfile routing structure, exact matcher ordering and
+   existing Hesab upstream behavior using ONLY a sanitized read-only audit.
+2. Confirm the management-host running overlay hash vs approved source.
+3. Verify backup, independent PostgreSQL restore and rollback.
+4. Verify test network DNS/alias resolution in STAGING, not on Maya1.
+5. Prepare root-owned 0600 configuration at
+   `/etc/hesab-telemetry-v11/receiver.json`, with independently generated
+   32-byte random HMAC keys for maya1/maya-s3/maya4. Never paste keys into
+   chats or commit them to Git.
+6. Audit the effective Compose configuration to ensure no host port map.
+7. Add an exact HTTPS POST-only matcher for
+   `/api/control-room/v11/heartbeat` in a reviewed COPY of the current
+   Caddyfile. Proposed internal upstream: `telemetry-receiver-v11:8199`.
+   Preserve all other handlers for Hesab portal/admin, Darma and Kharj.
+8. Validate a staging reverse proxy and signed request first. Caddy must
+   provide the correct HTTPS forwarded scheme. NEVER proxy `/healthz`.
+9. Only after explicit owner approval, apply a verified one-service
+   Compose change and a reversible Caddy reload. No automatic deployment.
+
+Example private receiver JSON layout (DO NOT commit real keys):
 
     {
       "database_path": "/opt/vpn-control-center/maya_extra_sync/telemetry_v11/telemetry.sqlite3",
       "servers": {
-        "maya1": {"enabled": true, "key_hex": "MAYA1_64_HEX"},
-        "maya-s3": {"enabled": true, "key_hex": "MAYA3_DIFFERENT_64_HEX"},
-        "maya4": {"enabled": true, "key_hex": "MAYA4_DIFFERENT_64_HEX"}
+        "maya1": {"enabled": true, "key_hex": "FIRST_SECRET_64_HEX"},
+        "maya-s3": {"enabled": true, "key_hex": "SECOND_SECRET_64_HEX"},
+        "maya4": {"enabled": true, "key_hex": "THIRD_SECRET_64_HEX"}
       }
     }
-
-Create /etc/systemd/system/hesab-telemetry-v11.service:
-    [Unit]
-    Description=Hesab V11 signed telemetry receiver (localhost)
-    After=network-online.target
-    [Service]
-    Type=simple
-    User=root
-    ExecStart=/usr/bin/python3 /usr/local/sbin/hesab-v11-receiver
-    Restart=on-failure
-    RestartSec=5
-    ProtectHome=yes
-    ProtectSystem=strict
-    ReadWritePaths=/opt/vpn-control-center/maya_extra_sync/telemetry_v11
-    NoNewPrivileges=yes
-    [Install]
-    WantedBy=multi-user.target
-
-Start in staging only and confirm listening on 127.0.0.1:8199,
-NEVER on a public interface.
-
-Reverse proxy: inspect the actual current Caddy/nginx config first.
-Only the POST endpoint /api/control-room/v11/heartbeat should proxy
-to 127.0.0.1:8199 and forward X-Forwarded-Proto=https, with valid TLS.
-The receiver refuses direct public clients or non-HTTPS proxy headers.
-Do not replace the full production reverse proxy configuration blindly.
-Do not expose /healthz externally. Browser calls admin app APIs only.
-
-Illustrative Caddy matcher INSIDE the existing site (not a complete file):
-    @hesabV11Heartbeat {
-      path /api/control-room/v11/heartbeat
-      method POST
-    }
-    handle @hesabV11Heartbeat {
-      reverse_proxy 127.0.0.1:8199 {
-        header_up X-Forwarded-Proto https
-      }
-    }
-
-Before any reload: caddy validate, backup config, verify no route
-regression and retain previous working config for rollback.
 
 ## 6. STAGING setup: independent Agent on each Iran host
 
