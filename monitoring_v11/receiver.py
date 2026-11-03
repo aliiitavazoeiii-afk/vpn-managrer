@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hesab telemetry V11: restricted localhost-only signed heartbeat receiver.
+"""Hesab telemetry V11: HMAC-authenticated receiver, local or isolated Docker.
 
 Independent SQLite tables inside the pre-existing read-only Maya telemetry mount.
 Does not load or write the finance PostgreSQL database, X-UI or local tunnel.
@@ -8,6 +8,7 @@ Never sends SMS. The alert outbox is review-only until provider delivery is appr
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hashlib
 import hmac
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -64,8 +65,9 @@ CREATE TABLE IF NOT EXISTS alerts (
 
 
 def read_config(path=CONFIG):
-    if not path.is_file() or path.stat().st_mode & 0o077:
-        raise RuntimeError("Receiver config must be root-owned and chmod 0600")
+    if (not path.is_file() or path.is_symlink() or path.stat().st_mode & 0o077
+            or path.stat().st_uid != 0):
+        raise RuntimeError("Receiver config must be root-owned, regular, non-symlink, 0600")
     cfg = json.loads(path.read_text(encoding="utf8"))
     entries = cfg.get("servers", {})
     if not isinstance(entries, dict) or not entries or set(entries) - ALLOWED:
@@ -332,9 +334,23 @@ def process_heartbeat(headers, body, config_keys, db_path, now=None):
         db.close()
 
 
+def allowed_proxy_peer(address, mode):
+    """No public source IPs; Docker mode still REQUIRES HMAC and no ports mapping."""
+    if mode == "loopback":
+        return address in ("127.0.0.1", "::1")
+    if mode == "docker-internal":
+        try:
+            peer = ipaddress.ip_address(address)
+        except ValueError:
+            return False
+        return (peer.version == 4 and peer.is_private and not peer.is_loopback
+                and not peer.is_link_local and not peer.is_multicast)
+    return False
+
 class Handler(BaseHTTPRequestHandler):
     keys = {}
     storage = None
+    peer_mode = "loopback"
     def log_message(self, fmt, *args):
         # Do not log signed payload, token, URL query, remote addresses or headers.
         return
@@ -356,8 +372,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path != PATH:
             return self.respond(404,"not_found")
-        if self.client_address[0] not in ("127.0.0.1","::1"):
-            return self.respond(403,"local_reverse_proxy_required")
+        if not allowed_proxy_peer(self.client_address[0], self.peer_mode):
+            return self.respond(403,"untrusted_proxy_peer")
         if self.headers.get("X-Forwarded-Proto") != "https":
             return self.respond(403,"https_required")
         if self.headers.get("Content-Type","").split(";")[0].strip().lower()!="application/json":
@@ -393,10 +409,16 @@ def main():
     initialize(storage)
     Handler.keys=keys
     Handler.storage=storage
+    mode = os.environ.get("HESAB_RECEIVER_DEPLOYMENT", "loopback")
+    if mode not in ("loopback", "docker-internal"):
+        raise RuntimeError("Invalid receiver deployment mode")
+    Handler.peer_mode = mode
     threading.Thread(target=sweep_loop,args=(storage,),daemon=True).start()
-    # NOT exposed publicly; reverse proxy must forward only exact heartbeat path.
-    server=ThreadingHTTPServer(("127.0.0.1",8199),Handler)
-    print("HESAB_TELEMETRY_V11_LISTENING_LOCAL_ONLY",flush=True)
+    # Docker mode binds container interfaces but MUST have no host-published ports.
+    # Signed HMAC remains mandatory regardless of the peer address.
+    bind_host = "0.0.0.0" if mode == "docker-internal" else "127.0.0.1"
+    server=ThreadingHTTPServer((bind_host,8199),Handler)
+    print("HESAB_TELEMETRY_V11_DEPLOYMENT",mode,flush=True)
     server.serve_forever(poll_interval=0.5)
 
 
