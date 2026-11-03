@@ -66,6 +66,27 @@ def find_heartbeat_routes(obj):
     visit(obj)
     return found
 
+def exclusive_handle_group_shared(document):
+    """The new handler must share its exclusive group with a sibling route."""
+    found=[]
+    def visit(value):
+        if isinstance(value,dict):
+            for key,part in value.items():
+                if key=="routes" and isinstance(part,list):
+                    matching=[r for r in part if isinstance(r,dict)
+                              and REG.exact_heartbeat_match(r) and REG.has_upstream(r)]
+                    for route in matching:
+                        gid=route.get("group")
+                        siblings=[r.get("group") for r in part
+                                  if isinstance(r,dict) and r is not route]
+                        found.append(isinstance(gid,str) and bool(gid)
+                                     and gid in siblings)
+                visit(part)
+        elif isinstance(value,list):
+            for item in value: visit(item)
+    visit(document)
+    return len(found)==1 and found[0]
+
 def evaluate(old, new):
     if REG.has_upstream(old):
         return {"pass":False, "reason":"BASELINE_HAS_RECEIVER"}
@@ -74,6 +95,8 @@ def evaluate(old, new):
         return {"pass":False, "reason":"HEARTBEAT_MATCH_COUNT_UNEXPECTED"}
     if not REG.has_upstream(routes[0]):
         return {"pass":False, "reason":"HEARTBEAT_UPSTREAM_WRONG"}
+    if not exclusive_handle_group_shared(new):
+        return {"pass":False, "reason":"NEW_ROUTE_NOT_IN_EXISTING_EXCLUSIVE_GROUP"}
     if REG.compare(old,new) not in ("UNCHANGED_EXCEPT_NEW_POST_ROUTE",
                                      "NOT_IDENTICAL_AFTER_STRIP"):
         return {"pass":False, "reason":"STRICT_ROUTE_GATE_BLOCKED"}
