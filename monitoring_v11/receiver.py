@@ -323,8 +323,11 @@ def process_heartbeat(headers, body, config_keys, db_path, now=None):
         payload=validate_payload(json.loads(body),sid,nonce,int(timestamp))
     except (ValueError,TypeError,UnicodeDecodeError):
         return 422,"invalid_payload"
-    with db_connect(db_path) as db:
+    db=db_connect(db_path)
+    try:
         return ingest(db,sid,nonce,int(timestamp),payload,now)
+    finally:
+        db.close()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -371,8 +374,11 @@ class Handler(BaseHTTPRequestHandler):
 def sweep_loop(db_path):
     while True:
         try:
-            with db_connect(db_path) as db:
+            db=db_connect(db_path)
+            try:
                 mark_stale(db)
+            finally:
+                db.close()
         except (OSError,sqlite3.Error):
             pass
         time.sleep(30)
