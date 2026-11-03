@@ -86,7 +86,7 @@ PY
 done
 (( ready == 1 ))
 code=$(curl -sS --max-time 9 -o /dev/null -w '%{http_code}' https://hesab.filmjadiid.ir/control-room/v11/status || true)
-[[ "$code" != 200 ]] || { echo "STOP: signed-out telemetry unexpectedly public";false; }
+case "$code" in 302|303|307|308|401|403) ;; *) echo "STOP: signed-out API security not verified, HTTP=$code";false;; esac
 trap - ERR EXIT
 echo "SUCCESS: V11 UI DEPLOYED; BACKUP=$BACK; SIGNED_OUT_HTTP=$code"
 echo "NO XUI/FINANCE/AGENT/RECEIVER OR SMS CHANGES"
