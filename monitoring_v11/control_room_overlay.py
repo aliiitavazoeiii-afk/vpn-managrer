@@ -228,7 +228,6 @@ _TV11_JS=r'''
  if(window.__hesabTelemetryV11)return;window.__hesabTelemetryV11=true;
  const csrf="{{ ctrl_csrf }}",ids=["maya1","maya-s3","maya4"];
  const labels={"maya1":"مایا ۱","maya-s3":"مایا ۳","maya4":"مایا ۴"};
- const iranLastReportedIPs={"maya1":"94.184.4.38","maya-s3":"185.215.230.221","maya4":"5.10.249.206"};
  const root=document.getElementById("tv11-overview");
  if(!root)return;
  const by=id=>document.getElementById(id);
@@ -293,7 +292,6 @@ _TV11_JS=r'''
       add(head,"span",labels[sid]);
       const pill=add(head,"span",status(data.state),"tv11-pill");pill.dataset.state=data.state;
       const info=add(item,"div",null,"tv11-info"),sys=data.system||{};
-      field(info,"IP ایران (آخرین گزارش اپراتور، ۱۴۰۵/۰۸/۱۲)",iranLastReportedIPs[sid]||"نامشخص");
       field(info,"آخرین داده",data.updated_ts?time(data.updated_ts):"—");
       field(info,"نوع تونل",data.tunnel_type||"نامشخص");
       field(info,"CPU",amount(sys.cpu_pct,"٪"));
@@ -303,7 +301,7 @@ _TV11_JS=r'''
       field(info,"RX/TX NIC",amount(sys.rx_bytes!=null?sys.rx_bytes/1e9:null," / ")+
         amount(sys.tx_bytes!=null?sys.tx_bytes/1e9:null," GB"));
       field(info,"Xray / XUI",data.services?.["x-ui"]||"نامشخص");
-      field(info,"TCP 443 محلی",sys.tcp443_loopback||"نامشخص");
+      field(info,"پورت ۴۴۳ در حالت LISTEN (بدون Probe)",sys.tcp443_listen||"نامشخص");
       field(info,"سلامت واقعی کلاینت VPN","تست نشده");
       field(info,"سهمیه دیتاسنتر","نامشخص");
       field(info,"UDP","اندازه‌گیری نشده");
