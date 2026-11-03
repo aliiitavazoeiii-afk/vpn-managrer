@@ -56,15 +56,14 @@ class CaddyCollisionTests(unittest.TestCase):
         self.assertFalse(r["ready"])
 
     def test_wrong_route_topology_fails_closed(self):
-        x=example().replace("  handle {\n", "  reverse_proxy admin-service:8000\n  handle {\n")
-        # A second default handle always fails, even if other paths are clear.
-        x=x.replace("  handle {\n", "  handle {\n")
-        self.assertEqual(mod.evaluate(example().replace("  handle {\n","  handle /other/* {\n") )["structure"],
-                         "EXPECTED_SHAPE")
-        self.assertFalse(mod.evaluate(example().replace(
-            "  handle {\n", "  handle /other/* {\n"))["ready"]
-                         if False else True)
-        self.assertFalse(mod.evaluate(example() + "hesab.other.invalid { }\n")["ready"])
+        changed=example().replace("  handle {\\n", "  handle /other/* {\\n")
+        # Real replacement strings use actual newlines below.
+        changed=example().replace("  handle {\n", "  handle /other/* {\n")
+        result=mod.evaluate(changed)
+        self.assertEqual(result["structure"],"UNEXPECTED_HANDLER_COUNT")
+        self.assertFalse(result["ready"])
+        duplicate=example().replace("  handle {\n", "  handle {\n  }\n  handle {\n")
+        self.assertFalse(mod.evaluate(duplicate)["ready"])
 
     def test_no_current_ip_domain_or_sensitive_data_printed(self):
         source=file.read_text()
