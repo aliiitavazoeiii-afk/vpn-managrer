@@ -20,8 +20,8 @@ Tunnel files are under dual-backhaul-mieru-ha/v2/.
   and compare all mounted overlays before making a deployment decision.
 - From operator terminal reports, the three XUI destinations as of
   2026-11-03 were:
-  maya1 = 94.184.4.38, maya-s3 = 185.215.230.221,
-  maya4 = 5.10.249.206.
+  maya1, maya-s3, and maya4 are the IDs. IP inventory is private and
+  must not be copied into the public Git repository.
   XUI API success does NOT prove true VPN egress and does not prove that
   all three hosts use the new dual tunnel architecture.
 - Existing admin routes and customer finance/payment routes must remain.
@@ -54,9 +54,9 @@ Those counters reset on restart and do not represent daily billing.
 Connection share and byte share are separate percentages; never claim
 they are 50/50 or infer UDP from TCP/HTTPS tests.
 
-Foreign IP addresses are taken from SANITIZED installed configuration
-keys BH_FOREIGN_IP and Mieru ipAddress. They are configured addresses,
-not verified independent egress IPs.
+Foreign IP addresses are optional private metadata in the root-owned
+Agent JSON (foreign_ips). Agent does not read private Backhaul/Mieru
+bundles. Unconfigured foreign addresses are UNKNOWN.
 
 ## 3. V11 feature contents and limitations
 
@@ -66,7 +66,7 @@ monitoring_v11/iran_agent.py:
   HAProxy statistics and configured foreign IP; no UUID, credentials,
   REALITY private key, payment information or users exported.
   Does not restart/disable/enable any tunnel or XUI process.
-  HTTPS POST to the existing Hesab domain, one key per server.
+  HTTPS POST to the privately configured verified panel domain, one key per server.
 
 monitoring_v11/receiver.py:
   Dedicated localhost-only HTTP server 127.0.0.1:8199 with HMAC-SHA256
@@ -214,7 +214,7 @@ Install ONLY the reviewed agent; never paste keys into GitHub/chat:
 Root-owned /etc/hesab-telemetry-v11/agent.json, chmod 0600:
     {
       "server_id": "maya1",
-      "endpoint": "https://hesab.filmjadiid.ir/api/control-room/v11/heartbeat",
+      "endpoint": "https://<PRIVATE_VERIFIED_PANEL_DOMAIN>/api/control-room/v11/heartbeat",
       "key_hex": "SAME_MAYA1_SECRET_AS_RECEIVER",
       "interface": "CONFIRMED_REAL_INTERFACE"
     }
@@ -280,3 +280,34 @@ Feature-branch CI path:
 
 No V11 deployment or actual Production backup verification was performed
 by the assistant. A successful feature commit is not a live acceptance test.
+
+## 9. Maya1 stability-first non-interference policy
+
+- No new HTTPS health probe, no loopback TCP port-443 connect, no network
+  test to a foreign IP, and no new tunnel controller requests are allowed.
+- The agent uses only pre-existing health.json, local read-only show stat
+  on the HAProxy Unix socket, /proc and /sys counters, filesystem usage,
+  read-only systemd is-active checks, and its own private 0600 config.
+- The port 443 indication comes from /proc/net/tcp and /proc/net/tcp6
+  LISTEN entries only. This is not proof of remote client reachability.
+- Optional foreign IPs come solely from private Agent config metadata.
+  It never reads the existing Mieru or Backhaul credential bundles.
+- Sender makes one outbound HTTPS POST per approved run to a configured
+  management FQDN. HTTPS validates TLS; redirects and environment proxies
+  are disabled. No new inbound Iran-host port is used.
+- Local HAProxy socket connection only sends the fixed show stat command.
+  HAProxy still has an admin-capable Unix socket, so permission hardening
+  matters. The reader makes no enable, disable, set, reload or restart call.
+- Each run is single-shot. Proposed 30-second systemd timer is optional
+  and must only be installed after separate explicit owner authorization.
+- An outbound telemetry POST creates some additional management traffic.
+  Thus absolute zero detection risk cannot be promised; verify normal
+  host policy routes, resource overhead and independent failure behavior
+  on a non-Maya1 host before running it on Maya1.
+- The GitHub repos are public and earlier history contains real IPs,
+  including earlier V11 feature commits. This revision removes explicit
+  current IPs and the panel FQDN from feature source, but Git history still
+  exposes prior values. Do not rewrite Git history or change visibility
+  without explicit owner approval.
+- Rollout order: offline audit -> receiver staging -> non-Maya1 dry run
+  -> approval -> Maya1 sender trial. Do not change existing tunnel services.
