@@ -6,6 +6,12 @@ on:
     paths:
       - 'monitoring_v11/**'
       - '.github/workflows/test-control-room-telemetry-v11.yml'
+  pull_request:
+    branches:
+      - manual-sms-batch-operator-open
+    paths:
+      - 'monitoring_v11/**'
+      - '.github/workflows/test-control-room-telemetry-v11.yml'
   workflow_dispatch:
 jobs:
   telemetry-unit-tests:
