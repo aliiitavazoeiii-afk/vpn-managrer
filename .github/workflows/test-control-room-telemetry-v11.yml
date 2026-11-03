@@ -1,0 +1,46 @@
+name: Test Control Room Tunnel Telemetry V11
+on:
+  push:
+    branches:
+      - feat/control-room-tunnel-telemetry-v11
+    paths:
+      - 'monitoring_v11/**'
+      - '.github/workflows/test-control-room-telemetry-v11.yml'
+  workflow_dispatch:
+jobs:
+  telemetry-unit-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Python syntax
+        run: |
+          python3 -m py_compile monitoring_v11/iran_agent.py monitoring_v11/receiver.py monitoring_v11/control_room_overlay.py monitoring_v11/tests/test_telemetry.py
+      - name: Security and reconciliation tests
+        run: |
+          python3 -m unittest discover -s monitoring_v11/tests -p 'test_*.py' -v
+      - name: Check front-end JavaScript syntax
+        run: |
+          node - <<'JS'
+          const fs=require('fs'),vm=require('vm');
+          const source=fs.readFileSync('monitoring_v11/control_room_overlay.py','utf8');
+          const js=source.split("_TV11_JS=r'''")[1]?.split("'''")[0];
+          if(!js)throw new Error('Control Room JS missing');
+          vm.createScript(js.replace(/<\/?script>/g,'').replace('{{ ctrl_csrf }}','placeholder'));
+          console.log('UI JavaScript syntax OK');
+          JS
+      - name: Assert no unsafe production operations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          code="\n".join(p.read_text() for p in Path("monitoring_v11").glob("*.py"))
+          banned=["docker compose down", "systemctl restart", "subprocess.run(['ssh'", "DROP TABLE",
+                  "DELETE FROM payments","DELETE FROM subscriptions","UPDATE subscriptions"]
+          for text in banned:
+              assert text not in code, f"Forbidden telemetry operation: {text}"
+          assert "hmac.compare_digest" in code
+          assert "BEGIN IMMEDIATE" in code
+          assert "pending_review" in code
+          print("Safety static scan passed")
+          PY
