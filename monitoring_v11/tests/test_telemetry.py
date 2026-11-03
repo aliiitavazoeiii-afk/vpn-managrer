@@ -209,10 +209,10 @@ class AgentTests(unittest.TestCase):
 
     def test_heartbeat_from_agent_is_single_shot_and_not_vpn_health_test(self):
         import unittest.mock as mock
-        with mock.patch.object(agent,"controller",return_value={"state":"unavailable","paths":{},"age_s":None}),
-             mock.patch.object(agent,"haproxy_stats",return_value={}),
-             mock.patch.object(agent,"service_state",return_value="unknown"),
-             mock.patch.object(agent,"sysinfo",return_value={"tcp443_listen":"unknown"}):
+        with (mock.patch.object(agent,"controller",return_value={"state":"unavailable","paths":{},"age_s":None}),
+              mock.patch.object(agent,"haproxy_stats",return_value={}),
+              mock.patch.object(agent,"service_state",return_value="unknown"),
+              mock.patch.object(agent,"sysinfo",return_value={"tcp443_listen":"unknown"})):
             p=agent.build_snapshot("maya1","ens160",{})
         self.assertEqual(p["tunnel_type"],"unidentified")
         self.assertEqual(p["vpn_end_to_end"],"not_tested")
