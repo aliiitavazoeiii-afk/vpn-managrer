@@ -137,13 +137,15 @@ def validate_payload(data, sid, nonce, timestamp):
         raise ValueError("unexpected egress IP metadata")
     if set(data["system"]) != {
         "cpu_pct","ram_pct","disk_pct","uptime_s","interface",
-        "rx_bytes","tx_bytes","tcp443_loopback"
+        "rx_bytes","tx_bytes","tcp443_listen"
     }:
         raise ValueError("unknown host system metric")
     for k in ("cpu_pct", "ram_pct", "disk_pct"):
         v = data["system"][k]
         if v is not None and (type(v) not in (int, float) or not 0 <= v <= 100):
             raise ValueError("invalid host percentage")
+    if data["system"]["tcp443_listen"] not in ("listening", "not_listening", "unknown"):
+        raise ValueError("unexpected passive socket state")
     for k in ("rx_bytes", "tx_bytes", "uptime_s"):
         v = data["system"][k]
         if v is not None and (type(v) is not int or not 0 <= v <= 2**63 - 1):
