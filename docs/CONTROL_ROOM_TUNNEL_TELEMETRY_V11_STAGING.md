@@ -416,3 +416,25 @@ real reverse-proxy startup, authenticated admin/session isolation,
 existing payment flows, Docker DNS to new service, staging signed
 heartbeat, DB restore, and rollback remain unverified. No Production
 changes or Maya1 Agent deployment are authorized.
+
+## 14. V11 adapted Caddy strict diff did not pass (operator 2026-11-03)
+
+Observed from live read-only dry run:
+- BASELINE_ADAPT=PASS and CANDIDATE_ADAPT=PASS.
+- REGRESSION_COMPARISON=NOT_IDENTICAL_AFTER_STRIP.
+- LIVE_CADDY_SHA256 was recorded separately for operator verification.
+- No live Caddyfile editing/reload, no VPN probes, DEPLOYMENT_ALLOWED=NO.
+
+This is NOT proof of a route collision or downtime. A possible cause is
+Caddy's opaque route-group renumbering or nested route restructuring,
+but this has NOT been established on live adapted JSON.
+
+Next run the non-disclosing script
+`monitoring_v11/audit_caddy_regression_diagnostic_v11.py`
+next to existing `audit_caddy_offline_regression_v11.py` and
+`audit_caddy_offline_candidate_v11.py`. It returns only safe structural
+paths and categorical differences; no hostnames, upstreams or values.
+It also reports whether existing routes differ only by an injective
+renaming of opaque group IDs (`DIFF_ONLY_OPAQUE_GROUP_IDENTIFIERS=YES`).
+Even that diagnostic does not authorize a Caddy reload: perform human
+review of preserved grouping and order, backup and rollback first.
