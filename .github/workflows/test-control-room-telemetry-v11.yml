@@ -29,6 +29,7 @@ jobs:
           bash -n monitoring_v11/install_admin_ui_v11.sh
           bash -n monitoring_v11/audit_proxy_and_drift_readonly.sh
           bash -n monitoring_v11/audit_iran_tunnel_readonly.sh
+          bash -n monitoring_v11/audit_shared_docker_gateway_readonly.sh
       - name: Security and reconciliation tests
         run: |
           python3 -m unittest discover -s monitoring_v11/tests -p 'test_*.py' -v
