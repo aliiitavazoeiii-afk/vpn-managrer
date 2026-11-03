@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify Python syntax
         run: |
-          python3 -m py_compile monitoring_v11/iran_agent.py monitoring_v11/receiver.py monitoring_v11/control_room_overlay.py monitoring_v11/tests/test_telemetry.py
+          python3 -m py_compile monitoring_v11/iran_agent.py monitoring_v11/receiver.py monitoring_v11/control_room_overlay.py monitoring_v11/audit_caddy_match_collision_readonly.py monitoring_v11/tests/test_telemetry.py
       - name: Verify deploy and preflight shell syntax
         run: |
           bash -n monitoring_v11/preflight_production_readonly.sh
