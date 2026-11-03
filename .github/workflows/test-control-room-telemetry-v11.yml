@@ -25,6 +25,7 @@ jobs:
           python3 -m py_compile monitoring_v11/iran_agent.py monitoring_v11/receiver.py monitoring_v11/receiver_http_smoketest_v11.py monitoring_v11/control_room_overlay.py monitoring_v11/audit_caddy_match_collision_readonly.py monitoring_v11/audit_caddy_redirect_v2_readonly.py monitoring_v11/audit_caddy_offline_candidate_v11.py monitoring_v11/audit_caddy_offline_regression_v11.py monitoring_v11/audit_caddy_regression_diagnostic_v11.py monitoring_v11/audit_caddy_group_equivalence_v11.py monitoring_v11/tests/test_caddy_group_equivalence_v11.py monitoring_v11/tests/test_caddy_offline_regression_v11.py monitoring_v11/tests/test_caddy_regression_diagnostic_v11.py monitoring_v11/tests/test_telemetry.py monitoring_v11/tests/test_caddy_redirect_v2.py
       - name: Verify deploy and preflight shell syntax
         run: |
+          bash -n monitoring_v11/receiver_caddy_https_smoketest_v11.sh
           bash -n monitoring_v11/preflight_production_readonly.sh
           bash -n monitoring_v11/install_admin_ui_v11.sh
           bash -n monitoring_v11/audit_proxy_and_drift_readonly.sh
