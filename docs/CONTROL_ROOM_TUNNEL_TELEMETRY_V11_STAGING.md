@@ -337,3 +337,31 @@ by the assistant. A successful feature commit is not a live acceptance test.
 - Operator's unrelated V134 Darma-General production deployment completed
   with its own backup and web restart. Do not roll it back or alter it
   as part of VPN telemetry work.
+
+## 11. Live Caddy route topology verified; collision guard still pending
+
+On 2026-11-03 the operator's redacted read-only audit reported:
+- Exactly one Hesab site block in the active locally modified Caddyfile.
+- One named matcher/redirect at the site level.
+- One handle_path with upstream port 8090.
+- One default handle with upstream port 8000.
+- Balanced braces. No content from the Caddyfile was printed.
+
+The next non-mutating step is the conservative script:
+`python3 monitoring_v11/audit_caddy_match_collision_readonly.py`
+which reads the REAL live Caddyfile and reports only whether the
+existing handle_path and redirect match the proposed POST
+`/api/control-room/v11/heartbeat`. The script never prints
+upstream hostnames, route matcher values or credentials.
+
+Results `OVERLAP` OR `UNKNOWN` must block automatic Caddy editing.
+Even if it reports `CLEAR` on both, do not immediately reload Caddy:
+inspect an offline candidate and the actual Caddy adapter ordering in
+staging, back up the local production-only Caddyfile, and retain a
+verified rollback for shared Darma, Kharj and Hesab services.
+
+Implementation proposal ONLY (not installed): an exact POST-only Caddy
+named matcher and `handle` proxy to the new Docker service DNS name
+`telemetry-receiver-v11:8199`, declared ahead of the catchall handle.
+HTTPS terminates in Caddy; receiver checks timestamped HMAC message.
+No Caddy data-plane or tunnel path changes are permitted in this step.
