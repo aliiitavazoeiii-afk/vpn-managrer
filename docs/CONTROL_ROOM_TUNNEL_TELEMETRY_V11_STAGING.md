@@ -457,3 +457,28 @@ This script requires a *bijective* old-to-new generated group ID map
 and array/route order EXACTLY, requires one POST-only heartbeat route,
 and confirms it shares the existing exclusive Caddy handle group.
 Any conflict fails closed, and even PASS does NOT permit deployment.
+
+## 16. Operator 2026-11-03: Caddy V11 structural-equivalence gate PASS
+
+The real production, unmodified Caddyfile adaptation produced:
+- BASELINE_ADAPT=PASS / CANDIDATE_ADAPT=PASS.
+- STRUCTURAL_EQUIVALENCE UNCHANGED_EXCEPT_EXACT_POST_AND_GROUP_RENAMES.
+- ORIGINAL_GROUP_MEMBERSHIP_PRESERVED=YES.
+- ORIGINAL_ROUTE_ORDER_AND_HANDLERS_PRESERVED=YES.
+- ORIGINAL_GROUP_IDS=1, GROUP_LABEL_OCCURRENCES_CHANGED=2.
+- NO_CADDY_CONFIG_EDIT_OR_RELOAD; NO_VPN_NETWORK_PROBES.
+
+**Next step, not deployment:** The temporary loopback HTTP integration
+script `monitoring_v11/receiver_http_smoketest_v11.py` imports the reviewed
+`receiver.py`, opens only an automatically assigned 127.0.0.1 port,
+creates random HMAC key in memory and SQLite under tempfile, and
+tests signed POST/duplicate/bad HMAC/forwarded scheme responses.
+It shuts down its temporary HTTP server and deletes its test DB.
+It makes ZERO contact to Maya hosts or the shared Docker Caddy.
+GitHub Actions exercises the same isolated test. No real provider
+quota, real VPN link, public TLS or Docker routing is verified by this.
+
+After real host smoke test, proceed to a separate Docker staging
+receiver test with no published host port, explicit resource limits
+and a dedicated test DB; production Caddy remains unchanged until
+approval and rollback/finance checks are verified.
