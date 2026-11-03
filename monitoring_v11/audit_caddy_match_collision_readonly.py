@@ -54,7 +54,8 @@ def evaluate(contents):
     hp=[x for x in commands if re.match(r"^handle_path\s",x)]
     hd=[x for x in commands if re.match(r"^handle(?:\s|\{)",x)]
     redirect=[x for x in commands if re.match(r"^redir(?:\s|$)",x)]
-    if len(hp)!=1 or len(hd)!=1 or len(redirect)!=1:
+    if (len(hp)!=1 or len(hd)!=1 or len(redirect)!=1
+            or not re.fullmatch(r"handle\s+\{\s*", hd[0])):
         return {"structure":"UNEXPECTED_HANDLER_COUNT",
                 "handle_path":"UNKNOWN","redirect":"UNKNOWN","ready":False}
     tokens=hp[0].replace("{"," ").split()
