@@ -365,3 +365,27 @@ named matcher and `handle` proxy to the new Docker service DNS name
 `telemetry-receiver-v11:8199`, declared ahead of the catchall handle.
 HTTPS terminates in Caddy; receiver checks timestamped HMAC message.
 No Caddy data-plane or tunnel path changes are permitted in this step.
+
+## 12. November 3 redirect cleared; next gate: in-memory Caddy adapter check
+
+Operator's latest read-only Caddy redirect result:
+- SITE FOUND, ROUTE_SHAPE EXPECTED, REDIRECT_MATCHER_CLASS PATH.
+- REDIRECT_POST_HEARTBEAT_OVERLAP CLEAR, REVIEW_GATE PASS_MATCHER_ONLY.
+- Earlier handle_path collision check was CLEAR.
+
+These results eliminate the known matcher overlap concern but DO NOT
+prove that Caddy will parse the new block or that other routes are
+unaffected. No changes have been deployed.
+
+Before any config modification, run ONLY the offline candidate checker
+`monitoring_v11/audit_caddy_offline_candidate_v11.py` on the management
+host. It passes current and in-memory candidate Caddyfile content over
+stdin to a separate `caddy adapt` CLI process via Docker exec. It does
+not print config or adapted JSON, does not reload/start Caddy, does not
+write temp/prod files, and requires the existing Caddy container.
+
+Passing results: BASELINE_ADAPT=PASS, CANDIDATE_ADAPT=PASS and
+SIGNED_HEARTBEAT_ROUTE=EXACT_POST_ROUTE_PRESENT.
+OTHER_EXISTING_ROUTES_REGRESSION=NOT_TESTED remains a blocker for rollout.
+The final proxy must be reviewed as an offline candidate and obtain
+explicit approval and a tested backup/rollback. Do not touch Maya hosts.
