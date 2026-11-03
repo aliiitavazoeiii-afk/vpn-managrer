@@ -39,6 +39,14 @@ class GroupAuditTests(unittest.TestCase):
         self.assertEqual(res["old_group_count"],1)
         self.assertEqual(res["group_values_changed"],2)
 
+    def test_new_heartbeat_must_share_existing_exclusive_group(self):
+        x=next_version()
+        rr=x["apps"]["http"]["servers"]["srv"]["routes"][0]["handle"][0]["routes"]
+        rr[0]["group"]="independent"
+        outcome=mod.evaluate(base(),x)
+        self.assertFalse(outcome["pass"])
+        self.assertEqual(outcome["reason"],"NEW_ROUTE_NOT_IN_EXISTING_EXCLUSIVE_GROUP")
+
     def test_split_group_rejected(self):
         x=next_version()
         rr=x["apps"]["http"]["servers"]["srv"]["routes"][0]["handle"][0]["routes"]
