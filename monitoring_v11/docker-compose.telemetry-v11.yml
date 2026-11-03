@@ -1,0 +1,39 @@
+# Docker-internal receiver ONLY. Complement to the real live Compose files.
+# DO NOT run until Caddy routing, staging and validated rollback are approved.
+# Intentionally NO ports: block; nothing is exposed on the host interface.
+services:
+  telemetry-receiver-v11:
+    image: python:3.12-slim
+    restart: unless-stopped
+    read_only: true
+    user: "0:0"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 48
+    mem_limit: 128m
+    cpus: "0.20"
+    environment:
+      HESAB_RECEIVER_DEPLOYMENT: docker-internal
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    command: ["python3", "-B", "/opt/hesab-v11/receiver.py"]
+    volumes:
+      - ./monitoring_v11/receiver.py:/opt/hesab-v11/receiver.py:ro
+      - /etc/hesab-telemetry-v11/receiver.json:/etc/hesab-telemetry-v11/receiver.json:ro
+      - ./maya_extra_sync/telemetry_v11:/opt/vpn-control-center/maya_extra_sync/telemetry_v11:rw
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=8m
+    logging:
+      driver: json-file
+      options:
+        max-size: "2m"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; assert urllib.request.urlopen('http://127.0.0.1:8199/healthz', timeout=2).status == 202"]
+      interval: 30s
+      timeout: 4s
+      retries: 3
+    # The default network of vpn-control-center already includes Caddy.
+    # No network_mode, extra_hosts, privileged, or host port publication.
