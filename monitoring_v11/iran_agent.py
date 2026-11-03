@@ -22,6 +22,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+from urllib.parse import urlsplit
 
 HEALTH = Path("/run/dual-ha-v2/health.json")
 HAPROXY = "/run/dual-ha-v2/haproxy.sock"
@@ -69,21 +70,35 @@ def read_json_small(path, limit=32768):
 
 
 def config():
-    if not CONFIG.is_file() or CONFIG.stat().st_mode & 0o077:
-        raise RuntimeError("Missing 0600 agent configuration")
+    if not CONFIG.is_file() or CONFIG.is_symlink() or CONFIG.stat().st_mode & 0o077 or CONFIG.stat().st_uid != 0:
+        raise RuntimeError("Root-owned non-symlink 0600 agent configuration required")
     data = json.loads(CONFIG.read_text(encoding="utf-8"))
     if data.get("server_id") not in ALLOWED:
         raise RuntimeError("Invalid server_id")
     endpoint = str(data.get("endpoint", ""))
-    if endpoint != "https://hesab.filmjadiid.ir/api/control-room/v11/heartbeat":
-        raise RuntimeError("Unexpected remote endpoint")
+    u = urlsplit(endpoint)
+    if (u.scheme != "https" or u.path != "/api/control-room/v11/heartbeat"
+            or u.username is not None or u.password is not None or u.query or u.fragment
+            or not u.hostname or u.port not in (None, 443) or len(u.hostname) > 253
+            or not re.fullmatch(r"[A-Za-z0-9.-]+", u.hostname)
+            or "." not in u.hostname or ".." in u.hostname):
+        raise RuntimeError("Invalid fixed HTTPS telemetry endpoint")
+    try:
+        ipaddress.ip_address(u.hostname)
+        raise RuntimeError("Use a verified HTTPS domain, not a raw IP")
+    except ValueError:
+        pass
     key = bytes.fromhex(str(data.get("key_hex", "")))
     if len(key) != 32:
         raise RuntimeError("HMAC key must be 32 random bytes")
     interface = str(data.get("interface", ""))
     if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,25}", interface) or interface == "lo":
         raise RuntimeError("Invalid network interface")
-    return data["server_id"], endpoint, key, interface
+    foreign = data.get("foreign_ips", {})
+    if not isinstance(foreign, dict) or set(foreign) - set(LANES):
+        raise RuntimeError("Invalid optional foreign IP metadata")
+    known_ips = {lane: ipv4(value) for lane, value in foreign.items()}
+    return data["server_id"], endpoint, key, interface, known_ips
 
 
 def cpu():
@@ -116,7 +131,7 @@ def sysinfo(interface):
     net = Path("/sys/class/net") / interface / "statistics"
     result = {"cpu_pct": cpu(), "ram_pct": ram(), "disk_pct": None,
               "uptime_s": None, "interface": interface,
-              "rx_bytes": None, "tx_bytes": None, "tcp443_loopback": "unknown"}
+              "rx_bytes": None, "tx_bytes": None, "tcp443_listen": "unknown"}
     try:
         usage = shutil.disk_usage("/")
         result["disk_pct"] = finite(100 * usage.used / usage.total, 0, 100)
@@ -128,11 +143,16 @@ def sysinfo(interface):
             result[field] = nonnegative((net / name).read_text().strip())
         except OSError:
             pass
-    # No assertion about internet egress or port filtering from this loopback probe.
+    # Passive /proc check ONLY. A LISTEN socket is NOT proof of external reachability.
     try:
-        with socket.create_connection(("127.0.0.1", 443), timeout=0.3):
-            result["tcp443_loopback"] = "reachable"
-    except OSError:
+        rows = []
+        for name in ("/proc/net/tcp", "/proc/net/tcp6"):
+            rows.extend(Path(name).read_text(encoding="ascii").splitlines()[1:])
+        result["tcp443_listen"] = "listening" if any(
+            len(fields := row.split()) > 3 and fields[1].rsplit(":", 1)[-1].upper() == "01BB"
+            and fields[3] == "0A" for row in rows
+        ) else "not_listening"
+    except (OSError, IndexError):
         pass
     return result
 
@@ -224,24 +244,7 @@ def haproxy_stats():
         return {}
 
 
-def foreign_ips():
-    result = {name: None for name in LANES}
-    try:
-        for line in Path("/etc/dual-ha/backhaul-bundle.env").read_text().splitlines():
-            m = re.fullmatch(r"BH_FOREIGN_IP='([^']+)'", line)
-            if m:
-                result["backhaul"] = ipv4(m.group(1))
-    except OSError:
-        pass
-    mieru = read_json_small(Path("/etc/dual-ha/mieru.json"))
-    try:
-        result["mieru"] = ipv4(mieru["profiles"][0]["servers"][0]["ipAddress"])
-    except (KeyError, IndexError, TypeError):
-        pass
-    return result
-
-
-def build_snapshot(server_id, interface):
+def build_snapshot(server_id, interface, known_foreign_ips=None):
     health = controller()
     services = {name: service_state(name) for name in SERVICES}
     ha = haproxy_stats()
@@ -255,7 +258,7 @@ def build_snapshot(server_id, interface):
         "tunnel_type": tunnel_type, "system": sysinfo(interface),
         "services": services,
         "controller": health, "haproxy": ha,
-        "foreign_ips": foreign_ips() if tunnel_type != "unidentified" else {},
+        "foreign_ips": (known_foreign_ips or {}) if tunnel_type != "unidentified" else {},
         "quota": {"state": "unknown", "remaining_gb": None},
         "xui_online": None, "vpn_end_to_end": "not_tested",
     }
@@ -274,7 +277,12 @@ def send(endpoint, key, snapshot):
         "X-Hesab-Nonce": snapshot["nonce"],
         "X-Hesab-Signature": "sha256=" + signature,
     })
-    with urllib.request.urlopen(req, timeout=9) as resp:
+    # Disable environment HTTP proxies and redirects: signed headers must not leak.
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            raise RuntimeError("Unexpected telemetry redirect")
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    with opener.open(req, timeout=9) as resp:
         if resp.status != 202:
             raise RuntimeError("Telemetry receiver did not accept payload")
 
@@ -282,8 +290,8 @@ def send(endpoint, key, snapshot):
 def main():
     if os.geteuid() != 0:
         raise RuntimeError("Sensor requires root for local restricted HAProxy socket")
-    sid, endpoint, key, iface = config()
-    snapshot = build_snapshot(sid, iface)
+    sid, endpoint, key, iface, foreign = config()
+    snapshot = build_snapshot(sid, iface, foreign)
     send(endpoint, key, snapshot)
     print("HEARTBEAT_ACCEPTED", sid, "controller", snapshot["controller"]["state"])
 
