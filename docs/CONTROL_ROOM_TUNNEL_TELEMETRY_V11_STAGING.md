@@ -482,3 +482,47 @@ After real host smoke test, proceed to a separate Docker staging
 receiver test with no published host port, explicit resource limits
 and a dedicated test DB; production Caddy remains unchanged until
 approval and rollback/finance checks are verified.
+
+## 17. Operator 2026-11-03: isolated real HTTP + Docker receiver smoke tests PASS
+
+Operator-provided management-host terminal evidence, after commit bba523facdb56e9d87f113c5af267face36bc2e5:
+
+1. Ran pinned receiver.py and receiver_http_smoketest_v11.py under
+   /root/hesab-v11-offline-smoke on management host:
+   LISTEN_INTERFACE=127.0.0.1_ONLY; VALID_SIGNED_POST=202;
+   REPLAY=REJECTED; INVALID_SIGNATURE=401;
+   NON_HTTPS_FORWARD_HEADER=403; EPHEMERAL_SQLITE_SAMPLES=1;
+   SYNTHETIC_VPN_HEALTH=UNKNOWN.
+2. Read-only Docker readiness: Docker 29.9.1; existing
+   vpn-control-center_default network and both Compose files present;
+   vpn-control-center app, customer-portal, sms-gateway and db healthy;
+   shared darma-general-caddy-1 running; no host listener on :8199.
+   python:3.12-slim was not cached, and was pulled for the next test.
+3. Ran transient receiver on a DIFFERENT, newly created Docker
+   --internal network, with no host port binding. Used an independent
+   synthetic HMAC key and separate temporary SQLite; a second container
+   sent the test traffic. Results:
+   RECEIVER_HEALTH=202; HOST_PORT_PUBLICATION=NONE;
+   DOCKER_INTERNAL_SIGNED_POST=202; DOCKER_REPLAY=REJECTED;
+   DOCKER_INVALID_HMAC=401; SYNTHETIC_VPN_STATE=UNKNOWN;
+   STAGING_SQLITE_SAMPLES=1; STAGING_SQLITE_REPLAYS=1;
+   ISOLATED_DOCKER_TEST=PASS.
+   Test shell used EXIT cleanup to remove the disposable receiver,
+   isolated network and temporary directory; completed normally.
+
+Evidence scope: these PASS results prove standalone HTTP HMAC behavior
+and a cross-container private Docker network path only. They DO NOT
+prove a shared production Docker-network route, actual TLS termination
+through Caddy, existing finance/portal route non-regression, credentials
+of real Maya hosts, provider quotas, or any operational VPN health.
+The tests did not attach the new receiver to the live vpn-control-center
+network or edit/reload production Caddy/finance/VPN services.
+
+NEXT GATE: separately start ephemeral Caddy + receiver containers ONLY
+on an isolated disposable Docker network, with a synthetic TLS site and
+matching POST-only handle rule. Prove that TLS proxy forwards correct
+scheme and exact-route requests while GET/other paths remain rejected.
+Do not mount or edit the production Caddyfile, publish any host port,
+or connect to Maya hosts. Before any shared-network/production rollout,
+verify backup, independently restorable PostgreSQL archive, live UI
+source drift, admin authorization and a reviewed rollback. No deploy approval.
