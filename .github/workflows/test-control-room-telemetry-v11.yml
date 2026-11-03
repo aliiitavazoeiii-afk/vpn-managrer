@@ -42,6 +42,24 @@ jobs:
           vm.createScript(js.replace(/<\/?script>/g,'').replace('{{ ctrl_csrf }}','placeholder'));
           console.log('UI JavaScript syntax OK');
           JS
+      - name: Assert sender never performs active VPN probe or reads tunnel secrets
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          a=Path("monitoring_v11/iran_agent.py").read_text()
+          overlay=Path("monitoring_v11/control_room_overlay.py").read_text()
+          docs=Path("docs/CONTROL_ROOM_TUNNEL_TELEMETRY_V11_STAGING.md").read_text()
+          audit=Path("monitoring_v11/audit_proxy_and_drift_readonly.sh").read_text()
+          for forbidden in ["socket.create_connection(", "/etc/dual-ha/", "subprocess.run([\"curl\"", "urllib.request.urlopen("]:
+              assert forbidden not in a, "Forbidden agent operation: "+forbidden
+          assert "ProxyHandler({})" in a and "NoRedirect()" in a
+          assert "tcp443_listen" in a
+          for source in [a,overlay,docs,audit]:
+              assert "hesab.filmjadiid.ir" not in source
+          assert "PUBLIC_DOMAIN_CONNECTIVITY" not in audit
+          assert "curl" not in audit
+          print("Passive/no-secrets/no-extra-probes audit passed")
+          PY
       - name: Assert no unsafe production operations
         run: |
           python3 - <<'PY'
