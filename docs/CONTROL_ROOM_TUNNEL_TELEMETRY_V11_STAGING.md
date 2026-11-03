@@ -311,3 +311,32 @@ by the assistant. A successful feature commit is not a live acceptance test.
   without explicit owner approval.
 - Rollout order: offline audit -> receiver staging -> non-Maya1 dry run
   -> approval -> Maya1 sender trial. Do not change existing tunnel services.
+
+## 10. Production edge discovery, 2026-11-03 — IMPORTANT BLOCKER
+
+- Operator read-only inventory confirms ports 80/443 are published by
+  `darma-general-caddy-1` (Caddy running in a Docker container), whereas
+  Hesab admin app publishes its port 8080 on host loopback.
+- In the Darma-General repository, `compose.yml` mounts its Caddyfile
+  read-only at `/etc/caddy/Caddyfile`. The tracked public Caddyfile contains
+  only Gozaresh and Kharj sites; the live operator checkout shows the
+  Caddyfile MODIFIED and may contain additional bespoke Hesab routing.
+- Thus **do not edit/replace `/opt/darma-general/Caddyfile` from GitHub**.
+  Back up and inspect the actual live Caddyfile and full Docker networks
+  on both containers. Do not `git checkout`/`git reset` this file.
+- IMPORTANT: a reverse proxy running in a different container CANNOT
+  reach the host's `127.0.0.1:8199` via its own loopback. The earlier
+  illustrative Caddy snippet targeting `127.0.0.1:8199` is NOT valid
+  for this known deployment; DO NOT APPLY IT.
+- The receiver deployment is blocked until a vetted Docker-internal-only
+  route or a safe Unix socket / explicitly approved non-public gateway
+  is designed and tested. No host-wide port 8199 exposure.
+- Do not reload Caddy merely to test telemetry. Existing Darma-General,
+  Expense and Hesab HTTPS services share this reverse proxy.
+- `darma-general-caddy-1` and `vpn-control-center-app-1` container network
+  memberships, their exact existing Hesab upstream mapping, and current
+  Caddyfile changes must be inspected using *read-only* commands before
+  any receiver or agent installation.
+- Operator's unrelated V134 Darma-General production deployment completed
+  with its own backup and web restart. Do not roll it back or alter it
+  as part of VPN telemetry work.
