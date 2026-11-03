@@ -52,7 +52,7 @@ def payload(sid="maya1",tm=1762171200,nonce=None,a=True,b=True):
         "controller":{"state":"ok","age_s":3.0,
                       "paths":{"backhaul":lane(a),"mieru":lane(b)}},
         "haproxy":{"backhaul":h("UP"),"mieru":h("UP")},
-        "foreign_ips":{"backhaul":"1.1.1.1","mieru":"8.8.8.8"},
+        "foreign_ips":{"backhaul":"192.0.2.21","mieru":"198.51.100.32"},
         "quota":{"state":"unknown","remaining_gb":None},
         "xui_online":None,"vpn_end_to_end":"not_tested"
     }
@@ -195,6 +195,29 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(result["paths"]["mieru"]["tcp_https"],"degraded")
         self.assertEqual(result["paths"]["mieru"]["udp"],"unknown")
 
+    def test_agent_never_probes_vpn_or_opens_private_tunnel_bundles(self):
+        import unittest.mock as mock
+        src=(BASE/"iran_agent.py").read_text(encoding="utf8")
+        for forbidden in ("socket.create_connection", "/etc/dual-ha/",
+                          "--socks5", "subprocess.run(['curl'",
+                          "systemctl\", \"restart", "haproxy set server"):
+            self.assertNotIn(forbidden,src)
+        with mock.patch.object(agent.socket,"create_connection",side_effect=AssertionError("network probe attempted")):
+            host=agent.sysinfo("lo")
+        self.assertIn(host["tcp443_listen"],("listening","not_listening","unknown"))
+        self.assertNotIn("tcp443_loopback",host)
+
+    def test_heartbeat_from_agent_is_single_shot_and_not_vpn_health_test(self):
+        import unittest.mock as mock
+        with mock.patch.object(agent,"controller",return_value={"state":"unavailable","paths":{},"age_s":None}),
+             mock.patch.object(agent,"haproxy_stats",return_value={}),
+             mock.patch.object(agent,"service_state",return_value="unknown"),
+             mock.patch.object(agent,"sysinfo",return_value={"tcp443_listen":"unknown"}):
+            p=agent.build_snapshot("maya1","ens160",{})
+        self.assertEqual(p["tunnel_type"],"unidentified")
+        self.assertEqual(p["vpn_end_to_end"],"not_tested")
+        self.assertEqual(p["foreign_ips"],{})
+        self.assertEqual(p["quota"]["state"],"unknown")
     def test_missing_health_cannot_be_healthy(self):
         prev=agent.HEALTH
         agent.HEALTH=Path("/nonexistent/hesab-v11-test-health.json")
