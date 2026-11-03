@@ -154,6 +154,27 @@ class ReceiverTests(unittest.TestCase):
             rc.mark_stale(db,now=self.now+160)
             self.assertEqual(db.execute("SELECT COUNT(*) FROM events WHERE kind='stale'").fetchone()[0],1)
 
+    def test_receiver_docker_peer_policy_is_private_and_explicit(self):
+        self.assertTrue(rc.allowed_proxy_peer("127.0.0.1","loopback"))
+        self.assertFalse(rc.allowed_proxy_peer("172.20.0.4","loopback"))
+        self.assertTrue(rc.allowed_proxy_peer("172.20.0.4","docker-internal"))
+        self.assertTrue(rc.allowed_proxy_peer("10.12.0.4","docker-internal"))
+        self.assertFalse(rc.allowed_proxy_peer("8.8.8.8","docker-internal"))
+        self.assertFalse(rc.allowed_proxy_peer("127.0.0.1","docker-internal"))
+        self.assertFalse(rc.allowed_proxy_peer("198.51.100.4","docker-internal"))
+        self.assertFalse(rc.allowed_proxy_peer("invalid","docker-internal"))
+        self.assertFalse(rc.allowed_proxy_peer("172.20.0.4","no-such-mode"))
+
+    def test_docker_service_never_publishes_management_port(self):
+        compose=(BASE/"docker-compose.telemetry-v11.yml").read_text(encoding="utf8")
+        self.assertIn("HESAB_RECEIVER_DEPLOYMENT: docker-internal",compose)
+        self.assertNotIn("\n    ports:",compose)
+        self.assertNotIn("network_mode: host",compose)
+        self.assertIn("read_only: true",compose)
+        self.assertIn("cap_drop:",compose)
+        self.assertIn("mem_limit:",compose)
+        self.assertIn("telemetry_v11:rw",compose)
+        self.assertNotIn("privileged: true",compose)
     def test_distinct_servers_have_distinct_credentials(self):
         p=payload(tm=self.now,sid="maya-s3")
         self.assertEqual(self.call(p)[0],401)
