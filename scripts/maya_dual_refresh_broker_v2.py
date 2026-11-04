@@ -86,7 +86,7 @@ def main():
     if os.geteuid() != 0:
         raise PermissionError("Root required")
     SOCK.parent.mkdir(mode=0o750, parents=True, exist_ok=True)
-    if SOCK.lexists() if hasattr(SOCK,"lexists") else os.path.lexists(str(SOCK)):
+    if os.path.lexists(str(SOCK)):
         mode = SOCK.lstat().st_mode
         if not stat.S_ISSOCK(mode):
             raise RuntimeError("Refusing to replace non-socket entry")
