@@ -14,7 +14,7 @@ import sys
 ROOT = Path("/opt/vpn-control-center")
 SOURCE = Path("/root/.config/hesab-maya-extra.json")
 OUTPUT = Path("/root/.config/hesab-dual-hourly-v1.json")
-sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import maya_dual_hourly_collect_v1 as collector
 
 def prepare():
