@@ -102,6 +102,7 @@ _PQ_HTML=r'''
   سرعت انتقال فقط با شمارنده‌های معتبر قابل محاسبه است</p>
   <div id="pq-cards" class="pq-server-grid"></div>
   <div id="pq-alerts" class="pq-alerts" aria-live="polite">در حال بررسی شواهد کیفیت...</div>
+  <div id="pq-transfer-test" class="pq-alerts">تست کیفیت انتقال داده: در Production غیرفعال است؛ فقط شبیه‌سازی آفلاین آماده شده و اجرای واقعی نیازمند تأیید جداگانه است.</div>
 </section>
 '''
 _PQ_JS=r'''
@@ -182,9 +183,14 @@ function draw(report){
    metric(metrics,"داده خروجی HAProxy در بازه",c?byte(c.bytes_out_delta):"—");
    metric(metrics,"نرخ داده خروجی از دید HAProxy",c?nfmt(c.bytes_out_per_s)+" B/s":"—");
    metric(metrics,"خطاهای ثبت‌شده در بازه",c?nfmt(c.connection_errors_delta+c.response_errors_delta):"—");
+   metric(metrics,"زمان دقیق آخرین خطا","—");
    const test=stale?null:path.last_transfer_test;
    el(card,"div",test?"آخرین تست دانلود: "+test.state:"آخرین تست دانلود معتبر: انجام نشده","pq-foot");
    showTrend(card,stale?[]:path.trend);
+   el(card,"div","آخرین ارزیابی کیفیت انتقال: "+(
+      !stale&&path.last_quality_evaluated_at?
+      new Date(path.last_quality_evaluated_at*1000).toLocaleString("fa-IR",
+      {timeZone:"Asia/Tehran"}):"اندازه‌گیری نشده"),"pq-foot");
    el(card,"div","اطمینان ارزیابی: "+(stale?"—":
        path.quality?.confidence==="medium"?"متوسط":
        path.quality?.confidence==="limited"?"محدود":
