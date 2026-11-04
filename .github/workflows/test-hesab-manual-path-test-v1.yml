@@ -34,7 +34,7 @@ jobs:
             patches/control_room_manual_path_test_v1.py
       - name: Validate guarded installer syntax
         run: bash -n scripts/install_hesab_manual_path_test_v1.sh
-      - name: No real downloads: Maya3 outage regression and CSRF UI
+      - name: "No real downloads: Maya3 outage regression and CSRF UI"
         run: python3 scripts/test_hesab_manual_path_test_v1.py
       - name: Browser test only clicks initiate testing
         run: node scripts/test_hesab_manual_path_test_browser_v1.js
