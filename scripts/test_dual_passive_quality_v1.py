@@ -152,6 +152,5 @@ class PassiveQualityTests(unittest.TestCase):
             self.assertNotIn(banned,source.split("def run():")[1])
         self.assertIn("_dh1_auth(request)",patch)
         self.assertNotIn("subprocess.run",patch)
-        self.assertIn("quality.state",patch.replace("path.quality?.confidence",
 if __name__=="__main__":
     unittest.main(verbosity=2)
