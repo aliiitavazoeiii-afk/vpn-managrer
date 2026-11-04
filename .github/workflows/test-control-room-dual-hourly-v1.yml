@@ -5,6 +5,7 @@ on:
       - feat/control-room-dual-hourly-simple-v1
     paths:
       - scripts/maya_dual_hourly_collect_v1.py
+      - scripts/prepare_maya_dual_hourly_v1.py
       - scripts/test_maya_dual_hourly_v1.py
       - patches/control_room_dual_hourly_v1.py
       - .github/workflows/test-control-room-dual-hourly-v1.yml
@@ -25,6 +26,7 @@ jobs:
         run: |
           python3 -m py_compile \
             scripts/maya_dual_hourly_collect_v1.py \
+            scripts/prepare_maya_dual_hourly_v1.py \
             scripts/test_maya_dual_hourly_v1.py \
             patches/control_room_dual_hourly_v1.py
       - name: Readonly parser tests
