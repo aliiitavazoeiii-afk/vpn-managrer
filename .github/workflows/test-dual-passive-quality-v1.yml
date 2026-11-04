@@ -1,0 +1,61 @@
+name: Regression - passive Dual quality (no production probes)
+on:
+  push:
+    branches:
+      - feat/control-room-passive-quality-v1
+    paths:
+      - scripts/maya_dual_passive_quality_v1.py
+      - patches/control_room_passive_quality_v1.py
+      - scripts/install_dual_passive_quality_v1.sh
+      - scripts/test_dual_passive_quality_v1.py
+      - fixtures/maya3_mieru_degraded_20261104.json
+      - .github/workflows/test-dual-passive-quality-v1.yml
+  pull_request:
+    paths:
+      - scripts/maya_dual_passive_quality_v1.py
+      - patches/control_room_passive_quality_v1.py
+      - scripts/test_dual_passive_quality_v1.py
+  workflow_dispatch:
+jobs:
+  offline-only:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install isolated test dependencies
+        run: python3 -m pip install --quiet jinja2 fastapi
+      - name: Compile passive sources
+        run: |
+          python3 -m py_compile scripts/maya_dual_passive_quality_v1.py \
+            patches/control_room_passive_quality_v1.py \
+            scripts/test_dual_passive_quality_v1.py
+      - name: Bash syntax for backup-first installer
+        run: bash -n scripts/install_dual_passive_quality_v1.sh
+      - name: Historical incident and conservative quality regression
+        run: python3 scripts/test_dual_passive_quality_v1.py
+      - name: Verify browser JavaScript parses
+        run: |
+          node - <<'JS'
+          const fs=require('fs'),vm=require('vm');
+          const data=fs.readFileSync('patches/control_room_passive_quality_v1.py','utf8');
+          const block=data.split("_PQ_JS=r'''")[1]?.split("'''")[0];
+          if(!block)throw Error("MISSING_PASSIVE_QUALITY_JS");
+          const plain=block.replace(/<\/?script[^>]*>/g,'').replace('{{ ctrl_csrf }}','fake');
+          new vm.Script(plain);
+          console.log('PASSIVE_QUALITY_JS_SYNTAX_PASS');
+          JS
+      - name: Validate historical fixture contains no runtime download instructions
+        run: |
+          python3 - <<'PY'
+          import json,pathlib
+          p=pathlib.Path('fixtures/maya3_mieru_degraded_20261104.json')
+          data=json.loads(p.read_text())
+          assert data["server"]=="maya-s3"
+          assert len(data["transfer_tests"])==4
+          script=pathlib.Path("scripts/maya_dual_passive_quality_v1.py").read_text()
+          assert "185.190.52.33" not in script
+          assert "185.190.52.116" not in script
+          assert "systemctl restart" not in script
+          print("HISTORICAL_IPS_FIXTURE_ONLY")
+          PY
