@@ -526,3 +526,24 @@ Do not mount or edit the production Caddyfile, publish any host port,
 or connect to Maya hosts. Before any shared-network/production rollout,
 verify backup, independently restorable PostgreSQL archive, live UI
 source drift, admin authorization and a reviewed rollback. No deploy approval.
+
+## 18. Operator 2026-11-04: isolated Caddy HTTPS smoke test NOT READY
+
+Operator ran pinned isolated test at commit 45aa66112341e806f5e1f42910c998489d409749.
+Preparation passed: disposable internal Docker network created, no host ports,
+existing local Caddy image selected, temporary HMAC key created.
+The HTTPS readiness loop exhausted its attempts and raised
+`RuntimeError: ISOLATED_CADDY_TLS_NOT_READY`. No signed test POST was
+attempted and therefore real TLS-to-receiver behavior is NOT YET VERIFIED.
+Prior independent HTTP and isolated cross-container Docker tests remain PASS.
+
+The script's EXIT trap removed disposable resources; the first version
+suppressed network error details and deleted the staging Caddy before logs
+could be inspected. Do not attribute this failure to TLS, DNS, Caddy process,
+resource limits or routing without diagnostic evidence.
+
+Updated staging script at commit 6acd68d5320b27f8be1d16aeb777cef3c72d998b
+prints categorized client readiness failure and isolated Caddy/receiver
+container state plus synthetic-only Caddy startup log tail BEFORE cleanup.
+Its Bash syntax CI is PASS, but successful real execution is still pending.
+No live Caddyfile/reload, finance DB, Maya service, XUI or tunnel work approved.
