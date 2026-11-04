@@ -129,6 +129,6 @@ class Tests(unittest.TestCase):
         self.assertNotIn("docker compose down",install)
         self.assertIn("DATABASE_BACKUP",install)
         self.assertIn("ROOT_REQUIRED",install)
-        self.assertIn("ACTIVE_DOWNLOADS_EXECUTED=NO",PREP.read_text())
+        self.assertIn("ACTIVE_DOWNLOAD_TESTS_EXECUTED=NO",PREP.read_text())
 if __name__=="__main__":
     unittest.main(verbosity=2)
