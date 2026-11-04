@@ -9,6 +9,7 @@ on:
       - scripts/install_dual_passive_quality_v1.sh
       - scripts/test_dual_passive_quality_v1.py
       - scripts/simulate_dual_transfer_quality_v1.py
+      - scripts/test_quality_ui_dom_v1.js
       - fixtures/maya3_mieru_degraded_20261104.json
       - .github/workflows/test-dual-passive-quality-v1.yml
   pull_request:
@@ -61,6 +62,8 @@ jobs:
           new vm.Script(plain);
           console.log('PASSIVE_QUALITY_JS_SYNTAX_PASS');
           JS
+      - name: Mock browser DOM: six cards and unknown quality
+        run: node scripts/test_quality_ui_dom_v1.js
       - name: Validate historical fixture contains no runtime download instructions
         run: |
           python3 - <<'PY'
