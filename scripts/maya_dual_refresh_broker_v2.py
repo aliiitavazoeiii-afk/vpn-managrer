@@ -26,7 +26,7 @@ def snapshot_time():
         doc = json.loads(SNAP.read_text(encoding="utf8"))
         timestamp = doc.get("collected_at")
         if doc.get("format") == "HESAB_DUAL_HOURLY_V1" and type(timestamp) is int:
-            return timestamp
+            return int(SNAP.stat().st_mtime * 1000)
     except (OSError, ValueError, TypeError):
         pass
     return 0
