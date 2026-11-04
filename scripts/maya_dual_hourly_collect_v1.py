@@ -77,7 +77,7 @@ def parse_dual_status(text, sampled_at=None):
         except ipaddress.AddressValueError:
             foreign_ip = None
         detail = lines[i+1]
-        health = re.search(r"\b(HEALTHY|DOWN / health checks failed|UNKNOWN \(stale/missing controller data\))\b", detail)
+        health = re.search(r"(?:HEALTHY\b|DOWN / health checks failed\b|UNKNOWN \(stale/missing controller data\))", detail)
         https = re.search(r"https=(\d+)/(\d+)\s+avg=([0-9.]+|\?|None)s?", detail)
         if not https or not health:
             raise ValueError("Unrecognized dual status line")
@@ -91,7 +91,7 @@ def parse_dual_status(text, sampled_at=None):
                 latency = round(value * 1000)
         except ValueError:
             pass
-        line_state = health.group(1)
+        line_state = health.group(0)
         state = ("healthy" if line_state == "HEALTHY" and passed >= 2
                  else "down" if line_state.startswith("DOWN") else "unknown")
         if controller_age is None or controller_age > 30:
