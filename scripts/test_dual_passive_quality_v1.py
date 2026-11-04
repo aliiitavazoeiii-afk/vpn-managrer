@@ -90,6 +90,19 @@ class PassiveQualityTests(unittest.TestCase):
         self.assertNotEqual(pq.quality_label(baseline+low[:2])["state"],"suspected_degradation")
         self.assertNotEqual(pq.quality_label(baseline+[
             {**x,"new_connections":0} for x in low])["state"],"suspected_degradation")
+    def test_foreign_ip_replacement_breaks_counter_lineage(self):
+        t=1793782900
+        a=pq.validate_snapshot(sample(t,ip="8.8.8.8",counters=counters()),t+1)
+        b=pq.validate_snapshot(sample(t+60,ip="9.9.9.9",
+            counters=counters(bytes_out=50000000,sessions_total=300)),t+61)
+        result=pq.summarise([a,b],t+62)
+        for sid in pq.SERVERS:
+            for role in pq.ROLES:
+                item=result["servers"][sid]["paths"][role]
+                self.assertEqual(item["quality"]["state"],"not_measured")
+                self.assertIsNone(item["latest_counters"])
+                self.assertEqual(item["trend"][-1]["bytes_out_per_s"],None)
+
     def test_maya3_incident_http200_is_not_transfer_success(self):
         f=json.loads(FIXTURE.read_text())
         results={item["path"]:pq.transfer_test(item) for item in f["transfer_tests"]}
