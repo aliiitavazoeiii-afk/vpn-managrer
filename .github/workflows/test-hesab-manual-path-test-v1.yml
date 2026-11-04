@@ -7,6 +7,7 @@ on:
       - scripts/hesab_path_test_remote_v1.py
       - scripts/install_hesab_path_test_remote_v1.py
       - scripts/prepare_hesab_path_test_v1.py
+      - scripts/print_hesab_remote_setup_v1.py
       - scripts/hesab_manual_path_test_broker_v1.py
       - scripts/install_hesab_manual_path_test_v1.sh
       - patches/control_room_manual_path_test_v1.py
@@ -29,6 +30,7 @@ jobs:
             scripts/hesab_path_test_remote_v1.py \
             scripts/install_hesab_path_test_remote_v1.py \
             scripts/prepare_hesab_path_test_v1.py \
+            scripts/print_hesab_remote_setup_v1.py \
             scripts/hesab_manual_path_test_broker_v1.py \
             scripts/test_hesab_manual_path_test_v1.py \
             patches/control_room_manual_path_test_v1.py
