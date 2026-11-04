@@ -62,7 +62,7 @@ jobs:
           new vm.Script(plain);
           console.log('PASSIVE_QUALITY_JS_SYNTAX_PASS');
           JS
-      - name: Mock browser DOM: six cards and unknown quality
+      - name: "Mock browser DOM - six cards and unknown quality"
         run: node scripts/test_quality_ui_dom_v1.js
       - name: Validate historical fixture contains no runtime download instructions
         run: |
