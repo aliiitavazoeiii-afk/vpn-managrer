@@ -46,6 +46,7 @@ rollback(){
 }
 trap rollback EXIT
 
+CHANGED=1
 python3 - "$UI" <<'PY'
 from pathlib import Path
 import sys
@@ -64,7 +65,6 @@ if tail.count(old)!=1:
 p.write_text(source.replace(old,new,1),encoding="utf8")
 print("UI_JS_POSITION=PATCHED")
 PY
-CHANGED=1
 python3 -m py_compile "$UI"
 echo "=== RECREATE ONLY ADMIN APP ==="
 compose up -d --no-deps --no-build --force-recreate app
