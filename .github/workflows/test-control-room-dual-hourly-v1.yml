@@ -47,7 +47,7 @@ jobs:
       - name: Verify Manual UI installer Bash syntax
         run: bash -n scripts/install_dual_manual_refresh_v2.sh
       - name: Install Jinja template parser
-        run: python3 -m pip install --quiet jinja2
+        run: python3 -m pip install --quiet jinja2 fastapi
       - name: Readonly parser tests
         run: python3 scripts/test_maya_dual_hourly_v1.py
       - name: Manual refresh tests
