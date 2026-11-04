@@ -40,7 +40,7 @@ class Tests(unittest.TestCase):
         <script id="dh1-script">
         function refresh(){}
         render(null);refresh();
-        setInterval(refresh,60000);
+setInterval(refresh,60000);
         </script>
         {% endblock %}'''
         templates={"control_room.html":prior}
