@@ -195,13 +195,17 @@ def summarise(history, now):
             for row in ordered:
                 item=row["servers"][sid]["paths"][role]
                 if item["counters"] and prior and prior["counters"]:
-                    w=deltas(prior["counters"],item["counters"],row["at"]-prior["at"])
+                    # A foreign-IP replacement is a new backend lineage even
+                    # when cumulative HAProxy epoch happens to be unchanged.
+                    w=(deltas(prior["counters"],item["counters"],row["at"]-prior["at"])
+                       if prior["ip"]==item["ip"] else
+                       {"state":"backend_ip_changed","seconds":row["at"]-prior["at"]})
                     if w and w.get("state")=="ok":
                         windows.append(w)
                         trend.append({"at":row["at"],"bytes_out_per_s":w["bytes_out_per_s"]})
                     elif w:
                         trend.append({"at":row["at"],"bytes_out_per_s":None})
-                prior={"at":row["at"],"counters":item["counters"]}
+                prior={"at":row["at"],"counters":item["counters"],"ip":item["ip"]}
             q=quality_label(windows)
             if old or server["state"]!="ok" or value["health"]=="stale":
                 q={"state":"stale" if old or value["health"]=="stale" else "not_measured",
@@ -218,7 +222,7 @@ def summarise(history, now):
                 "counter_samples":len(windows),
                 "trend":trend[-48:],
                 "last_transfer_test":None,
-                "last_quality_evaluated_at":now if not old else None,
+                "last_quality_evaluated_at":now if not old and windows else None,
             }
             if q["state"]=="suspected_degradation":
                 output["alerts"].append({"server":sid,"role":role,
