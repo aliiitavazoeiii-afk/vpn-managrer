@@ -79,7 +79,6 @@ class Tests(unittest.TestCase):
         source=PATCH.read_text()
         self.assertIn('request.headers.get("origin")',source)
         self.assertIn("_dh1_auth(request)",source)
-        self.assertIn('b\\'{"op":"refresh"}\\\\n\\'',source.replace('b\'{"op":"refresh"}\\n\'','b\\\'{"op":"refresh"}\\\\n\\\'')) if False else None
         self.assertNotIn("subprocess.run(",source)
         self.assertNotIn("ssh_identity",source)
         self.assertNotIn("docker compose",source)
