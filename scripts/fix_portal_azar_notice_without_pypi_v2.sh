@@ -41,6 +41,17 @@ BACKUP="/root/hesab-azar-offline-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 mkdir -m 700 "$BACKUP"
 cp -a "$SOURCE" "$BACKUP/v2.py"
 cp -a "$COMPOSE" "$BACKUP/docker-compose.sms.yml"
+docker cp "$CID:/srv/v2.py" "$BACKUP/container-v2.py"
+python3 - "$SOURCE" "$BACKUP/container-v2.py" <<'PY'
+from pathlib import Path
+import sys
+old='show_welcome=request.query_params.get("welcome") == "1",'
+new='show_welcome=(request.query_params.get("welcome") == "1" or request.query_params.get("view") == "payments"),'
+host=Path(sys.argv[1]).read_text(encoding="utf8").replace(new,old)
+image=Path(sys.argv[2]).read_text(encoding="utf8").replace(new,old)
+assert host==image,"STOP=HOST_V2_DIFFERS_FROM_RUNNING_IMAGE"
+print("HOST_AND_RUNNING_PORTAL_CODE_PARITY=PASS")
+PY
 echo "BACKUP=$BACKUP"
 CHANGED=0
 rollback(){
