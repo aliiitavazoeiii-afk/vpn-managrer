@@ -90,6 +90,9 @@ class TestDualHourly(unittest.TestCase):
         Environment().parse(page)
         self.assertNotIn("{#", consts["_DH1_HTML"])
         self.assertIn("dh1-grid", page)
+        self.assertLess(page.index(\'id="dh1-grid"\'), page.index(\'id="dh1-script"\'))
+        self.assertIn("_ANCHOR + _DH1_HTML + _DH1_JS", code)
+        self.assertNotIn(\'_DH1_TEMPLATE.replace("{% endblock %}"\', code)
 
     def test_control_room_is_read_only(self):
         ui = (ROOT / "patches" / "control_room_dual_hourly_v1.py").read_text()
