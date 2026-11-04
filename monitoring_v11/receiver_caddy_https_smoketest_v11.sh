@@ -21,7 +21,28 @@ cleanup() {
   docker network rm "$NET" >/dev/null 2>&1 || true
   rm -rf -- "$TMP"
 }
-trap cleanup EXIT
+diagnostic() {
+  echo "=== ISOLATED TEST DIAGNOSTICS ==="
+  for id in "$CADDY" "$RECEIVER"; do
+    if docker inspect "$id" >/dev/null 2>&1; then
+      docker inspect -f 'CONTAINER={{.Name}} STATE={{.State.Status}} EXIT={{.State.ExitCode}} OOM={{.State.OOMKilled}}' "$id" || true
+    fi
+  done
+  echo "=== SYNTHETIC CADDY LOG TAIL (NEVER LIVE CADDY) ==="
+  docker logs --tail 25 "$CADDY" 2>&1 || true
+  echo "=== END ISOLATED DIAGNOSTICS ==="
+}
+on_exit() {
+  code=$?
+  trap - EXIT
+  if (( code != 0 )); then
+    diagnostic
+    echo "ISOLATED_CADDY_HTTPS_TEST=FAIL"
+  fi
+  cleanup
+  exit "$code"
+}
+trap on_exit EXIT
 mkdir -m 700 "$TMP/db"
 
 python3 - "$TMP/receiver.json" <<'PY'
@@ -124,15 +145,24 @@ def call(url, body=None, headers=None):
     except urllib.error.HTTPError as error:
         return error.code
 
-for trial in range(30):
+last_error = None
+last_status = None
+for trial in range(40):
     try:
         ready = call(base + "/healthz")
+        last_status = ready
         if ready == 404:
             break
-    except (OSError, ValueError):
-        pass
+    except (OSError, ValueError) as exc:
+        last_error = exc
     time.sleep(0.5)
 else:
+    if last_status is not None:
+        print("TLS_READINESS_LAST_HTTP_STATUS=" + str(last_status), flush=True)
+    if last_error is not None:
+        reason = getattr(last_error, "reason", last_error)
+        print("TLS_READINESS_ERROR_TYPE=" + type(last_error).__name__, flush=True)
+        print("TLS_READINESS_REASON_TYPE=" + type(reason).__name__, flush=True)
     raise RuntimeError("ISOLATED_CADDY_TLS_NOT_READY")
 
 timestamp = int(time.time())
