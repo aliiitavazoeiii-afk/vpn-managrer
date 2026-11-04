@@ -1,0 +1,58 @@
+name: Manual transfer path test - offline regression only
+on:
+  push:
+    branches:
+      - feat/control-room-manual-transfer-test-v1
+    paths:
+      - scripts/hesab_path_test_remote_v1.py
+      - scripts/install_hesab_path_test_remote_v1.py
+      - scripts/prepare_hesab_path_test_v1.py
+      - scripts/hesab_manual_path_test_broker_v1.py
+      - scripts/install_hesab_manual_path_test_v1.sh
+      - patches/control_room_manual_path_test_v1.py
+      - scripts/test_hesab_manual_path_test_v1.py
+      - scripts/test_hesab_manual_path_test_browser_v1.js
+      - .github/workflows/test-hesab-manual-path-test-v1.yml
+  workflow_dispatch:
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install offline UI test prerequisites
+        run: python3 -m pip install --quiet jinja2 fastapi
+      - name: Compile all Python sources
+        run: |
+          python3 -m py_compile \
+            scripts/hesab_path_test_remote_v1.py \
+            scripts/install_hesab_path_test_remote_v1.py \
+            scripts/prepare_hesab_path_test_v1.py \
+            scripts/hesab_manual_path_test_broker_v1.py \
+            scripts/test_hesab_manual_path_test_v1.py \
+            patches/control_room_manual_path_test_v1.py
+      - name: Validate guarded installer syntax
+        run: bash -n scripts/install_hesab_manual_path_test_v1.sh
+      - name: No real downloads: Maya3 outage regression and CSRF UI
+        run: python3 scripts/test_hesab_manual_path_test_v1.py
+      - name: Browser test only clicks initiate testing
+        run: node scripts/test_hesab_manual_path_test_browser_v1.js
+      - name: Assert nothing runs automatically on deployment
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          service=Path("scripts/install_hesab_manual_path_test_v1.sh").read_text()
+          assert "systemctl enable --now hesab-manual-path-transfer-v1.service" in service
+          assert "hesab-path-test-v1" not in service
+          assert "test_one(" not in service
+          assert "systemctl restart" not in service
+          assert "haproxy -c" not in service
+          src=Path("scripts/hesab_path_test_remote_v1.py").read_text()
+          assert src.count("https://speed.cloudflare.com/__down?bytes=524288")==1
+          assert "120" in src
+          assert "524288" in src
+          assert "SSH_ORIGINAL_COMMAND" in src
+          assert "subprocess.run" in src
+          print("NO_ACTIVE_PROBES_ON_DEPLOY_PASS")
+          PY
