@@ -1,0 +1,23 @@
+name: Customer portal Azar notice on payment page
+on:
+  push:
+    branches: [fix/portal-azar-notice-on-payment-v1]
+    paths:
+      - customer_portal/v2.py
+      - customer_portal/dashboard_v2.html
+      - scripts/fix_portal_azar_notice_on_payment_v1.sh
+      - scripts/test_portal_azar_notice_on_payment_v1.py
+      - .github/workflows/test-portal-azar-notice-on-payment-v1.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  offline-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile portal source and test code
+        run: python3 -m py_compile customer_portal/v2.py scripts/test_portal_azar_notice_on_payment_v1.py
+      - name: Validate backup-first installer
+        run: bash -n scripts/fix_portal_azar_notice_on_payment_v1.sh
+      - name: Verify welcome modal on payment route, and no payment writes
+        run: python3 scripts/test_portal_azar_notice_on_payment_v1.py
