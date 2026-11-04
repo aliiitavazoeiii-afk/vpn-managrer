@@ -8,6 +8,7 @@ on:
       - patches/control_room_passive_quality_v1.py
       - scripts/install_dual_passive_quality_v1.sh
       - scripts/test_dual_passive_quality_v1.py
+      - scripts/simulate_dual_transfer_quality_v1.py
       - fixtures/maya3_mieru_degraded_20261104.json
       - .github/workflows/test-dual-passive-quality-v1.yml
   pull_request:
@@ -29,11 +30,26 @@ jobs:
         run: |
           python3 -m py_compile scripts/maya_dual_passive_quality_v1.py \
             patches/control_room_passive_quality_v1.py \
-            scripts/test_dual_passive_quality_v1.py
+            scripts/test_dual_passive_quality_v1.py \
+            scripts/simulate_dual_transfer_quality_v1.py
       - name: Bash syntax for backup-first installer
         run: bash -n scripts/install_dual_passive_quality_v1.sh
       - name: Historical incident and conservative quality regression
         run: python3 scripts/test_dual_passive_quality_v1.py
+      - name: Offline Stage-2 mock, no downloader
+        run: |
+          python3 scripts/simulate_dual_transfer_quality_v1.py > /tmp/mock-dual-quality.json
+          python3 - <<'PY'
+          import json
+          v=json.load(open('/tmp/mock-dual-quality.json'))
+          assert v["network_requests"]==0 and v["production_changes"]==0
+          assert v["results"]["backhaul"]["state"]=="completed"
+          assert v["results"]["mieru"]["state"]=="failed"
+          assert v["results"]["mieru"]["exit_code"]==28
+          assert v["results"]["haproxy"]["state"]=="failed"
+          assert v["results"]["mieru_replacement"]["state"]=="completed"
+          print("MAYA3_TRANSFER_MOCK_PASS")
+          PY
       - name: Verify browser JavaScript parses
         run: |
           node - <<'JS'
