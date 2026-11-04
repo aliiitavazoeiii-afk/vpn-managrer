@@ -43,8 +43,7 @@ systemctl is-active --quiet hesab-dual-refresh-v2.service ||
  { echo "STOP=DUAL_REFRESH_NOT_RUNNING";exit 3; }
 
 echo "=== CONFIRM 3 STRICTLY RESTRICTED KEYS (PREFLIGHT; NO DOWNLOADS) ==="
-install -m 0700 -o root -g root "$BROKER" "$BROKER_DEST"
-python3 "$BROKER_DEST" --preflight
+python3 "$BROKER" --preflight
 echo "TRANSFER_PREFLIGHT=ALL_MAYA_READY_NO_DOWNLOAD"
 
 echo "=== APP UI PREFLIGHT NO MUTATION ==="
@@ -120,6 +119,7 @@ rollback(){
 }
 trap rollback EXIT
 CHANGED=1
+install -m 0700 -o root -g root "$BROKER" "$BROKER_DEST"
 
 cat >"$SERVICE" <<'UNIT'
 [Unit]
