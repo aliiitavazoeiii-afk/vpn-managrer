@@ -9,6 +9,7 @@ on:
       - scripts/test_maya_dual_hourly_v1.py
       - patches/control_room_dual_hourly_v1.py
       - .github/workflows/test-control-room-dual-hourly-v1.yml
+      - scripts/install_maya_dual_hourly_v1.sh
   pull_request:
     paths:
       - scripts/maya_dual_hourly_collect_v1.py
@@ -29,6 +30,8 @@ jobs:
             scripts/prepare_maya_dual_hourly_v1.py \
             scripts/test_maya_dual_hourly_v1.py \
             patches/control_room_dual_hourly_v1.py
+      - name: Verify installer Bash syntax
+        run: bash -n scripts/install_maya_dual_hourly_v1.sh
       - name: Readonly parser tests
         run: python3 scripts/test_maya_dual_hourly_v1.py
       - name: Validate JavaScript syntax
