@@ -20,6 +20,7 @@ const dual={
 };
 const cards=new Element("div"),button=new Element("button"),
  status=new Element("div"),foot=new Element("div");
+status.textContent="برای بررسی، روی دکمه بزن.";
 let quality={
  ok:true,report:{source_stale:false,source_at:Math.floor(Date.now()/1000),
  servers:Object.fromEntries(ids.map(id=>[id,{paths:{
