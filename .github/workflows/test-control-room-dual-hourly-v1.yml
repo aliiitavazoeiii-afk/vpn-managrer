@@ -32,6 +32,8 @@ jobs:
             patches/control_room_dual_hourly_v1.py
       - name: Verify installer Bash syntax
         run: bash -n scripts/install_maya_dual_hourly_v1.sh
+      - name: Install Jinja template parser
+        run: python3 -m pip install --quiet jinja2
       - name: Readonly parser tests
         run: python3 scripts/test_maya_dual_hourly_v1.py
       - name: Validate JavaScript syntax
