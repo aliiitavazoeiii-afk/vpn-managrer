@@ -1,0 +1,82 @@
+name: Test Control Room Tunnel Telemetry V11
+on:
+  push:
+    branches:
+      - feat/control-room-tunnel-telemetry-v11
+    paths:
+      - 'monitoring_v11/**'
+      - '.github/workflows/test-control-room-telemetry-v11.yml'
+  pull_request:
+    branches:
+      - manual-sms-batch-operator-open
+    paths:
+      - 'monitoring_v11/**'
+      - '.github/workflows/test-control-room-telemetry-v11.yml'
+  workflow_dispatch:
+jobs:
+  telemetry-unit-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Python syntax
+        run: |
+          python3 -m py_compile monitoring_v11/iran_agent.py monitoring_v11/receiver.py monitoring_v11/receiver_http_smoketest_v11.py monitoring_v11/control_room_overlay.py monitoring_v11/audit_caddy_match_collision_readonly.py monitoring_v11/audit_caddy_redirect_v2_readonly.py monitoring_v11/audit_caddy_offline_candidate_v11.py monitoring_v11/audit_caddy_offline_regression_v11.py monitoring_v11/audit_caddy_regression_diagnostic_v11.py monitoring_v11/audit_caddy_group_equivalence_v11.py monitoring_v11/tests/test_caddy_group_equivalence_v11.py monitoring_v11/tests/test_caddy_offline_regression_v11.py monitoring_v11/tests/test_caddy_regression_diagnostic_v11.py monitoring_v11/tests/test_telemetry.py monitoring_v11/tests/test_caddy_redirect_v2.py
+      - name: Verify deploy and preflight shell syntax
+        run: |
+          bash -n monitoring_v11/receiver_caddy_https_smoketest_v11.sh
+          bash -n monitoring_v11/preflight_production_readonly.sh
+          bash -n monitoring_v11/install_admin_ui_v11.sh
+          bash -n monitoring_v11/audit_proxy_and_drift_readonly.sh
+          bash -n monitoring_v11/audit_iran_tunnel_readonly.sh
+          bash -n monitoring_v11/audit_shared_docker_gateway_readonly.sh
+          bash -n monitoring_v11/audit_live_caddy_routes_readonly.sh
+      - name: Security and reconciliation tests
+        run: |
+          python3 -m unittest discover -s monitoring_v11/tests -p 'test_*.py' -v
+      - name: Temporary loopback HTTP receiver integration (no public port)
+        run: |
+          python3 monitoring_v11/receiver_http_smoketest_v11.py
+      - name: Check front-end JavaScript syntax
+        run: |
+          node - <<'JS'
+          const fs=require('fs'),vm=require('vm');
+          const source=fs.readFileSync('monitoring_v11/control_room_overlay.py','utf8');
+          const js=source.split("_TV11_JS=r'''")[1]?.split("'''")[0];
+          if(!js)throw new Error('Control Room JS missing');
+          vm.createScript(js.replace(/<\/?script>/g,'').replace('{{ ctrl_csrf }}','placeholder'));
+          console.log('UI JavaScript syntax OK');
+          JS
+      - name: Assert sender never performs active VPN probe or reads tunnel secrets
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          a=Path("monitoring_v11/iran_agent.py").read_text()
+          overlay=Path("monitoring_v11/control_room_overlay.py").read_text()
+          docs=Path("docs/CONTROL_ROOM_TUNNEL_TELEMETRY_V11_STAGING.md").read_text()
+          audit=Path("monitoring_v11/audit_proxy_and_drift_readonly.sh").read_text()
+          for forbidden in ["socket.create_connection(", "/etc/dual-ha/", "subprocess.run([\"curl\"", "urllib.request.urlopen("]:
+              assert forbidden not in a, "Forbidden agent operation: "+forbidden
+          assert "ProxyHandler({})" in a and "NoRedirect()" in a
+          assert "tcp443_listen" in a
+          for source in [a,overlay,docs,audit]:
+              assert "hesab.filmjadiid.ir" not in source
+          assert "PUBLIC_DOMAIN_CONNECTIVITY" not in audit
+          assert "curl" not in audit
+          print("Passive/no-secrets/no-extra-probes audit passed")
+          PY
+      - name: Assert no unsafe production operations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          code="\n".join(p.read_text() for p in Path("monitoring_v11").glob("*.py"))
+          banned=["docker compose down", "systemctl restart", "subprocess.run(['ssh'", "DROP TABLE",
+                  "DELETE FROM payments","DELETE FROM subscriptions","UPDATE subscriptions"]
+          for text in banned:
+              assert text not in code, f"Forbidden telemetry operation: {text}"
+          assert "hmac.compare_digest" in code
+          assert "BEGIN IMMEDIATE" in code
+          assert "pending_review" in code
+          print("Safety static scan passed")
+          PY
