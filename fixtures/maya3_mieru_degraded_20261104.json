@@ -1,0 +1,78 @@
+{
+  "case": "Maya3 Mieru HTTPS connectivity passed while transfer failed",
+  "observed_at": "2026-11-04",
+  "server": "maya-s3",
+  "historical_foreign_ip": "185.190.52.33",
+  "replacement_foreign_ip": "185.190.52.116",
+  "connectivity": {
+    "backhaul_https": "3/3",
+    "mieru_https": "3/3",
+    "haproxy_backend_backhaul": "UP",
+    "haproxy_backend_mieru": "UP"
+  },
+  "transfer_tests": [
+    {
+      "path": "backhaul",
+      "port": 21001,
+      "source": "explicit_transfer_test_v1",
+      "requested_bytes": 524288,
+      "received_bytes": 524288,
+      "duration_ms": 500,
+      "ttfb_ms": 100,
+      "http_status": 200,
+      "exit_code": 0,
+      "at": 1793782800
+    },
+    {
+      "path": "mieru",
+      "port": 21002,
+      "source": "explicit_transfer_test_v1",
+      "requested_bytes": 524288,
+      "received_bytes": 30118,
+      "duration_ms": 25000,
+      "ttfb_ms": 150,
+      "http_status": 200,
+      "exit_code": 28,
+      "at": 1793782800
+    },
+    {
+      "path": "haproxy",
+      "port": 18080,
+      "source": "explicit_transfer_test_v1",
+      "requested_bytes": 524288,
+      "received_bytes": 42373,
+      "duration_ms": 25000,
+      "ttfb_ms": 200,
+      "http_status": 200,
+      "exit_code": 28,
+      "at": 1793782800
+    },
+    {
+      "path": "mieru_replacement",
+      "port": 21002,
+      "source": "explicit_transfer_test_v1",
+      "requested_bytes": 524288,
+      "received_bytes": 524288,
+      "duration_ms": 980,
+      "ttfb_ms": 90,
+      "http_status": 200,
+      "exit_code": 0,
+      "at": 1793786400
+    }
+  ],
+  "backend_stats_20_seconds": {
+    "backhaul": {
+      "active_connections": 201,
+      "new_connections": 93,
+      "bytes_out_delta": 11310000,
+      "errors": 0
+    },
+    "mieru": {
+      "active_connections": 204,
+      "new_connections": 84,
+      "bytes_out_delta": 350000,
+      "errors": 0
+    }
+  },
+  "operator_note": "After zero-weighting Mieru, symptoms resolved; this fixture does not authorize an automatic weight change."
+}
