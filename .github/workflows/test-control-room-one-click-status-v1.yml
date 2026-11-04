@@ -1,0 +1,31 @@
+name: One-click VPN status display (no remote tests)
+on:
+  push:
+    branches:
+      - feat/control-room-one-click-status-v1
+    paths:
+      - patches/control_room_one_click_status_v1.py
+      - scripts/install_control_room_one_click_status_v1.sh
+      - scripts/test_control_room_one_click_status_v1.py
+      - scripts/test_control_room_one_click_browser_v1.js
+      - .github/workflows/test-control-room-one-click-status-v1.yml
+  workflow_dispatch:
+jobs:
+  mock:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install template parser
+        run: python3 -m pip install --quiet jinja2
+      - name: Validate Python syntax
+        run: |
+          python3 -m py_compile patches/control_room_one_click_status_v1.py \
+            scripts/test_control_room_one_click_status_v1.py
+      - name: Validate installer Bash syntax
+        run: bash -n scripts/install_control_room_one_click_status_v1.sh
+      - name: Validate one-click template and safe installation
+        run: python3 scripts/test_control_room_one_click_status_v1.py
+      - name: Browser mock healthy and warning paths
+        run: node scripts/test_control_room_one_click_browser_v1.js
