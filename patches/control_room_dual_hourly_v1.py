@@ -189,9 +189,9 @@ if _DH1_TEMPLATE.count(_ANCHOR) != 1 or "t10-compact-css" not in _DH1_TEMPLATE:
     raise RuntimeError("Requires currently reviewed V10 Control Room")
 if "dh1-root" in _DH1_TEMPLATE:
     raise RuntimeError("Dual hourly UI already loaded")
-_DH1_TEMPLATE = _DH1_TEMPLATE.replace(_ANCHOR, _ANCHOR + _DH1_HTML, 1)
-_DH1_TEMPLATE = _DH1_TEMPLATE.replace("{% endblock %}",
-                                      _DH1_JS + "\n{% endblock %}", 1)
+_DH1_TEMPLATE = _DH1_TEMPLATE.replace(_ANCHOR, _ANCHOR + _DH1_HTML + _DH1_JS, 1)
+# Keep script *after* the grid element in the same content block. The first
+# Jinja endblock may close an earlier block and execute JS before its target DOM.
 _dh1_Jinja().parse(_DH1_TEMPLATE)
 TEMPLATES["control_room.html"] = _DH1_TEMPLATE
 if hasattr(env.loader, "mapping"):
