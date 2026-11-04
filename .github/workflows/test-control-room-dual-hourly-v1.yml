@@ -1,0 +1,41 @@
+name: Test simple hourly Dual HA Control Room
+on:
+  push:
+    branches:
+      - feat/control-room-dual-hourly-simple-v1
+    paths:
+      - scripts/maya_dual_hourly_collect_v1.py
+      - scripts/test_maya_dual_hourly_v1.py
+      - patches/control_room_dual_hourly_v1.py
+      - .github/workflows/test-control-room-dual-hourly-v1.yml
+  pull_request:
+    paths:
+      - scripts/maya_dual_hourly_collect_v1.py
+      - scripts/test_maya_dual_hourly_v1.py
+      - patches/control_room_dual_hourly_v1.py
+  workflow_dispatch:
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse Python
+        run: |
+          python3 -m py_compile \
+            scripts/maya_dual_hourly_collect_v1.py \
+            scripts/test_maya_dual_hourly_v1.py \
+            patches/control_room_dual_hourly_v1.py
+      - name: Readonly parser tests
+        run: python3 scripts/test_maya_dual_hourly_v1.py
+      - name: Validate JavaScript syntax
+        run: |
+          node - <<'JS'
+          const fs=require('fs'),vm=require('vm');
+          const s=fs.readFileSync('patches/control_room_dual_hourly_v1.py','utf8');
+          const js=s.split("_DH1_JS = r'''")[1]?.split("'''")[0];
+          if(!js)throw Error("JS MISSING");
+          vm.createScript(js.replace(/<\/?script[^>]*>/g,'').replace('{{ ctrl_csrf }}','synthetic'));
+          console.log("JS_SYNTAX_PASS");
+          JS
