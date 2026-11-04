@@ -404,7 +404,7 @@ def v2_home(request: Request):
         csrf=csrf_for(phone),
         message=message,
         message_is_error=message_is_error,
-        show_welcome=request.query_params.get("welcome") == "1",
+        show_welcome=(request.query_params.get("welcome") == "1" or request.query_params.get("view") == "payments"),
     )
 
 
