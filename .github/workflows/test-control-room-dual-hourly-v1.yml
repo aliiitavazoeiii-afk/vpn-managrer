@@ -11,6 +11,11 @@ on:
       - .github/workflows/test-control-room-dual-hourly-v1.yml
       - scripts/install_maya_dual_hourly_v1.sh
       - scripts/fix_dual_hourly_empty_ui_v1.sh
+      - scripts/maya_dual_refresh_broker_v2.py
+      - scripts/repair_maya3_xui_sync_v2.py
+      - patches/control_room_dual_manual_refresh_v2.py
+      - scripts/install_dual_manual_refresh_v2.sh
+      - scripts/test_dual_manual_refresh_v2.py
   pull_request:
     paths:
       - scripts/maya_dual_hourly_collect_v1.py
@@ -30,15 +35,23 @@ jobs:
             scripts/maya_dual_hourly_collect_v1.py \
             scripts/prepare_maya_dual_hourly_v1.py \
             scripts/test_maya_dual_hourly_v1.py \
-            patches/control_room_dual_hourly_v1.py
+            patches/control_room_dual_hourly_v1.py \
+            scripts/maya_dual_refresh_broker_v2.py \
+            scripts/repair_maya3_xui_sync_v2.py \
+            patches/control_room_dual_manual_refresh_v2.py \
+            scripts/test_dual_manual_refresh_v2.py
       - name: Verify installer Bash syntax
         run: bash -n scripts/install_maya_dual_hourly_v1.sh
       - name: Verify UI hotfix Bash syntax
         run: bash -n scripts/fix_dual_hourly_empty_ui_v1.sh
+      - name: Verify Manual UI installer Bash syntax
+        run: bash -n scripts/install_dual_manual_refresh_v2.sh
       - name: Install Jinja template parser
         run: python3 -m pip install --quiet jinja2
       - name: Readonly parser tests
         run: python3 scripts/test_maya_dual_hourly_v1.py
+      - name: Manual refresh tests
+        run: python3 scripts/test_dual_manual_refresh_v2.py
       - name: Validate JavaScript syntax
         run: |
           node - <<'JS'
