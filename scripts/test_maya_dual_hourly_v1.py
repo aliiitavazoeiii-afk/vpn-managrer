@@ -70,6 +70,27 @@ class TestDualHourly(unittest.TestCase):
                      "DELETE FROM payments", "UPDATE subscriptions"):
             self.assertNotIn(verb, data)
 
+    def test_jinja_template_syntax_with_responsive_css(self):
+        import ast
+        from jinja2 import Environment
+        code = (ROOT / "patches" / "control_room_dual_hourly_v1.py").read_text()
+        tree = ast.parse(code)
+        consts = {}
+        for stmt in tree.body:
+            if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
+                target = stmt.targets[0]
+                if isinstance(target, ast.Name) and target.id in ("_DH1_HTML", "_DH1_JS"):
+                    consts[target.id] = ast.literal_eval(stmt.value)
+        self.assertEqual(set(consts), {"_DH1_HTML", "_DH1_JS"})
+        page = ('{% block content %}<style id="t10-compact-css"></style>'
+                '<div id="c2-cards" class="c2-cards"></div>{% endblock %}')
+        page = page.replace('<div id="c2-cards" class="c2-cards"></div>',
+                            '<div id="c2-cards" class="c2-cards"></div>' + consts["_DH1_HTML"])
+        page = page.replace('{% endblock %}', consts["_DH1_JS"] + '{% endblock %}')
+        Environment().parse(page)
+        self.assertNotIn("{#", consts["_DH1_HTML"])
+        self.assertIn("dh1-grid", page)
+
     def test_control_room_is_read_only(self):
         ui = (ROOT / "patches" / "control_room_dual_hourly_v1.py").read_text()
         self.assertIn("/control-room/dual-hourly/status", ui)
