@@ -110,7 +110,9 @@ _DH1_HTML = r'''
 #c2-root .dh1-pill.ok{color:#84dfac;border-color:#5ab57f77}
 #c2-root .dh1-pill.down{color:#ffa1aa;border-color:#eb708977}
 #c2-root .dh1-meta{font-size:10px;color:#aeb5d2;margin-top:8px}
-@media(max-width:920px){#c2-root .dh1-grid{grid-template-columns:1fr}}
+@media (max-width:920px) {
+  #c2-root .dh1-grid {grid-template-columns:1fr}
+}
 </style>
 <section id="dh1-root" class="dh1-root" aria-label="وضعیت مسیرهای خارجی">
   <div class="dh1-heading">
