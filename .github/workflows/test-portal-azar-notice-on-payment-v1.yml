@@ -19,5 +19,7 @@ jobs:
         run: python3 -m py_compile customer_portal/v2.py scripts/test_portal_azar_notice_on_payment_v1.py
       - name: Validate backup-first installer
         run: bash -n scripts/fix_portal_azar_notice_on_payment_v1.sh
+      - name: Check offline installer shell syntax
+        run: bash -n scripts/fix_portal_azar_notice_without_pypi_v2.sh
       - name: Verify welcome modal on payment route, and no payment writes
         run: python3 scripts/test_portal_azar_notice_on_payment_v1.py
