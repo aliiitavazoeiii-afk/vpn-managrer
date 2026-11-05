@@ -162,7 +162,7 @@ class Tests(unittest.TestCase):
                 self.assertEqual(updated.count('id="sv-private-file"'),1)
                 self.assertLess(updated.index('id="sv-private-file"'),
                                 updated.index("پشتیبانی</h2>"))
-                self.assertIn(page,updated)
+                self.assertEqual(updated.replace(ns["_NPC_BUTTON"],"",1),page)
         for invalid in (
             '<main><section class="help">No support heading</section></main>',
             '<section><h2>پشتیبانی</h2></section><section><h2>پشتیبانی</h2></section>',
