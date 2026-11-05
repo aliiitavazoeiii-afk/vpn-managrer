@@ -47,8 +47,8 @@ def _npc_place_download_before_support(page):
         raise RuntimeError("Private file card already installed")
     # Existing known support card may reorder classes or add attributes.
     candidate=[]
-    for match in _npc_re.finditer(r"<section\\b[^>]*>",page,flags=_npc_re.IGNORECASE):
-        if _npc_re.search(r"(?<![\\w-])sv-support(?![\\w-])",match.group(),flags=_npc_re.IGNORECASE):
+    for match in _npc_re.finditer(r"<section\b[^>]*>",page,flags=_npc_re.IGNORECASE):
+        if _npc_re.search(r"(?<![\w-])sv-support(?![\w-])",match.group(),flags=_npc_re.IGNORECASE):
             candidate.append(match.start())
     if len(candidate)==1:
         idx=candidate[0]
@@ -56,12 +56,12 @@ def _npc_place_download_before_support(page):
         # Newer production layouts might rename the support card class.
         # Locate the unique support heading, then its enclosing section.
         headings=list(_npc_re.finditer(
-            r"<h[1-6]\\b[^>]*>\\s*(?:<[^>]+>\\s*)*پشتیبانی\\s*</h[1-6]\\s*>",
+            r"<h[1-6]\b[^>]*>\s*(?:<[^>]+>\s*)*پشتیبانی\s*</h[1-6]\s*>",
             page,flags=_npc_re.IGNORECASE))
         if len(headings)!=1:
             raise RuntimeError("Support heading not uniquely identified")
         before=page[:headings[0].start()]
-        sections=list(_npc_re.finditer(r"<section\\b[^>]*>",before,
+        sections=list(_npc_re.finditer(r"<section\b[^>]*>",before,
                                       flags=_npc_re.IGNORECASE))
         if not sections or headings[0].start()-sections[-1].end()>1500:
             raise RuntimeError("Support card container not safely located")
@@ -73,7 +73,7 @@ def _npc_place_download_before_support(page):
     closing=page.find("</section>",idx)
     segment=page[idx:(closing+10 if closing!=-1 else idx+2200)]
     if (closing==-1 or "پشتیبانی" not in segment
-        or not _npc_re.search(r"<h[1-6]\\b",segment,flags=_npc_re.IGNORECASE)):
+        or not _npc_re.search(r"<h[1-6]\b",segment,flags=_npc_re.IGNORECASE)):
         raise RuntimeError("Support target did not validate")
     updated=page[:idx]+_NPC_BUTTON+page[idx:]
     if updated.count('id="sv-private-file"')!=1:
