@@ -76,7 +76,7 @@ def setup_admin():
 
 def setup_portal(files):
     db=PortalDB(files)
-    ns={"app":FakeApp(),"_SV2_HTML":'<main><section class="sv-box sv-support"></section></main>',
+    ns={"app":FakeApp(),"_SV2_HTML":'<main><section class="sv-box sv-support"><h2>پشتیبانی</h2></section></main>',
         "_v2_session_phone":lambda request:request.scope.get("session_phone"),
         "db_conn":lambda:db}
     exec(compile(PORTAL.read_text(encoding="utf8"),str(PORTAL),"exec"),ns)
