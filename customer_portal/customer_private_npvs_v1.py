@@ -37,13 +37,50 @@ _NPC_BUTTON=r'''
   <a class="sv-file-action" href="/my-file/download">دریافت فایل .npvs ←</a>
 </section>
 '''
-_npc_home=TEMPLATES.get("services_ui_v2.html","") if "TEMPLATES" in globals() else ""
-if not isinstance(_SV2_HTML,str) or _SV2_HTML.count('<section class="sv-box sv-support">')!=1:
-    raise RuntimeError("Customer V2 support card anchor changed; NPV overlay stopped")
-if 'id="sv-private-file"' in _SV2_HTML:
-    raise RuntimeError("Private file box already installed")
-_SV2_HTML=_SV2_HTML.replace('<section class="sv-box sv-support">',
-                            _NPC_BUTTON+'<section class="sv-box sv-support">',1)
+def _npc_place_download_before_support(page):
+    """Match the *live* customer template, not a frozen class attribute order.
+    Fail closed unless a single actual customer-support block is located.
+    """
+    if not isinstance(page,str) or not page:
+        raise RuntimeError("Customer landing template not available")
+    if 'id="sv-private-file"' in page:
+        raise RuntimeError("Private file card already installed")
+    # Existing known support card may reorder classes or add attributes.
+    candidate=[]
+    for match in _npc_re.finditer(r"<section\\b[^>]*>",page,flags=_npc_re.IGNORECASE):
+        if _npc_re.search(r"(?<![\\w-])sv-support(?![\\w-])",match.group(),flags=_npc_re.IGNORECASE):
+            candidate.append(match.start())
+    if len(candidate)==1:
+        idx=candidate[0]
+    elif len(candidate)==0:
+        # Newer production layouts might rename the support card class.
+        # Locate the unique support heading, then its enclosing section.
+        headings=list(_npc_re.finditer(
+            r"<h[1-6]\\b[^>]*>\\s*(?:<[^>]+>\\s*)*پشتیبانی\\s*</h[1-6]\\s*>",
+            page,flags=_npc_re.IGNORECASE))
+        if len(headings)!=1:
+            raise RuntimeError("Support heading not uniquely identified")
+        before=page[:headings[0].start()]
+        sections=list(_npc_re.finditer(r"<section\\b[^>]*>",before,
+                                      flags=_npc_re.IGNORECASE))
+        if not sections or headings[0].start()-sections[-1].end()>1500:
+            raise RuntimeError("Support card container not safely located")
+        idx=sections[-1].start()
+    else:
+        raise RuntimeError("Multiple support cards found; refusing ambiguous insertion")
+    # Require the heading in this card, and do not insert into a similarly
+    # named unrelated container.
+    closing=page.find("</section>",idx)
+    segment=page[idx:(closing+10 if closing!=-1 else idx+2200)]
+    if (closing==-1 or "پشتیبانی" not in segment
+        or not _npc_re.search(r"<h[1-6]\\b",segment,flags=_npc_re.IGNORECASE)):
+        raise RuntimeError("Support target did not validate")
+    updated=page[:idx]+_NPC_BUTTON+page[idx:]
+    if updated.count('id="sv-private-file"')!=1:
+        raise RuntimeError("Unexpected private-file card duplication")
+    return updated
+
+_SV2_HTML=_npc_place_download_before_support(_SV2_HTML)
 
 def _npc_download(request:_npc_Request):
     phone=_v2_session_phone(request)
