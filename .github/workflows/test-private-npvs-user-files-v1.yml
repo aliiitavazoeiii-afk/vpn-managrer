@@ -1,0 +1,28 @@
+name: Private NPV files - customer ownership and offline deployment
+on:
+  push:
+    branches: [feat/private-npvs-user-files-v1]
+    paths:
+      - patches/customer_private_npvs_admin_v1.py
+      - customer_portal/customer_private_npvs_v1.py
+      - scripts/install_private_npvs_user_files_v1.sh
+      - scripts/test_private_npvs_user_files_v1.py
+      - .github/workflows/test-private-npvs-user-files-v1.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  offline-mock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test-only dependencies
+        run: python3 -m pip install --quiet fastapi sqlalchemy jinja2 python-multipart
+      - name: Compile only additive Python code
+        run: |
+          python3 -m py_compile patches/customer_private_npvs_admin_v1.py \
+            customer_portal/customer_private_npvs_v1.py \
+            scripts/test_private_npvs_user_files_v1.py
+      - name: Validate installation shell syntax
+        run: bash -n scripts/install_private_npvs_user_files_v1.sh
+      - name: Run mocked isolation and upload tests
+        run: python3 scripts/test_private_npvs_user_files_v1.py
