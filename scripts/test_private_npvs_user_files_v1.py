@@ -198,6 +198,14 @@ class Tests(unittest.TestCase):
         result=p["_npc_download"](req(phone="09123456789"))
         self.assertEqual(result.status_code,503)
         self.assertNotIn(b"contents",result.body)
+    def test_installer_preflight_uses_verified_support_locator(self):
+        shell=INSTALL.read_text(encoding="utf8")
+        self.assertNotIn('index("sv-box sv-support")',shell)
+        self.assertIn('m._npc_place_download_before_support(original)',shell)
+        self.assertIn('server._npc_place_download_before_support(original)',shell)
+        self.assertIn('m._SV2_HTML.count(m._NPC_BUTTON)==1',shell)
+        self.assertIn('server._SV2_HTML.count(server._NPC_BUTTON)==1',shell)
+
     def test_install_has_backup_no_build_or_financial_write(self):
         shell=INSTALL.read_text(encoding="utf8")
         for token in ("DATABASE_BACKUP=CREATED","BACKUP=","NO_BUILD",
