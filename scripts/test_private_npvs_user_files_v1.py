@@ -68,7 +68,8 @@ def setup_admin():
     env=Environment(loader=DictLoader({}))
     base="<html><nav></nav>{% block content %}{% endblock %}</html>"
     templates={"base.html":base}
-    ns={"app":FakeApp(),"env":env,"TEMPLATES":templates,"render":lambda *a,**k:k}
+    ns={"app":FakeApp(),"env":env,"TEMPLATES":templates,
+        "get_db":lambda:None,"render":lambda *a,**k:k}
     exec(compile(ADMIN.read_text(encoding="utf8"),str(ADMIN),"exec"),ns)
     env.loader=DictLoader(templates)
     return ns
