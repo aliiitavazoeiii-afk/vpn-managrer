@@ -143,6 +143,34 @@ class Tests(unittest.TestCase):
         self.assertLess(page.index('id="sv-private-file"'),page.index("sv-box sv-support"))
         self.assertIn('href="/my-file/download"',page)
         self.assertNotIn("09123456789",page)
+    def test_live_customer_layout_with_reordered_or_renamed_support(self):
+        template='<main><section class="sv-box sv-support" data-k="1"><h2>پشتیبانی</h2></section></main>'
+        # The deployed HTML may reorder CSS classes or use a different class.
+        cases=[
+          template,
+          '<main><section class="sv-support sv-box extra"><h2>پشتیبانی</h2></section></main>',
+          '<main><section class="help-card" id="contact"><div><h2>پشتیبانی</h2>'
+          '<p>تماس تلفنی</p></div></section></main>'
+        ]
+        for page in cases:
+            with self.subTest(page=page[:65]):
+                ns={"app":FakeApp(),"_SV2_HTML":page,
+                    "_v2_session_phone":lambda request:None,
+                    "db_conn":lambda:PortalDB({})}
+                exec(compile(PORTAL.read_text(encoding="utf8"),str(PORTAL),"exec"),ns)
+                updated=ns["_SV2_HTML"]
+                self.assertEqual(updated.count('id="sv-private-file"'),1)
+                self.assertLess(updated.index('id="sv-private-file"'),
+                                updated.index("پشتیبانی</h2>"))
+                self.assertIn(page,updated)
+        for invalid in (
+            '<main><section class="help">No support heading</section></main>',
+            '<section><h2>پشتیبانی</h2></section><section><h2>پشتیبانی</h2></section>',
+        ):
+            ns={"app":FakeApp(),"_SV2_HTML":invalid,
+                "_v2_session_phone":lambda req:None,"db_conn":lambda:PortalDB({})}
+            with self.assertRaises(RuntimeError):
+                exec(compile(PORTAL.read_text(encoding="utf8"),str(PORTAL),"exec"),ns)
     def test_download_binds_to_signed_phone_not_request_query(self):
         one=b"private-user-one\x00"
         two=b"private-user-two\x01"
