@@ -90,7 +90,9 @@ assert "/my-file/download" not in before
 exec(compile(sys.stdin.read(),"<npvs-portal-preflight>","exec"),vars(m))
 assert {r.path for r in m.app.router.routes}-before=={"/my-file/download"}
 assert m._SV2_HTML.count("id=\"sv-private-file\"")==1
-assert m._SV2_HTML.index("id=\"sv-private-file\"")<m._SV2_HTML.index("sv-box sv-support")
+assert m._SV2_HTML.count(m._NPC_BUTTON)==1
+original=m._SV2_HTML.replace(m._NPC_BUTTON,"",1)
+assert m._SV2_HTML==m._npc_place_download_before_support(original)
 print("CUSTOMER_PORTAL_PREFLIGHT=PASS")
 '
 
@@ -180,7 +182,9 @@ import server
 import urllib.request
 assert any(r.path=="/my-file/download" for r in server.app.router.routes)
 assert server._SV2_HTML.count('id="sv-private-file"')==1
-assert server._SV2_HTML.index('id="sv-private-file"')<server._SV2_HTML.index("sv-box sv-support")
+assert server._SV2_HTML.count(server._NPC_BUTTON)==1
+original=server._SV2_HTML.replace(server._NPC_BUTTON,"",1)
+assert server._SV2_HTML==server._npc_place_download_before_support(original)
 urllib.request.urlopen("http://127.0.0.1:8091/health",timeout=4).read()
 PY
  then READY=1;break;fi
