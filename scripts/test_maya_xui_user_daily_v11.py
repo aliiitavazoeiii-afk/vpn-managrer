@@ -26,7 +26,7 @@ def stamp(y,m,d,h,minute,sec=0):
 
 def item(server,ts,data):
     return {"server":server,"observed_at":ts,
-            "clients":{name:(up,down) for name,up,down in data.items()}}
+            "clients":{name:(up,down) for name,(up,down) in data.items()}}
 
 class Tests(TestCase):
     def setUp(self):
