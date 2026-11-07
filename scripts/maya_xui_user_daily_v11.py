@@ -12,6 +12,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
+import ipaddress
+import urllib.parse
 import fcntl
 import json
 import os
@@ -33,6 +35,49 @@ FORMAT="HESAB_MAYA_XUI_USER_DAILY_V11"
 RETENTION=45
 SAMPLE_STALE_SECONDS=360
 COUNTER_MAX=(1<<63)-1
+XUI_CONFIG=Path("/root/.config/hesab-maya-extra.json")
+EXPECTED_HOSTS={"maya1":"94.184.4.38",
+                "maya-s3":"185.215.230.221",
+                "maya4":"5.10.249.206"}
+
+def verify_source_identity():
+    """Do not silently count Maya4 users under Maya3 because of stale mapping.
+    No secret material printed; no configuration is modified.
+    """
+    if (XUI_CONFIG.is_symlink() or not XUI_CONFIG.is_file()
+        or XUI_CONFIG.stat().st_mode & 0o077):
+        raise ValueError("Unsafe or missing XUI source configuration")
+    obj=json.loads(XUI_CONFIG.read_text(encoding="utf8"))
+    if not isinstance(obj,dict):
+        raise ValueError("Invalid XUI host map")
+    status={}
+    for name,expected in EXPECTED_HOSTS.items():
+        item=obj.get(name)
+        if not isinstance(item,dict):
+            raise ValueError("Unconfigured XUI host: "+name)
+        if item.get("server") not in (None,name):
+            raise ValueError("XUI identity label mismatch: "+name)
+        transport=item.get("transport","https")
+        if transport=="ssh":
+            address=str(item.get("ssh_host") or "")
+            if address!=expected:
+                raise ValueError("XUI SSH endpoint mismatch for "+name+
+                                 " (check host mapping before daily accounting)")
+            status[name]="SSH_EXPECTED_HOST"
+        elif transport=="https":
+            url=urllib.parse.urlsplit(str(item.get("url") or ""))
+            if url.scheme!="https" or not url.hostname:
+                raise ValueError("Invalid XUI HTTPS URL: "+name)
+            try:
+                address=str(ipaddress.ip_address(url.hostname))
+            except ValueError:
+                raise ValueError("XUI HTTPS hostname requires separately verified mapping: "+name)
+            if address!=expected:
+                raise ValueError("XUI HTTPS endpoint mismatch: "+name)
+            status[name]="HTTPS_EXPECTED_IP"
+        else:
+            raise ValueError("Unsupported XUI transport: "+name)
+    return status
 
 DDL="""
 CREATE TABLE IF NOT EXISTS last_client_v11 (
@@ -204,6 +249,9 @@ def atomic(path,data):
 
 def run(argv):
     check="--check" in argv
+    verified=verify_source_identity()
+    for name in SERVERS:
+        print(name,"SOURCE_HOST",verified[name])
     if check:
         results={}
         with ThreadPoolExecutor(max_workers=3) as pool:
