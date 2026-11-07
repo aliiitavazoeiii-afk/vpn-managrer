@@ -65,8 +65,9 @@ app.add_api_route("/control-room/v11/users-daily",_ux11_daily,methods=["GET"])
 
 _UX11_TEMPLATE=TEMPLATES.get("control_room.html","")
 _UX11_SUBSTITUTIONS=(
-  ('fetch("/control-room/v10/daily",',
-   'fetch("/control-room/v11/users-daily",'),
+  ('fetch("/control-room/v10/daily",\n    {credentials:"same-origin",cache:"no-store"});',
+   'fetch("/control-room/v11/users-daily",\n    {credentials:"same-origin",cache:"no-store",'
+   'headers:{"X-Control-CSRF":t10CSRF}});'),
   ('const today=day.state==="ok"?t10FormatGB(day.rx_today_gb):"—";',
    'const today=day.state==="measured"?t10FormatGB(day.usage_gb):'
    'day.state==="partial"?"≥ "+t10FormatGB(day.usage_gb):"—";'),
