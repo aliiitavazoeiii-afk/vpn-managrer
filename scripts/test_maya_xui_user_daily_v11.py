@@ -95,7 +95,9 @@ class Tests(TestCase):
     def test_read_only_check_no_db_writes(self):
         s=item("maya1",stamp(2026,11,7,10,0),{"a":(100,150)})
         with patch.object(mod,"payload",side_effect=lambda name:dict(s,server=name)):
-            result=mod.run(["--check"])
+            with patch.object(mod,"verify_source_identity",
+                return_value={name:"SSH_EXPECTED_HOST" for name in mod.SERVERS}):
+                result=mod.run(["--check"])
         self.assertEqual(result,0)
         self.assertFalse(mod.DB.exists())
     def test_summary_is_truthful_if_maya3_missing(self):
@@ -117,6 +119,22 @@ class Tests(TestCase):
         self.assertEqual(value["state"],"partial")
         self.assertIs(value["complete_day_exact"],False)
         self.assertEqual(summary["servers"]["maya4"]["state"],"not_measured")
+    def test_wrong_maya3_mapping_is_rejected_before_collecting(self):
+        config={
+           "maya1":{"server":"maya1","transport":"ssh","ssh_host":"94.184.4.38"},
+           "maya-s3":{"server":"maya-s3","transport":"ssh","ssh_host":"5.10.249.206"},
+           "maya4":{"server":"maya4","transport":"ssh","ssh_host":"5.10.249.206"}
+        }
+        file=Path(self.dir.name)/"xui.json"
+        file.write_text(json.dumps(config))
+        file.chmod(0o600)
+        with patch.object(mod,"XUI_CONFIG",file):
+            with self.assertRaisesRegex(ValueError,"maya-s3"):
+                mod.verify_source_identity()
+        config["maya-s3"]["ssh_host"]="185.215.230.221"
+        file.write_text(json.dumps(config))
+        with patch.object(mod,"XUI_CONFIG",file):
+            self.assertEqual(set(mod.verify_source_identity()),set(mod.SERVERS))
     def test_source_is_readonly_xui_bridge(self):
         s=SRC.read_text()
         self.assertIn('{"op":"snapshot","server":server}',s)
