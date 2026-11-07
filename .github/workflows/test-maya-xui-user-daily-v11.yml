@@ -1,0 +1,42 @@
+name: Maya XUI user daily traffic - Tehran boundary and 3 host regression
+on:
+  push:
+    branches: [feat/maya-xui-tehran-daily-usage-v11]
+    paths:
+      - scripts/maya_xui_user_daily_v11.py
+      - scripts/install_maya_xui_user_daily_v11.sh
+      - scripts/test_maya_xui_user_daily_v11.py
+      - patches/control_room_xui_daily_usage_v11.py
+      - .github/workflows/test-maya-xui-user-daily-v11.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install isolated Jinja and FastAPI for UI tests
+        run: python3 -m pip install --quiet jinja2 fastapi
+      - name: Compile new read-only usage code
+        run: |
+          python3 -m py_compile \
+            scripts/maya_xui_user_daily_v11.py \
+            patches/control_room_xui_daily_usage_v11.py \
+            scripts/test_maya_xui_user_daily_v11.py
+      - name: Validate installer syntax
+        run: bash -n scripts/install_maya_xui_user_daily_v11.sh
+      - name: Midnight/reset/unavailable/unit regression
+        run: python3 scripts/test_maya_xui_user_daily_v11.py
+      - name: Ensure no remote mutations and no made-up missing user traffic
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          files=[Path("scripts/maya_xui_user_daily_v11.py"),
+                 Path("patches/control_room_xui_daily_usage_v11.py")]
+          for f in files:
+              s=f.read_text(encoding="utf8")
+              for word in ("systemctl restart","/etc/x-ui/","haproxy -f",
+                           "UPDATE subscriptions","DELETE FROM payments"):
+                  assert word not in s,(f,word)
+          print("MAYA_USER_DAILY_READ_ONLY_CODE_PASS")
+          PY
