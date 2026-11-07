@@ -70,10 +70,17 @@ def verify_source_identity():
                 raise ValueError("Invalid XUI HTTPS URL: "+name)
             try:
                 address=str(ipaddress.ip_address(url.hostname))
+                addresses={address}
             except ValueError:
-                raise ValueError("XUI HTTPS hostname requires separately verified mapping: "+name)
-            if address!=expected:
-                raise ValueError("XUI HTTPS endpoint mismatch: "+name)
+                # Read-only DNS check, never assume a domain belongs to Maya3.
+                try:
+                    addresses={row[4][0] for row in socket.getaddrinfo(
+                        url.hostname,url.port or 443,
+                        family=socket.AF_INET,type=socket.SOCK_STREAM)}
+                except OSError:
+                    addresses=set()
+            if addresses!={expected}:
+                raise ValueError("XUI HTTPS endpoint identity unverified: "+name)
             status[name]="HTTPS_EXPECTED_IP"
         else:
             raise ValueError("Unsupported XUI transport: "+name)
