@@ -64,7 +64,7 @@ class Tests(unittest.TestCase):
         ns=run_admin();s=ns["TEMPLATES"]["base.html"]
         self.assertEqual(s.count("hm12-admin-menu"),1)
         self.assertEqual(s.count("hm12-admin-mobile"),1)
-        self.assertEqual(s.replace(ns["_HM12_CSS"],"").replace(ns["_HM12_JS"],""),BASE)
+        self.assertEqual(s.replace(ns["_HM12_CSS"],"").replace(ns["_HM12_JS"],"").replace('<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n',""),BASE)
         for href in ('href="/"','href="/debts"','href="/payments"','href="/control-room"'):
             self.assertIn(href,s)
         self.assertIn('aria-expanded',ns["_HM12_JS"])
