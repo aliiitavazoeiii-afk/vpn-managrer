@@ -1,0 +1,43 @@
+name: VPN Dashboard mobile v12 - presentation-only regression
+on:
+  push:
+    branches: [feat/mobile-dashboard-responsive-v12]
+    paths:
+      - patches/mobile_dashboard_admin_v12.py
+      - customer_portal/mobile_dashboard_customer_v12.py
+      - scripts/install_mobile_dashboard_v12.sh
+      - scripts/test_mobile_dashboard_v12.py
+      - .github/workflows/test-mobile-dashboard-v12.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up mocked UI template dependencies
+        run: python3 -m pip install --quiet jinja2 fastapi tinycss2
+      - name: Compile addon modules and test harness
+        run: |
+          python3 -m py_compile \
+            patches/mobile_dashboard_admin_v12.py \
+            customer_portal/mobile_dashboard_customer_v12.py \
+            scripts/test_mobile_dashboard_v12.py
+      - name: Validate offline installer syntax
+        run: bash -n scripts/install_mobile_dashboard_v12.sh
+      - name: Validate mobile markup, responsive CSS and interactive JS syntax
+        run: python3 scripts/test_mobile_dashboard_v12.py
+      - name: Check no financial or VPN service changes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for f in [
+              Path("patches/mobile_dashboard_admin_v12.py"),
+              Path("customer_portal/mobile_dashboard_customer_v12.py")
+          ]:
+              s=f.read_text(encoding="utf-8")
+              for forbidden in ("UPDATE subscriptions","DROP TABLE","subprocess.run",
+                  "os.system(","updateClient","haproxy -f","systemctl restart"):
+                  assert forbidden not in s,(f,forbidden)
+          print("UI_ONLY_SCOPE_CONFIRMED")
+          PY
