@@ -68,7 +68,7 @@ routes=[r.path for r in m.app.router.routes]
 exec(compile(sys.stdin.read(),"<mobile-customer-v12>","exec"),vars(m))
 for k,value in before.items():
     updated=getattr(m,k)
-    assert updated.replace(m._HCM12_LINK,"",1)==value,k
+    assert updated.replace(m._HCM12_LINK+"\n","",1)==value,k
     assert updated.count(m._HCM12_LINK)==1,k
     Environment().parse(updated)
 assert [r.path for r in m.app.router.routes]==routes+["/assets/mobile-dashboard-v12.css"]
