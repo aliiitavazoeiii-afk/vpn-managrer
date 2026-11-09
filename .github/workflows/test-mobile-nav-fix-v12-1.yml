@@ -1,0 +1,41 @@
+name: Mobile VPN admin drawer layering v12.1
+on:
+  push:
+    branches: [fix/mobile-v12-sidebar-portal-layer-v12-1]
+    paths:
+      - patches/mobile_dashboard_nav_fix_v12_1.py
+      - scripts/install_mobile_nav_fix_v12_1.sh
+      - scripts/test_mobile_nav_fix_v12_1.mjs
+      - .github/workflows/test-mobile-nav-fix-v12-1.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Python/Jinja source and installer shell
+        run: |
+          python3 -m py_compile patches/mobile_dashboard_nav_fix_v12_1.py
+          bash -n scripts/install_mobile_nav_fix_v12_1.sh
+      - name: Install isolated jsdom for simulated browser
+        run: npm install --no-save --quiet jsdom@24
+      - name: Run actual drawer and navigation through DOM
+        run: node scripts/test_mobile_nav_fix_v12_1.mjs
+      - name: Ensure no backend or VPN mutations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          addon=Path("patches/mobile_dashboard_nav_fix_v12_1.py").read_text()
+          installer=Path("scripts/install_mobile_nav_fix_v12_1.sh").read_text()
+          for s in (addon,installer):
+              for token in ("UPDATE subscriptions", "DROP TABLE",
+                            "systemctl restart haproxy","docker compose down",
+                            "pip install","updateClient"):
+                  assert token not in s, token
+          assert "customer-portal" not in installer
+          assert "--no-deps --no-build --force-recreate app" in installer
+          assert "MOBILE_SIDEBAR_V12_1_PREFLIGHT_PASS" in installer
+          assert "ROLLBACK=MOBILE_SIDEBAR_V12_1_RESTORE" in installer
+          print("MOBILE_V12_1_PRESENTATION_ONLY=PASS")
+          PY
