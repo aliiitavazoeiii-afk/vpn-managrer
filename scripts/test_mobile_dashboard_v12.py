@@ -136,6 +136,7 @@ class Tests(unittest.TestCase):
         for prohibited in ("compose build","pip install","UPDATE subscriptions",
             "DROP TABLE","systemctl restart haproxy","xui.service"):
             self.assertNotIn(prohibited,s)
+        self.assertIn('updated.replace(m._HCM12_LINK+"\\n","",1)==value,k',s)
         self.assertIn('ADMIN=patches/maya1_control.py',s)
         self.assertIn('CUSTOMER=customer_portal/login_activity.py',s)
     def test_manual_rollback_refuses_unrelated_later_changes(self):
