@@ -8,6 +8,9 @@ import re as _hm12_re
 _HM12_CSS = r'''
 <style id="hm12-admin-mobile">
 /* HESAB MOBILE V12 — admin: maintain desktop unchanged. */
+@media (min-width: 861px) {
+  .hm12-top,.hm12-backdrop{display:none!important}
+}
 @media (max-width: 860px) {
   html{font-size:16px!important;-webkit-text-size-adjust:100%}
   html,body{max-width:100%;margin:0;overflow-x:clip}
