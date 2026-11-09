@@ -15,7 +15,7 @@ _HM12_CSS = r'''
   html{font-size:16px!important;-webkit-text-size-adjust:100%}
   html,body{max-width:100%;margin:0;overflow-x:clip}
   body.hm12-ready{padding-top:env(safe-area-inset-top,0px)!important}
-  body.hm12-ready .hm12-shell{display:block!important;grid-template-columns:minmax(0,1fr)!important;
+  body.hm12-ready .hm12-shell,body.hm12-ready.hm12-shell{display:block!important;grid-template-columns:minmax(0,1fr)!important;
     width:100%!important;max-width:100%!important;min-width:0!important}
   body.hm12-ready .main{width:100%!important;max-width:100%!important;min-width:0!important;
     box-sizing:border-box!important;margin:0!important;
@@ -212,7 +212,7 @@ _HM12_JS = r'''
    if(!sidebar||!main)return;
    if(!sidebar.id)sidebar.id="hm12-sidebar";
    const shell=sidebar.parentElement;
-   if(shell&&shell!==document.body)shell.classList.add("hm12-shell");
+   if(shell)shell.classList.add("hm12-shell");
    const top=document.createElement("header");
    top.className="hm12-top";
    top.setAttribute("role","banner");
@@ -276,14 +276,26 @@ _HM12_JS = r'''
      }
    });
    function sync(){
-     if(!isMobile())close();
-     else if(!document.body.classList.contains("hm12-open")){
-       sidebar.setAttribute("aria-hidden","true");sidebar.inert=true;
+     if(!isMobile()){
+       close();unwrapTables();
+     }else{
+       if(!document.body.classList.contains("hm12-open")){
+         sidebar.setAttribute("aria-hidden","true");sidebar.inert=true;
+       }
+       scrollTables();
      }
    }
    window.addEventListener("resize",sync,{passive:true});
-   /* Retain all table columns and original row actions; scroll locally. */
+   /* Retain all table columns and row actions; scroll only on mobile. */
+   function unwrapTables(){
+     document.querySelectorAll(".hm12-table-scroll").forEach(function(wrap){
+       if(wrap.children.length!==1||!wrap.firstElementChild.matches("table"))return;
+       wrap.parentNode.insertBefore(wrap.firstElementChild,wrap);
+       wrap.remove();
+     });
+   }
    function scrollTables(){
+     if(!isMobile())return;
      document.querySelectorAll(".main table").forEach(function(table){
        if(table.closest(".hm12-table-scroll,.c2-table-wrap,.nf-rows,.pla-rows,.table-wrap,.table-responsive,.sms-scroll"))return;
        if(table.parentElement&&table.parentElement.classList.contains("hm12-table-scroll"))return;
