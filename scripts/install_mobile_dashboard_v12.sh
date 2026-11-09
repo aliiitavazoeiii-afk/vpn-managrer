@@ -109,6 +109,8 @@ cat "$ADD_ADMIN" >>"$ADMIN"
 printf '\n\n' >>"$CUSTOMER"
 cat "$ADD_CUSTOMER" >>"$CUSTOMER"
 python3 -m py_compile "$ADMIN" "$CUSTOMER"
+sha256sum "$ADMIN" "$CUSTOMER" >"$BACKUP/installed-sha256.txt"
+chmod 600 "$BACKUP/installed-sha256.txt"
 
 echo "=== RECREATE ONLY UI SERVICES; NO BUILD ==="
 compose up -d --no-deps --no-build --force-recreate app customer-portal
