@@ -138,6 +138,13 @@ class Tests(unittest.TestCase):
             self.assertNotIn(prohibited,s)
         self.assertIn('ADMIN=patches/maya1_control.py',s)
         self.assertIn('CUSTOMER=customer_portal/login_activity.py',s)
+    def test_manual_rollback_refuses_unrelated_later_changes(self):
+        rollback=(ROOT/"scripts/rollback_mobile_dashboard_v12.sh").read_text()
+        self.assertIn('sha256sum -c "$BACKUP/installed-sha256.txt"',rollback)
+        self.assertIn("STOP=PRODUCTION_CHANGED_AFTER_INSTALL_NO_AUTO_OVERWRITE",rollback)
+        self.assertIn("SUCCESS=MOBILE_DASHBOARD_V12_ROLLED_BACK",rollback)
+        self.assertIn('sha256sum "$ADMIN" "$CUSTOMER"',INSTALL.read_text())
+
     def test_duplicate_module_fail_closed(self):
         ns=run_admin()
         with self.assertRaises(RuntimeError):
