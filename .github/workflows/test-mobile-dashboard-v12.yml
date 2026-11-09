@@ -6,6 +6,7 @@ on:
       - patches/mobile_dashboard_admin_v12.py
       - customer_portal/mobile_dashboard_customer_v12.py
       - scripts/install_mobile_dashboard_v12.sh
+      - scripts/rollback_mobile_dashboard_v12.sh
       - scripts/test_mobile_dashboard_v12.py
       - .github/workflows/test-mobile-dashboard-v12.yml
   workflow_dispatch:
@@ -24,7 +25,9 @@ jobs:
             customer_portal/mobile_dashboard_customer_v12.py \
             scripts/test_mobile_dashboard_v12.py
       - name: Validate offline installer syntax
-        run: bash -n scripts/install_mobile_dashboard_v12.sh
+        run: |
+          bash -n scripts/install_mobile_dashboard_v12.sh
+          bash -n scripts/rollback_mobile_dashboard_v12.sh
       - name: Validate mobile markup, responsive CSS and interactive JS syntax
         run: python3 scripts/test_mobile_dashboard_v12.py
       - name: Check no financial or VPN service changes
