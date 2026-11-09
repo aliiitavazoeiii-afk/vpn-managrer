@@ -72,6 +72,9 @@ class Tests(unittest.TestCase):
         self.assertIn('ev.key==="Escape"',ns["_HM12_JS"])
         self.assertIn('sidebar.inert=true',ns["_HM12_JS"])
         self.assertIn('MutationObserver',ns["_HM12_JS"])
+        self.assertIn('if(!isMobile())return;',ns["_HM12_JS"])
+        self.assertIn('function unwrapTables()',ns["_HM12_JS"])
+        self.assertIn('close();unwrapTables();',ns["_HM12_JS"])
     def test_admin_responsive_css_and_control_room_are_explicit(self):
         css=extract(run_admin()["TEMPLATES"]["base.html"],"hm12-admin-mobile")
         for marker in ("@media (max-width: 860px)","@media(max-width:390px)",
