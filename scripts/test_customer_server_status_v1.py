@@ -102,6 +102,25 @@ class Tests(unittest.TestCase):
         app["_cssb_legacy"]=lambda:{"b":21,"other":33}
         self.assertIsNone(app["_cssb_server_for_sid"](21))
         self.assertEqual(app["_cssb_server_for_sid"](33),"maya1")
+    def test_maya1_legacy_atomic_sync_0640_is_accepted_but_public_read_is_not(self):
+        n=admin_module()
+        class FakePath:
+            def __init__(self,mode):self.mode=mode
+            def stat(self):
+                return type("Stat",(),{"st_uid":0,"st_mode":self.mode})()
+            def is_symlink(self):return False
+        n["_CSSB_LEGACY"]=FakePath(0o100640)
+        n["_cssb_read"]=lambda path,limit:{
+            "format":"MAYA1_CONTROL_MAPPING_V1",
+            "expected_sha":"trust-sha",
+            "mapping":{"approved":{"id":11,"reason":"confirmed"},
+                       "automatic":{"id":12,"reason":"exact_name"}}}
+        self.assertEqual(n["_cssb_legacy"](),{"approved":11})
+        n["_CSSB_LEGACY"]=FakePath(0o100644)
+        self.assertEqual(n["_cssb_legacy"](),{})
+        n["_CSSB_LEGACY"]=FakePath(0o100660)
+        self.assertEqual(n["_cssb_legacy"](),{})
+
     def test_admin_internal_route_rejects_unauthenticated_and_tampered(self):
         n=admin_module({"maya1":{"a":{"sid":1}}})
         with tempfile.TemporaryDirectory() as d:
