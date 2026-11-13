@@ -1,22 +1,18 @@
 # Customer-specific VPN server status — V1
 
-**Status: development branch only; NOT deployed to Production.**
+**Status: development branch only; NOT deployed to Production.** User requested existing login without a verification code.
 
-## Why cached-only and fail-closed?
+## Existing customer login (no new OTP)
 
-The existing user portal `/login` issues a 30-day signed cookie after only checking that the entered phone number exists. There is no proof that the visitor controls the phone/SIM. Therefore the new customer status API refuses access until the separate **`customer_status_verified_phone_v1(request)`** function is supplied by an independently reviewed, possession-verified login flow. **Do not implement this hook by returning `_v2_session_phone(request)`; that is not verification.** The existing login, payment and account controls remain unchanged by this feature.
+As requested, this feature **uses the existing signed `moshtarakin_customer` session** on `usermanager.ir` and checks subscription ownership against the session phone in the database on **every request**. It does **not** add an SMS code or any other login step.
 
-Without the verification hook:
+**Existing security tradeoff:** the current phone-only login checks whether the phone is registered, not whether the visitor controls the SIM. A visitor who knows someone else's registered phone could obtain a valid login for that phone. The new status endpoint does not expose IP addresses or internal secrets, and it does not permit selecting unrelated subscription IDs, but it inherits that pre-existing risk. This cannot be described as verified SIM ownership.
 
-- `GET /api/my-server-status/accounts` responds 403;
-- `POST /api/my-server-status/check` responds 403;
-- the new status card tells the user that phone verification is necessary.
-
-This deliberately prioritizes privacy over claiming a functional production feature prematurely.
+Without an existing valid signed login cookie, both status endpoints return 403. The UI remains accessible to logged-in users after deployment.
 
 ## Data flow
 
-1. Signed user session **and** independently verified phone identity are checked by customer-portal backend.
+1. The existing signed user session is checked by the customer-portal backend; **no additional OTP is required**.
 2. The portal checks authorized, not-cut account IDs against `subscriptions` using the session phone (`active_subscriptions`). The browser may submit only `subscription_id`, not a Maya ID, host, URL or port.
 3. A fixed Docker-internal request to `http://app:8000/internal/customer-server-status/v1?sid=<approved id>` carries a 30-second HMAC keyed from a root-only secret file mounted read-only into both web containers.
 4. The administrative app resolves **only explicitly approved XUI ↔ subscription mappings** from `approved_links.json` and confirmed legacy Maya1 `mapping.json`. Unknown, conflicting and inferred name matches are **unknown**, never guessed.
@@ -57,4 +53,4 @@ Default check-only command (not run by this development task):
 bash scripts/install_customer_server_status_v1.sh --check
 ```
 
-Do not run `--install` until independent OTP/phone verification for status views is available and security-reviewed, and the user explicitly approves deployment. The CI tests do not include an end-to-end authenticated Production browser session or live network conditions.
+Run `--check` first and deploy with `--install` only after reviewing the live compatibility results; the user explicitly requested the current phone-only login with no extra verification. The CI tests do not include an end-to-end authenticated Production browser session or live network conditions.
