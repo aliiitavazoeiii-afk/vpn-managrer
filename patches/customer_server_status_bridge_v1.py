@@ -83,8 +83,10 @@ def _cssb_legacy():
     """Maya1 legacy map: only root-protected confirmed records, never guesses."""
     try:
         st=_CSSB_LEGACY.stat()
+        # maya1_readonly_sync.py writes root-owned 0640 JSON atomically.
+        # Read-only group access is acceptable; group write/any other denied.
         if (_CSSB_LEGACY.is_symlink() or st.st_uid!=0 or
-            st.st_mode&(_cssb_stat.S_IRWXG|_cssb_stat.S_IRWXO)):
+            st.st_mode&(_cssb_stat.S_IWGRP|_cssb_stat.S_IRWXO)):
             return {}
     except OSError:
         return {}
