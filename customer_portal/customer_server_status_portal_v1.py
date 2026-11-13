@@ -187,11 +187,6 @@ def _cssp_accounts_endpoint(request:_cssp_Request):
     except (OSError,ValueError,TypeError,KeyError):
         return _cssp_response({"ok":False,"message":"دریافت اشتراک‌ها ممکن نیست."},503)
 
-def _cssp_check_endpoint(request:_cssp_Request):
-    """POST JSON only; client sends sid, never Maya/host/path/port/URL."""
-    # Defined as async for safely bounded JSON-body size in FastAPI.
-    raise RuntimeError("Async route must replace this placeholder")
-
 async def _cssp_check_endpoint(request:_cssp_Request):
     phone=_cssp_verified_phone(request)
     if not phone:return _cssp_response({"ok":False,
@@ -395,7 +390,7 @@ if "_SV2_HTML" not in globals() or type(_SV2_HTML) is not str:
     raise RuntimeError("CUSTOMER_STATUS_SERVICES_TEMPLATE_MISSING")
 if (_SV2_HTML.count('<div class="sv-server-footer">')!=1 or
     _SV2_HTML.count("</body>")!=1 or
-    "id=\\"sv-cstatus\\"" in _SV2_HTML):
+    'id="sv-cstatus"' in _SV2_HTML):
     raise RuntimeError("CUSTOMER_STATUS_CARD_ANCHOR_MISMATCH")
 _SV2_HTML=_SV2_HTML.replace('<div class="sv-server-footer">',
        _CSSP_CARD+'<div class="sv-server-footer">',1)
