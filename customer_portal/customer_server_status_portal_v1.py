@@ -198,7 +198,10 @@ async def _cssp_check_endpoint(request:_cssp_Request):
         return _cssp_response({"ok":False,"message":"درخواست معتبر نیست."},403)
     if request.headers.get("content-type","").split(";")[0].strip().lower()!="application/json":
         return _cssp_response({"ok":False},415)
-    if int(request.headers.get("content-length","0") or "0")>256:
+    length=request.headers.get("content-length","0")
+    if not length.isascii() or not length.isdecimal():
+        return _cssp_response({"ok":False},400)
+    if int(length)>256:
         return _cssp_response({"ok":False},413)
     try:
         payload=await request.body()
@@ -328,6 +331,13 @@ function render(report){
   const row=mk(results,"div",null,"sv-cstatus-row");
   mk(row,"b",title);
   mk(row,"span",val[0],"sv-cstatus-pill "+val[1]);
+  let evidence="نوع بررسی: اطلاعات معتبر موجود نیست";
+  if(entry.transfer&&entry.transfer!=="unknown"&&entry.transfer_at){
+     evidence="آزمایش واقعی انتقال: "+date(entry.transfer_at);
+  }else if(entry.connection&&entry.connection!=="unknown"&&entry.connection_at){
+     evidence="بررسی اتصال: "+date(entry.connection_at)+" · سرعت اندازه‌گیری نشده";
+  }
+  mk(results,"div",title+" · "+evidence,"sv-cstatus-meta");
  }
  const final=states[report.summary]||states.unknown;
  mk(results,"div","وضعیت کلی: "+final[0],"sv-cstatus-meta");
