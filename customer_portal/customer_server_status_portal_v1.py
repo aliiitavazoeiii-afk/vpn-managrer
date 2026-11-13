@@ -1,7 +1,8 @@
 # HESAB_CUSTOMER_SERVER_STATUS_PORTAL_V1
 # Customer-only read of existing shared central status. NO active probes,
-# network scanning, SSH or private XUI access. All access fails CLOSED until
-# a separately VERIFIED ownership mechanism is wired into the auth hook.
+# network scanning, SSH or private XUI access. Authorization follows the
+# EXISTING signed user portal session and per-subscription DB ownership.
+# Note: that login is phone-only without SIM possession verification.
 import hashlib as _cssp_hashlib
 import hmac as _cssp_hmac
 import json as _cssp_json
@@ -24,19 +25,20 @@ _CSSP_FLIGHTS={}
 _CSSP_CACHE_SECONDS=30
 _CSSP_MAX_CACHE=2048
 
-def _cssp_verified_phone(request):
-    """Integration contract: callable must verify SIM/OTP, NOT just signed
-    30-day cookie or a phone the visitor supplied. Missing hook => deny.
-    This is intentionally NOT wired to existing insecure phone-only login.
+def _cssp_session_phone(request):
+    """Signed existing usermanager.ir session, with no new OTP step.
+
+    _v2_session_phone uses the existing signed moshtarakin_customer cookie.
+    DB ownership is checked separately for EVERY requested subscription.
+    Knowledge of another customer's registered phone number can still allow
+    an impersonated login; this feature does not fix that login weakness.
     """
-    phone=_v2_session_phone(request)
-    if not phone:return None
-    hook=globals().get("customer_status_verified_phone_v1")
-    if not callable(hook):return None
     try:
-        verified=hook(request)
-        return phone if isinstance(verified,str) and (
-            normalize_phone(verified)==phone) else None
+        phone=_v2_session_phone(request)
+        if not isinstance(phone,str) or not phone:
+            return None
+        normalized=normalize_phone(phone)
+        return normalized if normalized==phone else None
     except (ValueError,TypeError,KeyError,AttributeError):
         return None
 
@@ -177,9 +179,9 @@ def _cssp_cached(sid,now):
             ev.set()
 
 def _cssp_accounts_endpoint(request:_cssp_Request):
-    phone=_cssp_verified_phone(request)
+    phone=_cssp_session_phone(request)
     if not phone:return _cssp_response({"ok":False,
-        "message":"برای بررسی وضعیت، ابتدا باید شماره شما تأیید شود."},403)
+        "message":"برای بررسی وضعیت، ابتدا وارد حساب کاربری خود شوید."},403)
     try:
         accounts=_cssp_accounts(phone)
         return _cssp_response({"ok":True,"accounts":accounts,
@@ -188,9 +190,9 @@ def _cssp_accounts_endpoint(request:_cssp_Request):
         return _cssp_response({"ok":False,"message":"دریافت اشتراک‌ها ممکن نیست."},503)
 
 async def _cssp_check_endpoint(request:_cssp_Request):
-    phone=_cssp_verified_phone(request)
+    phone=_cssp_session_phone(request)
     if not phone:return _cssp_response({"ok":False,
-       "message":"برای بررسی وضعیت، ابتدا باید شماره شما تأیید شود."},403)
+       "message":"برای بررسی وضعیت، ابتدا وارد حساب کاربری خود شوید."},403)
     if request.headers.get("origin")!="https://usermanager.ir" or (
         request.headers.get("sec-fetch-site") not in (None,"same-origin")):
         return _cssp_response({"ok":False,"message":"درخواست معتبر نیست."},403)
