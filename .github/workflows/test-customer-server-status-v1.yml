@@ -1,0 +1,31 @@
+name: Customer server status read-only V1
+on:
+  push:
+    branches: [feat/customer-server-status-cached-v1]
+    paths:
+      - patches/customer_server_status_bridge_v1.py
+      - customer_portal/customer_server_status_portal_v1.py
+      - scripts/test_customer_server_status_v1.py
+      - scripts/install_customer_server_status_v1.sh
+      - .github/workflows/test-customer-server-status-v1.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install limited offline test dependencies
+        run: python3 -m pip install --quiet fastapi
+      - name: Compile actual source
+        run: |
+          python3 -m py_compile patches/customer_server_status_bridge_v1.py
+          python3 -m py_compile customer_portal/customer_server_status_portal_v1.py
+          python3 -m py_compile scripts/test_customer_server_status_v1.py
+      - name: Test authorization, freshness, statuses, sharing and zero active probes
+        run: python3 scripts/test_customer_server_status_v1.py
+      - name: Validate safe guarded installer if present
+        run: |
+          if test -f scripts/install_customer_server_status_v1.sh; then
+            bash -n scripts/install_customer_server_status_v1.sh
+          fi
