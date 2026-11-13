@@ -217,15 +217,21 @@ def _cssb_report(server,now=None):
             "method":"central_cached_only",
             "max_transfer_age_s":_CSSB_TRANSFER_MAX_AGE}
 
-def _cssb_rate(now):
+def _cssb_rate(now,server):
+    # Limit both aggregate access and each physical Maya; no active probes.
     with _CSSB_RATE_LOCK:
         cutoff=now-60
-        for k,v in list(_CSSB_RATE.items()):
-            if v[0]<cutoff:_CSSB_RATE.pop(k,None)
-        start,count=_CSSB_RATE.get("all",(now,0))
-        if now-start>=60:start,count=now,0
-        if count>=_CSSB_MAX_BRIDGE_CALLS:return False
-        _CSSB_RATE["all"]=(start,count+1)
+        for key,value in list(_CSSB_RATE.items()):
+            if value[0]<cutoff:_CSSB_RATE.pop(key,None)
+        keys=[("all",_CSSB_MAX_BRIDGE_CALLS)]
+        if server in _CSSB_NAMES:keys.append(("server:"+server,30))
+        fresh=[]
+        for key,limit in keys:
+            start,count=_CSSB_RATE.get(key,(now,0))
+            if now-start>=60:start,count=now,0
+            if count>=limit:return False
+            fresh.append((key,start,count+1))
+        for key,start,count in fresh:_CSSB_RATE[key]=(start,count)
         return True
 
 def _cssb_endpoint(request:_cssb_Request):
@@ -240,10 +246,10 @@ def _cssb_endpoint(request:_cssb_Request):
     if not _cssb_verify(sid,stamp,signature):
         return _cssb_JSON({"ok":False},status_code=403,
               headers={"Cache-Control":"no-store"})
-    if not _cssb_rate(int(_cssb_time.time())):
+    server=_cssb_server_for_sid(sid)
+    if not _cssb_rate(int(_cssb_time.time()),server):
         return _cssb_JSON({"ok":False},status_code=429,
               headers={"Cache-Control":"no-store"})
-    server=_cssb_server_for_sid(sid)
     report=_cssb_report(server) if server else None
     # Never send other Maya data, mappings, names, IPs or SSH status.
     if report is None:
