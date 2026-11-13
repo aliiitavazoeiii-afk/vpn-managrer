@@ -180,6 +180,24 @@ class Tests(unittest.TestCase):
             self.assertNotEqual(report["summary"],"healthy")
             dualf.write_text(json.dumps(dual(now-5000)))
             self.assertEqual(n["_cssb_report"]("maya1",now)["summary"],"unknown")
+    def test_central_report_one_per_maya_across_many_subscription_checks(self):
+        n=admin_module()
+        observed=[]
+        count=threading.Lock()
+        def central(server,now=None):
+            with count:observed.append(server)
+            time.sleep(.06)
+            return {"server":server,"summary":"healthy"}
+        n["_cssb_report"]=central
+        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as pool:
+            results=list(pool.map(lambda i:n["_cssb_cached_report"]("maya1",1950000000),
+                                  range(16)))
+        self.assertEqual(observed,["maya1"])
+        self.assertEqual(len(results),16)
+        self.assertEqual(results[0]["summary"],"healthy")
+        self.assertEqual(n["_cssb_cached_report"]("maya-s3",1950000000)["server"],"maya-s3")
+        self.assertEqual(observed,["maya1","maya-s3"])
+
     def test_server_and_global_rate_limits(self):
         n=admin_module()
         now=1930000000
