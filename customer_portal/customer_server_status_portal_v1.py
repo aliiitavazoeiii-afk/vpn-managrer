@@ -74,6 +74,23 @@ def _cssp_allow(phone,sid,now):
             _CSSP_RATE[key]=(start,count)
         return True
 
+def _cssp_gate_request(phone,now):
+    """Bound DB lookup pressure before loading any subscription rows."""
+    with _CSSP_RATE_LOCK:
+        if len(_CSSP_RATE)>2048:
+            for key,value in list(_CSSP_RATE.items()):
+                if now-value[0]>=60:_CSSP_RATE.pop(key,None)
+        checks=((("request_phone",phone),12),(("request_global",0),240))
+        updates=[]
+        for key,limit in checks:
+            start,count=_CSSP_RATE.get(key,(now,0))
+            if now-start>=60:start,count=now,0
+            if count>=limit:return False
+            updates.append((key,start,count+1))
+        for key,start,count in updates:
+            _CSSP_RATE[key]=(start,count)
+        return True
+
 def _cssp_secret():
     try:
         if _CSSP_SECRET.is_symlink() or not _CSSP_SECRET.is_file():
@@ -182,6 +199,8 @@ def _cssp_accounts_endpoint(request:_cssp_Request):
     phone=_cssp_session_phone(request)
     if not phone:return _cssp_response({"ok":False,
         "message":"برای بررسی وضعیت، ابتدا وارد حساب کاربری خود شوید."},403)
+    if not _cssp_gate_request(phone,int(_cssp_time.time())):
+        return _cssp_response({"ok":False,"message":"کمی بعد دوباره تلاش کن."},429)
     try:
         accounts=_cssp_accounts(phone)
         return _cssp_response({"ok":True,"accounts":accounts,
@@ -201,7 +220,7 @@ async def _cssp_check_endpoint(request:_cssp_Request):
     if request.headers.get("content-type","").split(";")[0].strip().lower()!="application/json":
         return _cssp_response({"ok":False},415)
     length=request.headers.get("content-length","0")
-    if not length.isascii() or not length.isdecimal():
+    if len(length)>6 or not length.isascii() or not length.isdecimal():
         return _cssp_response({"ok":False},400)
     if int(length)>256:
         return _cssp_response({"ok":False},413)
@@ -215,6 +234,8 @@ async def _cssp_check_endpoint(request:_cssp_Request):
         type(data["subscription_id"]) is not int or not 1<=data["subscription_id"]<=2147483647):
         return _cssp_response({"ok":False,"message":"اشتراک نامعتبر است."},400)
     sid=data["subscription_id"]
+    if not _cssp_gate_request(phone,int(_cssp_time.time())):
+        return _cssp_response({"ok":False,"message":"کمی بعد دوباره تلاش کن."},429)
     try:
         owned={v["id"] for v in _cssp_accounts(phone)}
         if sid not in owned:
