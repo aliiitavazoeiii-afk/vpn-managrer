@@ -76,12 +76,13 @@ exec(compile(sys.stdin.read(),"<portal-status-preflight>","exec"),vars(m))
 assert [r.path for r in m.app.router.routes]==old+[
  "/api/my-server-status/accounts","/api/my-server-status/check"]
 assert "sv-cstatus-check" in m._SV2_HTML
+assert "customer_status_verified_phone_v1" not in m._cssp_session_phone.__code__.co_names
 assert before.count("<div class=\"sv-server-footer\">")==1
 Environment().parse(m._SV2_HTML)
 print("CUSTOMER_STATUS_PREFLIGHT=PASS")
 '
-echo "AUTHENTICATION_NOTICE=PHONE_ONLY_LOGIN_IS_NOT_PROOF_OF_OWNERSHIP"
-echo "STATUS_ACCESS_DEFAULT=FAIL_CLOSED_PENDING_VERIFIED_AUTH_HOOK"
+echo "AUTHENTICATION_NOTICE=USES_EXISTING_SIGNED_PHONE_LOGIN_NO_OTP"
+echo "STATUS_ACCESS=SIGNED_SESSION_AND_DATABASE_OWNERSHIP_ONLY"
 if [[ "$MODE" == "--check" ]];then
  echo "SUCCESS=CUSTOMER_STATUS_V1_PREFLIGHT_ONLY_NO_CHANGES"
  exit 0
@@ -162,7 +163,7 @@ PY
 done
 [[ "$ADMIN_READY" == 1 ]] || { echo "STOP=ADMIN_VERIFY_FAILED";false; }
 
-echo "=== VERIFY CUSTOMER ROUTES DENY UNVERIFIED VISITORS ==="
+echo "=== VERIFY CUSTOMER ROUTES DENY VISITORS WITHOUT LOGIN ==="
 CUSTOMER_READY=0
 for i in $(seq 1 30);do
  if compose exec -T customer-portal python - <<'PY' >/dev/null 2>&1
@@ -180,9 +181,9 @@ PY
 done
 [[ "$CUSTOMER_READY" == 1 ]] || { echo "STOP=CUSTOMER_VERIFY_FAILED";false; }
 trap - EXIT
-echo "SUCCESS=CUSTOMER_STATUS_V1_INSTALLED_FAIL_CLOSED"
+echo "SUCCESS=CUSTOMER_STATUS_V1_INSTALLED_SESSION_SCOPED"
 echo "MANAGEMENT_INTERNAL_ENDPOINT=HMAC_REQUIRED"
 echo "NO_USER_TRIGGERED_DOWNLOADS_OR_SSH=YES"
-echo "CURRENT_PHONE_ONLY_AUTH=NO_ACCESS_UNTIL_VERIFICATION"
+echo "CURRENT_PHONE_ONLY_AUTH=SIGNED_SESSION_NO_EXTRA_OTP"
 echo "VPN_XUI_HAPROXY_MIeru_BACKHAUL_FINANCE_CHANGED=NO"
 echo "BACKUP=$BACKUP"
