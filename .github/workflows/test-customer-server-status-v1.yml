@@ -7,6 +7,7 @@ on:
       - customer_portal/customer_server_status_portal_v1.py
       - scripts/test_customer_server_status_v1.py
       - scripts/install_customer_server_status_v1.sh
+      - scripts/rollback_customer_server_status_v1.sh
       - .github/workflows/test-customer-server-status-v1.yml
   workflow_dispatch:
 permissions: {contents: read}
@@ -28,4 +29,5 @@ jobs:
         run: |
           if test -f scripts/install_customer_server_status_v1.sh; then
             bash -n scripts/install_customer_server_status_v1.sh
+            bash -n scripts/rollback_customer_server_status_v1.sh
           fi
