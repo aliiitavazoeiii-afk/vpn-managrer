@@ -295,7 +295,7 @@ class Tests(unittest.TestCase):
                 self.assertEqual(updated.replace(n["_CSSP_CARD"],"",1).replace(
                                  n["_CSSP_STYLE"]+n["_CSSP_JS"],"",1),original)
                 # The inserted test is inside the original server section.
-                server_section=re.search(r'<section\\b[^>]*\\bsv-server\\b[^>]*>',updated)
+                server_section=re.search(r'<section\b[^>]*\bsv-server\b[^>]*>',updated)
                 self.assertIsNotNone(server_section)
                 start=server_section.start()
                 end=updated.find("</section>",start)
