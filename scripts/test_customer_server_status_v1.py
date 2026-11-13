@@ -45,7 +45,7 @@ def admin_module(approved=None):
     exec(compile(ADMIN.read_text(),str(ADMIN),"exec"),scope)
     return scope
 
-def portal_module(owned=None):
+def portal_module(owned=None,template=None):
     owned=owned or {"09120000000":[1,9],"09350000000":[3],"09121111111":[4]}
     class DB:
         def __enter__(self):return self
@@ -54,7 +54,7 @@ def portal_module(owned=None):
         return [{"id":sid,"display_name":"اشتراک "+str(sid)}
                 for sid in owned.get(phone,[])]
     scope={"app":App(),
-           "_SV2_HTML":'''<!doctype html><html lang="fa"><head></head><body>
+           "_SV2_HTML":template if template is not None else '''<!doctype html><html lang="fa"><head></head><body>
         <section class="sv-server"><div class="sv-server-footer"></div></section>
         </body></html>''',
            "_v2_session_phone":lambda request:request.phone,
@@ -273,6 +273,37 @@ class Tests(unittest.TestCase):
             out=list(pool.map(lambda x:n["_cssp_cached"](1,1900000000),range(12)))
         self.assertEqual(count[0],1)
         self.assertEqual({x["summary"] for x in out},{"healthy"})
+    def test_live_server_section_markup_variants_preserve_original_exactly(self):
+        live=(ROOT/"customer_portal/services_ui_v2.html").read_text(encoding="utf8")
+        cases={
+           "repository":live,
+           "no_legacy_footer":live.replace(
+               '<div class="sv-server-footer">',
+               '<div class="sv-live-monitor-head">'),
+           "reordered_classes":live.replace(
+               'class="sv-box sv-server"',
+               'class="sv-live sv-server sv-box"'),
+           "single_quoted_classes":live.replace(
+               'class="sv-box sv-server"',
+               "class='sv-server sv-box'"),
+        }
+        for name,original in cases.items():
+            with self.subTest(name=name):
+                n=portal_module(template=original)
+                updated=n["_SV2_HTML"]
+                self.assertEqual(updated.count('id="sv-cstatus"'),1)
+                self.assertEqual(updated.replace(n["_CSSP_CARD"],"",1).replace(
+                                 n["_CSSP_STYLE"]+n["_CSSP_JS"],"",1),original)
+                # The inserted test is inside the original server section.
+                start=updated.find("<section",updated.find("sv-top-grid"))
+                end=updated.find("</section>",start)
+                self.assertTrue(start < updated.index('id="sv-cstatus"') < end)
+        with self.assertRaises(RuntimeError):
+            portal_module(template=live.replace("sv-box sv-server","sv-box sv-absent"))
+        with self.assertRaises(RuntimeError):
+            portal_module(template=live.replace("</body>",
+                '<section class="sv-server"></section></body>'))
+
     def test_no_customer_access_to_admin_routes_or_private_host_details(self):
         a=admin_module()
         p=portal_module()
