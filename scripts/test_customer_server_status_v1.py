@@ -243,6 +243,23 @@ class Tests(unittest.TestCase):
         q=FakeRequest(phone=phone,headers=base,payload={"subscription_id":1})
         n["_cssp_cached"]=lambda sid,now:{"server":"maya1","summary":"unknown"}
         self.assertEqual(decode(asyncio.run(n["_cssp_check_endpoint"](q)))[0],200)
+    def test_pre_db_per_phone_and_global_rate_limit(self):
+        n=portal_module()
+        now=1940000000
+        self.assertTrue(all(n["_cssp_gate_request"]("09120000000",now)
+                            for _ in range(12)))
+        self.assertFalse(n["_cssp_gate_request"]("09120000000",now))
+        self.assertTrue(n["_cssp_gate_request"]("09350000000",now))
+        self.assertTrue(n["_cssp_gate_request"]("09120000000",now+61))
+        n=portal_module()
+        bad=FakeRequest(phone="09120000000",headers={
+             "origin":"https://usermanager.ir","content-type":"application/json",
+             "content-length":"9"*7000,
+             "x-customer-status-csrf":"csrf-09120000000"},
+             payload={"subscription_id":1})
+        status,_=decode(asyncio.run(n["_cssp_check_endpoint"](bad)))
+        self.assertEqual(status,400)
+
     def test_single_flight_shared_cache_no_redundant_requests(self):
         n=portal_module()
         count=[0]
