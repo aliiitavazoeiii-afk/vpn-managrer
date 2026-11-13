@@ -26,6 +26,8 @@ _CSSB_DUAL_MAX_AGE=4500
 _CSSB_TRANSFER_MAX_AGE=1800
 _CSSB_RATE_LOCK=_cssb_threading.Lock()
 _CSSB_RATE={}   # local process; no active probe and always bounded
+_CSSB_REPORT_LOCK=_cssb_threading.Lock()
+_CSSB_REPORT_CACHE={}  # one shared central report per physical Maya, 30s TTL
 _CSSB_MAX_BRIDGE_CALLS=90 # 90/min across entire process
 _CSSB_SECRET_MIN=32
 
@@ -226,6 +228,20 @@ def _cssb_report(server,now=None):
             "method":"central_cached_only",
             "max_transfer_age_s":_CSSB_TRANSFER_MAX_AGE}
 
+def _cssb_cached_report(server,now=None):
+    """One cached report per Maya, shared by all approved subscriptions there.
+    The lock also coalesces concurrent reads of the same central report.
+    """
+    if server not in _CSSB_NAMES:return None
+    now=int(_cssb_time.time() if now is None else now)
+    with _CSSB_REPORT_LOCK:
+        current=_CSSB_REPORT_CACHE.get(server)
+        if current and 0<=now-current[0]<30:
+            return current[1]
+        result=_cssb_report(server,now)
+        _CSSB_REPORT_CACHE[server]=(now,result)
+        return result
+
 def _cssb_rate(now,server):
     # Limit both aggregate access and each physical Maya; no active probes.
     with _CSSB_RATE_LOCK:
@@ -259,7 +275,7 @@ def _cssb_endpoint(request:_cssb_Request):
     if not _cssb_rate(int(_cssb_time.time()),server):
         return _cssb_JSON({"ok":False},status_code=429,
               headers={"Cache-Control":"no-store"})
-    report=_cssb_report(server) if server else None
+    report=_cssb_cached_report(server) if server else None
     # Never send other Maya data, mappings, names, IPs or SSH status.
     if report is None:
         report={"server":None,"server_label":"نامشخص",
