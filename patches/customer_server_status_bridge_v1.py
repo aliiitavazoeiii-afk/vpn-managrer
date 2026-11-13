@@ -80,7 +80,14 @@ def _cssb_approved():
         return None
 
 def _cssb_legacy():
-    """Maya1 legacy map: only exact user-confirmed reasons, never guesses."""
+    """Maya1 legacy map: only root-protected confirmed records, never guesses."""
+    try:
+        st=_CSSB_LEGACY.stat()
+        if (_CSSB_LEGACY.is_symlink() or st.st_uid!=0 or
+            st.st_mode&(_cssb_stat.S_IRWXG|_cssb_stat.S_IRWXO)):
+            return {}
+    except OSError:
+        return {}
     doc=_cssb_read(_CSSB_LEGACY,200000)
     if (not doc or doc.get("format")!="MAYA1_CONTROL_MAPPING_V1" or
         doc.get("expected_sha")!=globals().get("_ML_APPROVAL_SHA") or
