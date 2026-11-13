@@ -419,12 +419,41 @@ button.addEventListener("click",async()=>{
 })();
 </script>
 '''
+def _cssp_embed_in_existing_server_card(page):
+    """Place the test below the existing server status contents.
+
+    Production has evolved from the original 'sv-server-footer' HTML.
+    Anchor to the one real server section, not a fragile footer substring.
+    Preserve every original markup byte, variable and route.
+    """
+    if type(page) is not str or page.lower().count("</body>")!=1 or (
+        'id="sv-cstatus"' in page
+    ):
+        raise RuntimeError("CUSTOMER_STATUS_CARD_TEMPLATE_MISMATCH")
+    open_tags=list(_cssp_re.finditer(r"<section\\b[^>]*>",page,_cssp_re.I))
+    matches=[]
+    for entry in open_tags:
+        attrs=entry.group(0)
+        cls=_cssp_re.search(
+            r"""\\bclass\\s*=\\s*(['"])(.*?)\\1""",attrs,_cssp_re.I|_cssp_re.S)
+        if cls and "sv-server" in cls.group(2).split():
+            matches.append(entry)
+    if len(matches)!=1:
+        raise RuntimeError("CUSTOMER_STATUS_SERVER_SECTION_NOT_UNIQUE")
+    opening=matches[0]
+    depth=1
+    closing=None
+    for token in _cssp_re.finditer(r"</?section\\b[^>]*>",page[opening.end():],_cssp_re.I):
+        depth += -1 if token.group().startswith("</") else 1
+        if depth==0:
+            closing=opening.end()+token.start()
+            break
+    if closing is None:
+        raise RuntimeError("CUSTOMER_STATUS_SERVER_SECTION_UNCLOSED")
+    return page[:closing]+_CSSP_CARD+page[closing:]
+
 if "_SV2_HTML" not in globals() or type(_SV2_HTML) is not str:
     raise RuntimeError("CUSTOMER_STATUS_SERVICES_TEMPLATE_MISSING")
-if (_SV2_HTML.count('<div class="sv-server-footer">')!=1 or
-    _SV2_HTML.count("</body>")!=1 or
-    'id="sv-cstatus"' in _SV2_HTML):
-    raise RuntimeError("CUSTOMER_STATUS_CARD_ANCHOR_MISMATCH")
-_SV2_HTML=_SV2_HTML.replace('<div class="sv-server-footer">',
-       _CSSP_CARD+'<div class="sv-server-footer">',1)
-_SV2_HTML=_SV2_HTML.replace("</body>",_CSSP_STYLE+_CSSP_JS+"</body>",1)
+_SV2_HTML=_cssp_embed_in_existing_server_card(_SV2_HTML)
+_SV2_HTML=_cssp_re.sub(r"(?i)</body>",
+    lambda match:_CSSP_STYLE+_CSSP_JS+match.group(),_SV2_HTML,count=1)
