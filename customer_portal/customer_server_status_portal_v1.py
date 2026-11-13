@@ -430,12 +430,12 @@ def _cssp_embed_in_existing_server_card(page):
         'id="sv-cstatus"' in page
     ):
         raise RuntimeError("CUSTOMER_STATUS_CARD_TEMPLATE_MISMATCH")
-    open_tags=list(_cssp_re.finditer(r"<section\\b[^>]*>",page,_cssp_re.I))
+    open_tags=list(_cssp_re.finditer(r"<section\b[^>]*>",page,_cssp_re.I))
     matches=[]
     for entry in open_tags:
         attrs=entry.group(0)
         cls=_cssp_re.search(
-            r"""\\bclass\\s*=\\s*(['"])(.*?)\\1""",attrs,_cssp_re.I|_cssp_re.S)
+            r"""\bclass\s*=\s*(['"])(.*?)\1""",attrs,_cssp_re.I|_cssp_re.S)
         if cls and "sv-server" in cls.group(2).split():
             matches.append(entry)
     if len(matches)!=1:
@@ -443,7 +443,7 @@ def _cssp_embed_in_existing_server_card(page):
     opening=matches[0]
     depth=1
     closing=None
-    for token in _cssp_re.finditer(r"</?section\\b[^>]*>",page[opening.end():],_cssp_re.I):
+    for token in _cssp_re.finditer(r"</?section\b[^>]*>",page[opening.end():],_cssp_re.I):
         depth += -1 if token.group().startswith("</") else 1
         if depth==0:
             closing=opening.end()+token.start()
