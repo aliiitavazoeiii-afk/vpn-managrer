@@ -77,7 +77,9 @@ assert [r.path for r in m.app.router.routes]==old+[
  "/api/my-server-status/accounts","/api/my-server-status/check"]
 assert "sv-cstatus-check" in m._SV2_HTML
 assert "customer_status_verified_phone_v1" not in m._cssp_session_phone.__code__.co_names
-assert before.count("<div class=\"sv-server-footer\">")==1
+assert m._SV2_HTML.count("id=\"sv-cstatus\"")==1
+assert m._SV2_HTML.replace(m._CSSP_CARD,"",1).replace(
+       m._CSSP_STYLE+m._CSSP_JS,"",1)==before
 Environment().parse(m._SV2_HTML)
 print("CUSTOMER_STATUS_PREFLIGHT=PASS")
 '
