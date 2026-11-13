@@ -205,18 +205,19 @@ class Tests(unittest.TestCase):
         self.assertFalse(n["_cssb_rate"](now,"maya1"))
         self.assertTrue(n["_cssb_rate"](now,"maya-s3"))
         self.assertTrue(n["_cssb_rate"](now+61,"maya1"))
-    def test_no_verified_identity_means_no_status_or_account_listing(self):
+    def test_missing_signed_login_denies_accounts_and_status(self):
         n=portal_module()
-        q=FakeRequest(phone="09120000000")
+        q=FakeRequest(phone=None)
         self.assertEqual(decode(n["_cssp_accounts_endpoint"](q))[0],403)
-        post=FakeRequest(phone="09120000000",headers={
+        post=FakeRequest(phone=None,headers={
             "origin":"https://usermanager.ir","content-type":"application/json",
             "x-customer-status-csrf":"csrf-09120000000"},
             payload={"subscription_id":1})
         self.assertEqual(decode(asyncio.run(n["_cssp_check_endpoint"](post)))[0],403)
-    def test_verified_user_own_ids_only_and_reject_forged_server(self):
+        self.assertNotIn("customer_status_verified_phone_v1",CUSTOMER.read_text())
+
+    def test_existing_signed_session_own_ids_only_and_reject_forged_server(self):
         n=portal_module()
-        n["customer_status_verified_phone_v1"]=lambda request:request.phone
         phone="09120000000"
         csrf="csrf-"+phone
         base={"origin":"https://usermanager.ir","content-type":"application/json",
@@ -282,8 +283,8 @@ class Tests(unittest.TestCase):
             for forbidden in ("subprocess.run(","socket.socket(","paramiko","--socks5",
                               "systemctl","SELECT * FROM payments","INSERT INTO","DELETE FROM"):
                 self.assertNotIn(forbidden,s)
-        self.assertIn("customer_status_verified_phone_v1",CUSTOMER.read_text())
-        self.assertNotIn("def customer_status_verified_phone_v1",CUSTOMER.read_text())
+        self.assertIn("_v2_session_phone(request)",CUSTOMER.read_text())
+        self.assertNotIn("customer_status_verified_phone_v1",CUSTOMER.read_text())
         self.assertNotIn("_pt_start(",CUSTOMER.read_text())
 
 if __name__=="__main__":
