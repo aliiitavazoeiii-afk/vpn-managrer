@@ -1,0 +1,38 @@
+name: Control Room Maya compact rows V13
+on:
+  push:
+    branches: [feat/control-room-user-rows-v13]
+    paths:
+      - patches/control_room_user_rows_v13.py
+      - scripts/test_control_room_user_rows_v13.py
+      - scripts/install_control_room_user_rows_v13.sh
+      - scripts/rollback_control_room_user_rows_v13.sh
+      - .github/workflows/test-control-room-user-rows-v13.yml
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  static-and-behavior:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python and bash compile
+        run: |
+          python3 -m pip install --quiet jinja2
+          python3 -m py_compile patches/control_room_user_rows_v13.py scripts/test_control_room_user_rows_v13.py
+          bash -n scripts/install_control_room_user_rows_v13.sh
+      - name: Test actual V2/V3 template and Maya filters in Node
+        run: python3 scripts/test_control_room_user_rows_v13.py
+      - name: Verify only new files modified since prior mobile branch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          source=Path("patches/control_room_user_rows_v13.py").read_text()
+          install=Path("scripts/install_control_room_user_rows_v13.sh").read_text()
+          assert "app.add_api_route" not in source
+          assert "UPDATE subscriptions" not in source
+          assert "--no-deps --no-build --force-recreate app" in install
+          assert "customer-portal" not in install
+          assert "HESAB_CONTROL_ROOM_TABLE_V3" in install
+          assert "STOP=V13_RUNTIME_CHECK_FAILED" in install
+          print("ONLY_ADMIN_PRESENTATION_CHANGED=PASS")
+          PY
