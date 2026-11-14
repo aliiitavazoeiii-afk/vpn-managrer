@@ -142,7 +142,9 @@ assert(byID["c3-filter-info"].textContent.includes("اندازه‌گیری نش
        "missing sample disclosure");
 console.log("V13_MAYA_ALL_FILTERS_SORT=PASS");
 '''
-        p=subprocess.run(["node","-e",snippet+"\n"+checks],capture_output=True,
+        split=checks.index("const now=Date.now();")
+        script=checks[:split]+"\n"+snippet+"\n"+checks[split:]
+        p=subprocess.run(["node","-e",script],capture_output=True,
             text=True,timeout=15)
         self.assertEqual(p.returncode,0,p.stderr)
         self.assertIn("V13_MAYA_ALL_FILTERS_SORT=PASS",p.stdout)
