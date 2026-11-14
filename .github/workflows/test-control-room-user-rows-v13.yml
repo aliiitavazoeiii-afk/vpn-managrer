@@ -20,6 +20,7 @@ jobs:
           python3 -m pip install --quiet jinja2
           python3 -m py_compile patches/control_room_user_rows_v13.py scripts/test_control_room_user_rows_v13.py
           bash -n scripts/install_control_room_user_rows_v13.sh
+          bash -n scripts/rollback_control_room_user_rows_v13.sh
       - name: Test actual V2/V3 template and Maya filters in Node
         run: python3 scripts/test_control_room_user_rows_v13.py
       - name: Verify only new files modified since prior mobile branch
