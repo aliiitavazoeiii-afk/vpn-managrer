@@ -31,7 +31,7 @@ def live_like_fixture():
     actual=scope["TEMPLATES"]["control_room.html"]
     assert "function c3VisibleRows(rows,server)" in actual
     assert 'id="c3-mode"' in actual
-    assert actual.count("{% endblock %}")==1
+    assert actual.count("{% endblock %}")>=2  # title and content Jinja blocks
     scope["TEMPLATES"]["control_room.html"]=actual.replace(
         "{% block content %}",
         '{% block content %}<style id="t10-compact-css"></style>',1)
