@@ -42,7 +42,7 @@ _r13_replace_one(
     return ms!==null && Date.now()-ms>48*3600*1000;
   });''',
     '''  if(mode==="unmatched"){
-    filtered=filtered.filter(item=>!item.sid||item.control_ambiguous===true);
+    filtered=filtered.filter(item=>!item.sid);
   }else if(mode==="idle"){
     filtered=filtered.filter(item=>{
       const ms=c3LastMs(item.last_online);
