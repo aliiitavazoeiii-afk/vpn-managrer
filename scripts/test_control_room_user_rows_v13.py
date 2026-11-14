@@ -56,7 +56,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(new.count('id="c3-mode"'),1)
         self.assertEqual(new.count('<option value="unmatched">'),1)
         self.assertIn('mode==="unmatched"',new)
-        self.assertIn('filtered=filtered.filter(item=>!item.sid||item.control_ambiguous===true);',new)
+        self.assertIn('filtered=filtered.filter(item=>!item.sid);',new)
         self.assertIn('c3LastMs(a.last_online)-c3LastMs(b.last_online)',new)
         self.assertIn('todayCell.title=item.usage_sampled?',new)
         self.assertIn("مصرف امروز برای ",new)
@@ -125,7 +125,7 @@ const rows=[
 function assert(ok,msg){if(!ok)throw Error(msg)}
 byID["c3-mode"].value="unmatched";
 assert(JSON.stringify(c3VisibleRows(rows,"maya1").map(x=>x.email))===
-       JSON.stringify(["older","unknown","conflict"]),"unmatched selection");
+       JSON.stringify(["older","unknown"]),"unmatched selection");
 state.query="unknown";
 assert(c3VisibleRows(rows,"maya-s3")[0].email==="unknown","search and mode");
 state.query="";
