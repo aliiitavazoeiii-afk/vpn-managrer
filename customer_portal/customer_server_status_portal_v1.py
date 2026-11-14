@@ -420,37 +420,54 @@ button.addEventListener("click",async()=>{
 </script>
 '''
 def _cssp_embed_in_existing_server_card(page):
-    """Place the test below the existing server status contents.
+    """Insert a status card into the actual runtime customer template.
 
-    Production has evolved from the original 'sv-server-footer' HTML.
-    Anchor to the one real server section, not a fragile footer substring.
-    Preserve every original markup byte, variable and route.
+    New layouts: inside the unique sv-server section.
+    Earlier layouts (as observed on Production): directly BEFORE the existing
+    unique sv-private-file section, as a sibling. Never infer a server from UI.
+    No existing HTML is replaced, only the standalone card is inserted.
     """
-    if type(page) is not str or page.lower().count("</body>")!=1 or (
-        'id="sv-cstatus"' in page
-    ):
+    if (type(page) is not str or not 100 < len(page) < 250000
+        or len(_cssp_re.findall(r"</body\s*>", page, _cssp_re.I)) != 1
+        or 'id="sv-cstatus"' in page):
         raise RuntimeError("CUSTOMER_STATUS_CARD_TEMPLATE_MISMATCH")
-    open_tags=list(_cssp_re.finditer(r"<section\b[^>]*>",page,_cssp_re.I))
+    open_tags = list(_cssp_re.finditer(r"<section\b[^>]*>",page,_cssp_re.I))
     matches=[]
+    private=[]
     for entry in open_tags:
         attrs=entry.group(0)
         cls=_cssp_re.search(
             r"""\bclass\s*=\s*(['"])(.*?)\1""",attrs,_cssp_re.I|_cssp_re.S)
-        if cls and "sv-server" in cls.group(2).split():
+        names=cls.group(2).split() if cls else []
+        if "sv-server" in names:
             matches.append(entry)
-    if len(matches)!=1:
-        raise RuntimeError("CUSTOMER_STATUS_SERVER_SECTION_NOT_UNIQUE")
-    opening=matches[0]
-    depth=1
-    closing=None
-    for token in _cssp_re.finditer(r"</?section\b[^>]*>",page[opening.end():],_cssp_re.I):
-        depth += -1 if token.group().startswith("</") else 1
-        if depth==0:
-            closing=opening.end()+token.start()
-            break
-    if closing is None:
-        raise RuntimeError("CUSTOMER_STATUS_SERVER_SECTION_UNCLOSED")
-    return page[:closing]+_CSSP_CARD+page[closing:]
+        if "sv-private-file" in names and _cssp_re.search(
+            r"""\bid\s*=\s*(['"])sv-private-file\1""",attrs,_cssp_re.I):
+            private.append(entry)
+    if len(matches)>1:
+        raise RuntimeError("CUSTOMER_STATUS_MULTIPLE_SERVER_SECTIONS")
+    if len(matches)==1:
+        opening=matches[0]
+        depth=1
+        closing=None
+        for token in _cssp_re.finditer(r"</?section\b[^>]*>",
+                                      page[opening.end():],_cssp_re.I):
+            depth += -1 if token.group().startswith("</") else 1
+            if depth==0:
+                closing=opening.end()+token.start()
+                break
+        if closing is None:
+            raise RuntimeError("CUSTOMER_STATUS_SERVER_SECTION_UNCLOSED")
+        return page[:closing]+_CSSP_CARD+page[closing:]
+    # Live customer template has no sv-server section, but has exactly one
+    # existing approved private-file section immediately preceding support.
+    # Insert the standalone card before it, without touching its download link.
+    if len(private)!=1:
+        raise RuntimeError("CUSTOMER_STATUS_PRIVATE_CARD_ANCHOR_NOT_UNIQUE")
+    idx=private[0].start()
+    if idx>page.lower().index("</body"):
+        raise RuntimeError("CUSTOMER_STATUS_PRIVATE_CARD_OUTSIDE_BODY")
+    return page[:idx]+_CSSP_CARD+page[idx:]
 
 if "_SV2_HTML" not in globals() or type(_SV2_HTML) is not str:
     raise RuntimeError("CUSTOMER_STATUS_SERVICES_TEMPLATE_MISSING")
