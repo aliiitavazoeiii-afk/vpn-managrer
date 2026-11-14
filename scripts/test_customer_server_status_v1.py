@@ -306,6 +306,39 @@ class Tests(unittest.TestCase):
             portal_module(template=live.replace("</body>",
                 '<section class="sv-server"></section></body>'))
 
+    def test_production_like_four_section_page_without_sv_server(self):
+        # Observed production shape: four sections, only #sv-private-file
+        # carries sv- classes; no sv-server/footer/feature-grid at all.
+        live='''<!doctype html><html lang="fa" dir="rtl"><head></head>
+        <body><main class="customer-app">
+        <section><h2>اشتراک‌های من</h2></section>
+        <section><h2>اطلاعات من</h2></section>
+        <section id="sv-private-file" class="sv-box sv-private-file">
+          <h2>دریافت فایل</h2><a href="/my-file/download">دریافت</a></section>
+        <section><h2>پشتیبانی</h2></section>
+        </main></body></html>'''
+        self.assertNotIn("sv-server",live)
+        self.assertNotIn("sv-server-footer",live)
+        self.assertEqual(len(re.findall(r"<section\b",live)),4)
+        x=portal_module(template=live)
+        updated=x["_SV2_HTML"]
+        self.assertEqual(updated.count('id="sv-cstatus"'),1)
+        self.assertEqual(updated.replace(x["_CSSP_CARD"],"",1).replace(
+                          x["_CSSP_STYLE"]+x["_CSSP_JS"],"",1),live)
+        self.assertLess(updated.index('id="sv-cstatus"'),
+                        updated.index('id="sv-private-file"'))
+        self.assertIn('href="/my-file/download"',updated)
+        self.assertIn("<h2>پشتیبانی</h2>",updated)
+        # Fail closed when the only known safe insertion anchor is absent
+        # or duplicated, rather than placing a card into an arbitrary section.
+        missing=live.replace('id="sv-private-file"','id="other-file"')
+        with self.assertRaisesRegex(RuntimeError,"PRIVATE_CARD_ANCHOR_NOT_UNIQUE"):
+            portal_module(template=missing)
+        duplicate=live.replace("</main>",
+                '<section id="sv-private-file" class="sv-private-file"></section></main>')
+        with self.assertRaisesRegex(RuntimeError,"PRIVATE_CARD_ANCHOR_NOT_UNIQUE"):
+            portal_module(template=duplicate)
+
     def test_no_customer_access_to_admin_routes_or_private_host_details(self):
         a=admin_module()
         p=portal_module()
