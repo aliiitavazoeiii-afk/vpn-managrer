@@ -231,10 +231,14 @@ _R13_STYLE=r'''
 }
 </style>
 '''
-if _R13_UPDATED.count("{% endblock %}")!=1:
-    raise RuntimeError("CONTROL_ROOM_ROWS_V13_CONTENT_BLOCK_NOT_UNIQUE")
-_R13_UPDATED=_R13_UPDATED.replace(
-    "{% endblock %}",_R13_STYLE+"\n{% endblock %}",1)
+# Jinja page has a title block as well as content; only append to the
+# LAST (content) endblock. Never add CSS into the page-title block.
+if _R13_UPDATED.count("{% endblock %}")<2:
+    raise RuntimeError("CONTROL_ROOM_ROWS_V13_CONTENT_END_MISSING")
+_r13_head,_r13_sep,_r13_tail=_R13_UPDATED.rpartition("{% endblock %}")
+if 'id="c2-users"' not in _r13_head:
+    raise RuntimeError("CONTROL_ROOM_ROWS_V13_CONTENT_LOCATION_INVALID")
+_R13_UPDATED=_r13_head+_R13_STYLE+"\n"+_r13_sep+_r13_tail
 _r13_Jinja().parse(_R13_UPDATED)
 # No route, financial row, toggle callback or usage source changes.
 TEMPLATES["control_room.html"]=_R13_UPDATED
