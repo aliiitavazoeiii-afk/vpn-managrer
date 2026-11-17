@@ -319,6 +319,11 @@ _TH11_STYLE = r'''
 '''
 _TH11_MAIN = _TH11_MAIN.replace(_TH11_OLD,
     'fetch("/control-room/traffic/summary",', 1)
+_TH11_POLL = 'fetch("/control-room/traffic/summary",\n    {credentials:"same-origin",cache:"no-store"});'
+_TH11_AUTH_POLL = 'fetch("/control-room/traffic/summary",\n    {credentials:"same-origin",cache:"no-store",\n     headers:{"X-Control-CSRF":t10CSRF}});'
+if _TH11_MAIN.count(_TH11_POLL) != 1:
+    raise RuntimeError("Expected unique V10 daily fetch")
+_TH11_MAIN = _TH11_MAIN.replace(_TH11_POLL, _TH11_AUTH_POLL, 1)
 _TH11_MAIN = _TH11_MAIN.replace(_TH11_CARD, _TH11_NEW_CARD, 1)
 _TH11_MAIN = _TH11_MAIN.replace("{% block content %}",
     "{% block content %}" + _TH11_STYLE, 1)
