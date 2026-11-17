@@ -138,9 +138,11 @@ _TH11_TEMPLATE = r'''{% extends "base.html" %}
 #th11 .th11-insights strong{display:block;color:#f4edff;font-size:19px}
 #th11 .th11-insights small{color:var(--muted);font-size:11px}
 #th11 .th11-nodata{padding:15px 0;color:#c2c4dd;font-size:13px}
-@media(max-width:850px){#th11 .th11-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:850px){
+ #th11 .th11-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
  #th11 .th11-insights{grid-template-columns:1fr}}
-@media(max-width:450px){#th11 .th11-kpis{gap:8px}
+@media(max-width:450px){
+ #th11 .th11-kpis{gap:8px}
  #th11 .th11-box{padding:11px}#th11 .th11-kpi strong{font-size:21px}
  #th11 .th11-head h1{font-size:20px}}
 </style>
