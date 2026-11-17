@@ -148,6 +148,14 @@ public final class Prefs {
             .remove("draft_message").remove("draft_opened_at").commit();
     }
 
+    // Operator opt-in only; stored alongside the existing WhatsApp app token.
+    public static boolean alertsEnabled(Context c) {
+        return p(c).getBoolean("maya_alerts_enabled_v12", false);
+    }
+    public static void setAlertsEnabled(Context c, boolean yes) {
+        p(c).edit().putBoolean("maya_alerts_enabled_v12", yes).commit();
+    }
+
     // One durable pending server acknowledgement. Never send SMS from this app.
     public static long pendingOperatorJob(Context c) {
         return p(c).getLong("pending_operator_open",-1L);
