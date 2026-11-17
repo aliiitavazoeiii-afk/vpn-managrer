@@ -1,0 +1,29 @@
+name: Verify Maya NIC traffic analytics V11
+on:
+  push:
+    branches:
+      - feat/maya-nic-traffic-history-v11
+    paths:
+      - scripts/maya_traffic_history_v11.py
+      - patches/control_room_traffic_analytics_v11.py
+      - scripts/test_maya_traffic_history_v11.py
+      - scripts/install_maya_traffic_history_v11.sh
+      - .github/workflows/test-maya-nic-traffic-history-v11.yml
+  workflow_dispatch:
+jobs:
+  readonly-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check sampler, patch and installer syntax
+        run: |
+          python3 -m py_compile scripts/maya_traffic_history_v11.py \
+            patches/control_room_traffic_analytics_v11.py \
+            scripts/test_maya_traffic_history_v11.py
+          bash -n scripts/install_maya_traffic_history_v11.sh
+      - name: Install local template test libraries
+        run: python3 -m pip install --quiet jinja2 fastapi
+      - name: Validate time buckets, gaps, reset, preserved daily data and full UI
+        run: python3 scripts/test_maya_traffic_history_v11.py
