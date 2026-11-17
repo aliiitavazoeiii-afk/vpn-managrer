@@ -1,6 +1,8 @@
 package ir.filmjadiid.hesabsms;
 
 import android.app.Activity;
+import android.Manifest;
+import android.os.Build;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Color;
@@ -66,10 +68,10 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT));
         setContentView(screen);
 
-        TextView title=label("پیامک‌های آماده حساب VPN",24,Color.WHITE,true);
+        TextView title=label("پیام‌های آماده واتساپ حساب VPN",24,Color.WHITE,true);
         root.addView(title);
-        root.addView(label("همه درخواست‌های سایت یکجا اینجا نمایش داده می‌شوند. هر پیام را جداگانه در Google Messages باز کن و خودت Send را بزن.",13,MUTED,false));
-        TextView info=label("با زدن «بازکردن پیام»، سایت همان لحظه مشتری را «در انتظار» ثبت می‌کند؛ حتی اگر پیامک را ارسال نکنی.",12,ACCENT,false);
+        root.addView(label("همه درخواست‌های سایت یکجا اینجا نمایش داده می‌شوند. هر پیام را جداگانه در واتساپ باز کن و خودت ارسال را بزن.",13,MUTED,false));
+        TextView info=label("با زدن «بازکردن پیام»، سایت همان لحظه مشتری را «در انتظار» ثبت می‌کند؛ حتی اگر پیام را ارسال نکنی.",12,ACCENT,false);
         info.setPadding(dp(13),dp(12),dp(13),dp(12));
         info.setBackground(shape(0xff1c3350,OUTLINE,12));
         LinearLayout.LayoutParams infoLp=verticalMargin(dp(15));
@@ -115,6 +117,47 @@ public final class MainActivity extends Activity {
         messages.setOrientation(LinearLayout.VERTICAL);
         root.addView(messages);
         configSaved=!Prefs.token(this).isEmpty();
+
+        // Owner-only phone alerts. Manual WhatsApp sending remains unchanged.
+        LinearLayout alertPanel=block();
+        root.addView(alertPanel,verticalMargin(dp(15)));
+        alertPanel.addView(label("هشدار ترافیک سرورهای مایا",18,Color.WHITE,true));
+        alertPanel.addView(label("وقتی مانده تخمینی RX هر سرور کمتر از ۱۰ گیگ شود، اندروید اعلان می‌دهد. بررسی پس‌زمینه دوره‌ای است و فوریِ تضمینی نیست.",12,MUTED,false));
+        Button alertToggle=button(
+            Prefs.alertsEnabled(this)?"غیرفعال‌کردن هشدار":"فعال‌کردن هشدار زیر ۱۰ گیگ",
+            0xff30476b,Color.WHITE);
+        alertPanel.addView(alertToggle,verticalMargin(dp(8)));
+        alertToggle.setOnClickListener(v->{
+            if(Prefs.alertsEnabled(this)){
+                Prefs.setAlertsEnabled(this,false);
+                MayaTrafficAlertJob.cancel(this);
+                toast("هشدارهای مایا غیرفعال شد");
+            }else{
+                if(Prefs.token(this).length()<24){
+                    toast("ابتدا آدرس سرور و Gateway Token را ذخیره کن");
+                    return;
+                }
+                Prefs.setAlertsEnabled(this,true);
+                MayaTrafficAlertJob.schedule(this);
+                if(Build.VERSION.SDK_INT>=33 &&
+                        checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                        !=android.content.pm.PackageManager.PERMISSION_GRANTED){
+                    requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},1205);
+                }
+                toast("پایش ترافیک مایا فعال شد");
+            }
+            alertToggle.setText(Prefs.alertsEnabled(this)?
+                "غیرفعال‌کردن هشدار":"فعال‌کردن هشدار زیر ۱۰ گیگ");
+        });
+        Button checkNow=button("بررسی ترافیک همین الان",0xff263653,Color.WHITE);
+        alertPanel.addView(checkNow,verticalMargin(dp(8)));
+        checkNow.setOnClickListener(v->{
+            if(!Prefs.alertsEnabled(this)){
+                toast("ابتدا هشدار را فعال کن");return;
+            }
+            MayaTrafficAlertJob.scheduleImmediate(this);
+            toast("درخواست بررسی ثبت شد؛ نتیجه پس از دریافت داده بررسی می‌شود");
+        });
     }
 
     @Override protected void onResume(){
@@ -176,7 +219,7 @@ public final class MainActivity extends Activity {
         int previous=screen.getScrollY();
         messages.removeAllViews();
         if(pending>0){
-            TextView pendingNotice=label("یک درخواست بازشده هنوز در سرور تأیید نشده است. اتصال را بررسی کن؛ برنامه خودکار ثبت آن را تکرار می‌کند، نه پیامک را.",13,0xffffca97,false);
+            TextView pendingNotice=label("یک درخواست بازشده هنوز در سرور تأیید نشده است. اتصال را بررسی کن؛ برنامه خودکار ثبت آن را تکرار می‌کند، نه پیام واتساپ را.",13,0xffffca97,false);
             pendingNotice.setPadding(dp(13),dp(12),dp(13),dp(12));
             pendingNotice.setBackground(shape(0xff412b26,0xff774b36,12));
             messages.addView(pendingNotice,verticalMargin(dp(8)));
@@ -201,7 +244,7 @@ public final class MainActivity extends Activity {
             TextView body=label(job.message,13,MUTED,false);
             body.setMaxLines(5);
             c.addView(body);
-            Button open=button("بازکردن پیام در Google Messages",0xffdae8ff,0xff12233c);
+            Button open=button("بازکردن پیام آماده در واتساپ",0xffdae8ff,0xff12233c);
             c.addView(open,verticalMargin(dp(8)));
             open.setEnabled(pending<0);
             open.setOnClickListener(v->openMessage(job));
@@ -214,26 +257,47 @@ public final class MainActivity extends Activity {
         if(Prefs.pendingOperatorJob(this)>0){
             toast("ابتدا ثبت پیام قبلی در سایت کامل شود");return;
         }
-        if(!job.phone.matches("09[0-9]{9}") || job.message.trim().isEmpty()){
-            toast("شماره یا متن معتبر نیست");return;
+        final String webLink;
+        final String appLink;
+        try{
+            webLink=WhatsAppLink.link(job.phone,job.message);
+            appLink=WhatsAppLink.directAppLink(job.phone,job.message);
+        }catch(IllegalArgumentException ex){
+            toast("شماره موبایل یا متن معتبر نیست");return;
         }
-        // Only the user's default SMS composer. NO SEND_SMS permission/API.
-        Intent compose=new Intent(Intent.ACTION_SENDTO,Uri.parse("smsto:"+job.phone));
-        compose.putExtra("sms_body",job.message);
         if(!Prefs.storePendingOperatorJob(this,job.id)){
             toast("ذخیره درخواست انجام نشد");return;
         }
+        // Open only a real WhatsApp app, never an SMS composer or a browser.
+        // Try normal WhatsApp first, then WhatsApp Business.
+        boolean opened=false;
+        String[] packages={"com.whatsapp","com.whatsapp.w4b"};
+        String[] links={webLink,appLink};
         try{
-            startActivity(compose);
-            // User explicitly asked opening (not sending) to mark waiting.
-            // Persist & retry this acknowledgement if Android backgrounds us.
+            for(String pkg:packages){
+                for(String link:links){
+                    Intent compose=new Intent(Intent.ACTION_VIEW,Uri.parse(link));
+                    compose.setPackage(pkg);
+                    try{
+                        startActivity(compose);
+                        opened=true;
+                        break;
+                    }catch(ActivityNotFoundException ex){
+                        // Some installed WhatsApp versions prefer the native scheme.
+                    }
+                }
+                if(opened)break;
+            }
+            if(!opened){
+                Prefs.clearPendingOperatorJob(this,job.id);
+                toast("واتساپ نصب نیست یا بازکردن چت پشتیبانی نمی‌شود");
+                return;
+            }
+            // The existing site records operator-open, not message delivery.
             attemptPendingAcknowledgement();
-        }catch(ActivityNotFoundException ex){
-            Prefs.clearPendingOperatorJob(this,job.id);
-            toast("Google Messages را به‌عنوان برنامه پیش‌فرض SMS انتخاب کن");
         }catch(Exception ex){
             Prefs.clearPendingOperatorJob(this,job.id);
-            toast("بازکردن برنامه پیامک انجام نشد");
+            toast("واتساپ باز نشد؛ پیام در صف ماند");
         }
     }
 
