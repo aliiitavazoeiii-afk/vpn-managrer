@@ -143,7 +143,43 @@ def tests_control_room():
     print("CHART_PAGE_DASHBOARD_CLICK_AUTH_JINJA_JS=PASS")
 
 
+def tests_newer_xui_card_compatibility():
+    fixture=ROOT/"scripts/test_control_room_compact_v10.py"
+    full=fixture.read_text(encoding="utf8")
+    cutoff=full.index('for marker in ("t10-compact-css"')
+    data={"__file__":str(fixture),"__name__":"traffic_v11_newer_setup"}
+    exec(compile(full[:cutoff],str(fixture),"exec"),data)
+    ns=data["ns"]; app=data["app"]; templates=data["templates"]
+    app.router=types.SimpleNamespace(routes=[
+        types.SimpleNamespace(path=p,methods=set(methods))
+        for p,(fn,methods) in app.routes.items()])
+    before=app.add_api_route
+    def add(path,fn,methods):
+        before(path,fn,methods)
+        app.router.routes.append(types.SimpleNamespace(path=path,methods=set(methods)))
+    app.add_api_route=add
+    ns["_dh1_auth"]=lambda request: True
+    ns["render"]=lambda name,request,**kw:types.SimpleNamespace(
+        status_code=200,template=name,context=kw)
+    newer=(ROOT/"patches/control_room_xui_daily_usage_v11.py").read_text(encoding="utf8")
+    exec(compile(newer,"newer-xui-daily","exec"),ns)
+    assert "maya-user-traffic-v11-ui" in templates["control_room.html"]
+    assert "مصرف کاربران امروز" in templates["control_room.html"]
+    addon=(ROOT/"patches/control_room_traffic_analytics_v11.py").read_text(encoding="utf8")
+    exec(compile(addon,"nic-traffic-v11","exec"),ns)
+    t=templates["control_room.html"]
+    assert "maya-user-traffic-v11-ui" in t
+    assert "ترافیک روز" in t
+    assert "th11-traffic-link" in t
+    assert 'fetch("/control-room/traffic/summary",' in t
+    assert 'headers:{"X-Control-CSRF":t10CSRF}' in t
+    assert 'day.rx_today_gb' in t
+    assert 'c4CardLabel("مصرف کاربران امروز",today,values)' not in t
+    print("NEWER_V11_XUI_AND_V13_COMPATIBLE_TRAFFIC_CARD=PASS")
+
+
 if __name__=="__main__":
     tests_meter()
     tests_control_room()
+    tests_newer_xui_card_compatibility()
     print("MAYA_TRAFFIC_V11_OFFLINE_TESTS=PASS")
