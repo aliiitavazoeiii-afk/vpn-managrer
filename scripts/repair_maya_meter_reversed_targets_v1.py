@@ -20,11 +20,13 @@ import json
 import os
 import shutil
 import stat
-import subprocess
 import sys
 import tempfile
 import time
 from pathlib import Path
+
+# Avoid creating bytecode artifacts in the existing production scripts directory.
+sys.dont_write_bytecode = True
 
 CFG = Path("/root/.config/hesab-maya-net-meter-v2.json")
 METER = Path("/var/lib/hesab-maya-net-meter-v2/state.json")
@@ -99,6 +101,17 @@ def sensor_probe(name, config):
               "HOST=" + config["host"], "PORT=" + str(config.get("ssh_port", 22)))
         return False
 
+def backup_name(path):
+    if path == CFG:
+        return "meter-config.json"
+    if path == METER:
+        return "meter-state.json"
+    if path == DAY:
+        return "daily-state.json"
+    if path == DAY_OUT:
+        return "daily-export.json"
+    fail("UNEXPECTED_BACKUP_PATH")
+
 def main():
     parser = argparse.ArgumentParser(description="Fix reversed Maya 3/4 NIC-meter targets only")
     args = parser.add_mutually_exclusive_group(required=True)
@@ -168,8 +181,8 @@ def main():
                       "-" + str(os.getpid()))
         backup.mkdir(mode=0o700)
         for path in files:
-            shutil.copy2(path, backup / path.name)
-            os.chmod(backup / path.name, 0o600)
+            shutil.copy2(path, backup / backup_name(path))
+            os.chmod(backup / backup_name(path), 0o600)
         print("BACKUP=" + str(backup))
         for name in TARGETS:
             servers[name]["host"], servers[name]["interface"] = AFTER[name]
@@ -196,7 +209,7 @@ def main():
         except BaseException:
             print("FAILED=RESTORING_LOCAL_METER_FILES")
             for path in files:
-                shutil.copy2(backup / path.name, path)
+                shutil.copy2(backup / backup_name(path), path)
             raise
     print("LOCAL_MAPPING_REPAIRED=YES")
     print("COUNTER_BASELINE=NEW_ON_NEXT_SUCCESSFUL_SENSOR_POLL")
