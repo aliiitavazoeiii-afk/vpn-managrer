@@ -24,6 +24,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Owner-only, opt-in Android system job for Maya RX estimate notifications.
@@ -31,6 +32,7 @@ import java.util.Locale;
  * This NEVER sends WhatsApp/SMS, changes VPN state, or modifies server data.
  */
 public final class MayaTrafficAlertJob extends JobService {
+    private static final AtomicBoolean CHECKING=new AtomicBoolean(false);
     private static final int PERIODIC_ID=61201;
     private static final int ONE_SHOT_ID=61202;
     private static final long INTERVAL_MS=15L*60L*1000L;
@@ -100,7 +102,7 @@ public final class MayaTrafficAlertJob extends JobService {
     }
 
     @Override public boolean onStartJob(JobParameters parameters){
-        if(!Prefs.alertsEnabled(this))return false;
+        if(!Prefs.alertsEnabled(this) || !CHECKING.compareAndSet(false,true))return false;
         Thread work=new Thread(()->{
             try {
                 JSONObject doc=readSnapshot();
@@ -108,6 +110,7 @@ public final class MayaTrafficAlertJob extends JobService {
             }catch(Exception ignored){
                 // Network failures and invalid/stale reports never generate an alert.
             }finally{
+                CHECKING.set(false);
                 jobFinished(parameters,false);
             }
         },"maya-traffic-alert-check");
