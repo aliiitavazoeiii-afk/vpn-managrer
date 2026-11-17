@@ -158,6 +158,14 @@ public final class MainActivity extends Activity {
             MayaTrafficAlertJob.scheduleImmediate(this);
             toast("درخواست بررسی ثبت شد؛ نتیجه پس از دریافت داده بررسی می‌شود");
         });
+        Button testAlert=button("ارسال اعلان آزمایشی",0xff263653,Color.WHITE);
+        alertPanel.addView(testAlert,verticalMargin(dp(8)));
+        testAlert.setOnClickListener(v->{
+            if(!MayaTrafficAlertJob.sendTestNotification(this))
+                toast("هشدار فعال نیست یا مجوز نمایش اعلان داده نشده");
+            else
+                toast("اعلان آزمایشی صادر شد");
+        });
     }
 
     @Override protected void onResume(){
