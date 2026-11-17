@@ -79,7 +79,7 @@ def main():
     modes = parser.add_mutually_exclusive_group(required=True)
     modes.add_argument("--check", action="store_true")
     modes.add_argument("--apply", action="store_true")
-    parser.add_argument("balances", type=float, nargs=3, metavar="GB",
+    parser.add_argument("balances", type=float, nargs=3, metavar=("MAYA1_GB", "MAYA3_GB", "MAYA4_GB"),
                         help="Latest total remaining GB for Maya1, Maya3, Maya4, inclusive of prior purchases")
     args = parser.parse_args()
     values = {name: round(valid_gb(v), 3) for name, v in zip(NAMES, args.balances)}
