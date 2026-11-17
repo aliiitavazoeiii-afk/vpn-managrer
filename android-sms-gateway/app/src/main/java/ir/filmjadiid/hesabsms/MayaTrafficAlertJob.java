@@ -72,6 +72,33 @@ public final class MayaTrafficAlertJob extends JobService {
         }
     }
 
+
+    /** Local-only notification test, never impersonates a real low-traffic event. */
+    public static boolean sendTestNotification(Context context){
+        if(!Prefs.alertsEnabled(context))return false;
+        NotificationManager manager=
+                (NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if(manager==null || !manager.areNotificationsEnabled())return false;
+        if(Build.VERSION.SDK_INT>=33 &&
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                !=PackageManager.PERMISSION_GRANTED)return false;
+        NotificationChannel channel=new NotificationChannel(CHANNEL,
+                "هشدار کاهش ترافیک مایا",NotificationManager.IMPORTANCE_HIGH);
+        manager.createNotificationChannel(channel);
+        Intent intent=new Intent(context,MainActivity.class);
+        PendingIntent pending=PendingIntent.getActivity(context,61300,intent,
+                PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        Notification note=new Notification.Builder(context,CHANNEL)
+                .setSmallIcon(android.R.drawable.stat_notify_error)
+                .setContentTitle("آزمایش اعلان حساب VPN")
+                .setContentText("این یک اعلان آزمایشی است؛ هیچ سروری زیر ۱۰ گیگ گزارش نشده.")
+                .setContentIntent(pending)
+                .setAutoCancel(true)
+                .build();
+        manager.notify(61300,note);
+        return true;
+    }
+
     @Override public boolean onStartJob(JobParameters parameters){
         if(!Prefs.alertsEnabled(this))return false;
         Thread work=new Thread(()->{
