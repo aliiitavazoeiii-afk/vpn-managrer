@@ -288,6 +288,33 @@ if hasattr(env.loader, "mapping"):
     env.loader.mapping.update(TEMPLATES)
 
 _TH11_MAIN = TEMPLATES.get("control_room.html", "")
+# Newer admin releases optionally replaced visible daily NIC RX with
+# per-account XUI totals. For this server-level chart, normalize ONLY that
+# existing daily row back to physical NIC semantics without touching XUI APIs.
+_TH11_XUI = "maya-user-traffic-v11-ui" in _TH11_MAIN
+if _TH11_XUI:
+    _TH11_XUI_CHANGES = (
+        ('const today=day.state==="measured"?t10FormatGB(day.usage_gb):day.state==="partial"?"≥ "+t10FormatGB(day.usage_gb):"—";',
+         'const today=day.state==="ok"?t10FormatGB(day.rx_today_gb):"—";'),
+        ('c4CardLabel("مصرف کاربران امروز",today,values);',
+         'c4CardLabel("ترافیک روز",today,values);'),
+        ('if(day.partial===true){', 'if(day.partial_day===true){'),
+    )
+    for before, after in _TH11_XUI_CHANGES:
+        if _TH11_MAIN.count(before) != 1:
+            raise RuntimeError("V11 newer XUI display anchor changed: " + before[:50])
+        _TH11_MAIN = _TH11_MAIN.replace(before, after, 1)
+    import re as _th11_re
+    _TH11_XUI_TITLES = (
+        (r'values\.lastElementChild\.title="حداقل مصرف ثبت‌شده کاربران[^"]*";',
+         'values.lastElementChild.title="مصرف RX فقط از شروع ثبت در امروز است؛ کل روز نیست.";'),
+        (r'values\.lastElementChild\.title="جمع تغییر شمارنده‌های UP و DOWN کاربران[^"]*";',
+         'values.lastElementChild.title="مصرف RX کارت شبکه در روز تهران";'),
+    )
+    for pattern, replacement in _TH11_XUI_TITLES:
+        _TH11_MAIN, changed = _th11_re.subn(pattern, replacement, _TH11_MAIN, count=1)
+        if changed != 1:
+            raise RuntimeError("Newer daily traffic title changed")
 _TH11_OLD = 'fetch("/control-room/v10/daily",'
 _TH11_CARD = '''c4CardLabel("ترافیک روز",today,values);
    if(day.partial_day===true){'''
@@ -306,7 +333,7 @@ _TH11_NEW_CARD = '''c4CardLabel("ترافیک روز",today,values);
       if(e.key==="Enter"||e.key===" "){openTraffic(e);}
    });
    if(day.partial_day===true){'''
-if (_TH11_MAIN.count(_TH11_OLD) != 1 or
+if ((not _TH11_XUI and _TH11_MAIN.count(_TH11_OLD) != 1) or
         _TH11_MAIN.count(_TH11_CARD) != 1 or
         "t10-compact-css" not in _TH11_MAIN or
         "th11-traffic-link" in _TH11_MAIN):
@@ -319,13 +346,23 @@ _TH11_STYLE = r'''
  background:#45356b77!important;border-color:#bda9ff!important;outline:2px solid #9580ff55}
 </style>
 '''
-_TH11_MAIN = _TH11_MAIN.replace(_TH11_OLD,
-    'fetch("/control-room/traffic/summary",', 1)
-_TH11_POLL = 'fetch("/control-room/traffic/summary",\n    {credentials:"same-origin",cache:"no-store"});'
-_TH11_AUTH_POLL = 'fetch("/control-room/traffic/summary",\n    {credentials:"same-origin",cache:"no-store",\n     headers:{"X-Control-CSRF":t10CSRF}});'
-if _TH11_MAIN.count(_TH11_POLL) != 1:
-    raise RuntimeError("Expected unique V10 daily fetch")
-_TH11_MAIN = _TH11_MAIN.replace(_TH11_POLL, _TH11_AUTH_POLL, 1)
+if _TH11_XUI:
+    _TH11_XUI_URL = 'fetch("/control-room/v11/users-daily",'
+    if _TH11_MAIN.count(_TH11_XUI_URL) != 1:
+        raise RuntimeError("Missing protected newer daily fetch")
+    _TH11_MAIN = _TH11_MAIN.replace(_TH11_XUI_URL,
+         'fetch("/control-room/traffic/summary",', 1)
+    # Newer V11 already sent the identical existing CSRF token.
+    if _TH11_MAIN.count('headers:{"X-Control-CSRF":t10CSRF}') < 1:
+        raise RuntimeError("Newer daily fetch lacks session CSRF protection")
+else:
+    _TH11_MAIN = _TH11_MAIN.replace(_TH11_OLD,
+        'fetch("/control-room/traffic/summary",', 1)
+    _TH11_POLL = 'fetch("/control-room/traffic/summary",\n    {credentials:"same-origin",cache:"no-store"});'
+    _TH11_AUTH_POLL = 'fetch("/control-room/traffic/summary",\n    {credentials:"same-origin",cache:"no-store",\n     headers:{"X-Control-CSRF":t10CSRF}});'
+    if _TH11_MAIN.count(_TH11_POLL) != 1:
+        raise RuntimeError("Expected unique V10 daily fetch")
+    _TH11_MAIN = _TH11_MAIN.replace(_TH11_POLL, _TH11_AUTH_POLL, 1)
 _TH11_MAIN = _TH11_MAIN.replace(_TH11_CARD, _TH11_NEW_CARD, 1)
 _TH11_MAIN = _TH11_MAIN.replace("{% block content %}",
     "{% block content %}" + _TH11_STYLE, 1)
