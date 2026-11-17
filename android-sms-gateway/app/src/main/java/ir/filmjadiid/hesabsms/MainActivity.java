@@ -168,6 +168,17 @@ public final class MainActivity extends Activity {
         });
     }
 
+    @Override public void onRequestPermissionsResult(
+            int requestCode,String[] permissions,int[] results){
+        super.onRequestPermissionsResult(requestCode,permissions,results);
+        if(requestCode==1205 && (results.length==0 ||
+                results[0]!=android.content.pm.PackageManager.PERMISSION_GRANTED)){
+            Prefs.setAlertsEnabled(this,false);
+            MayaTrafficAlertJob.cancel(this);
+            toast("مجوز اعلان داده نشد؛ هشدار مایا غیرفعال شد");
+        }
+    }
+
     @Override protected void onResume(){
         super.onResume();
         visible=true;
