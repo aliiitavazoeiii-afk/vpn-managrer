@@ -161,7 +161,7 @@ def tests_newer_xui_card_compatibility():
     ns["_dh1_auth"]=lambda request: True
     ns["render"]=lambda name,request,**kw:types.SimpleNamespace(
         status_code=200,template=name,context=kw)
-    newer=(ROOT/"patches/control_room_xui_daily_usage_v11.py").read_text(encoding="utf8")
+    newer=(ROOT/"tests/fixtures/control_room_xui_daily_usage_v11.py").read_text(encoding="utf8")
     exec(compile(newer,"newer-xui-daily","exec"),ns)
     assert "maya-user-traffic-v11-ui" in templates["control_room.html"]
     assert "مصرف کاربران امروز" in templates["control_room.html"]
