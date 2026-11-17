@@ -1,10 +1,10 @@
 package ir.filmjadiid.hesabsms;
 
 import android.Manifest;
-import android.app.JobInfo;
-import android.app.JobParameters;
-import android.app.JobScheduler;
-import android.app.JobService;
+import android.app.job.JobInfo;
+import android.app.job.JobParameters;
+import android.app.job.JobScheduler;
+import android.app.job.JobService;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -73,10 +73,7 @@ public final class MayaTrafficAlertJob extends JobService {
     }
 
     @Override public boolean onStartJob(JobParameters parameters){
-        if(!Prefs.alertsEnabled(this)){
-            jobFinished(parameters,false);
-            return false;
-        }
+        if(!Prefs.alertsEnabled(this))return false;
         Thread work=new Thread(()->{
             try {
                 JSONObject doc=readSnapshot();
