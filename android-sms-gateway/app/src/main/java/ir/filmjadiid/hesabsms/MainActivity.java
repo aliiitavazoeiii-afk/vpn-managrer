@@ -54,6 +54,7 @@ public final class MainActivity extends Activity {
     private boolean visible=false;
     private String lastFingerprint="";
     private boolean configSaved=false;
+    private Button mayaAlertToggle;
 
     @Override protected void onCreate(Bundle b){
         super.onCreate(b);
@@ -126,6 +127,7 @@ public final class MainActivity extends Activity {
         Button alertToggle=button(
             Prefs.alertsEnabled(this)?"غیرفعال‌کردن هشدار":"فعال‌کردن هشدار زیر ۱۰ گیگ",
             0xff30476b,Color.WHITE);
+        mayaAlertToggle=alertToggle;
         alertPanel.addView(alertToggle,verticalMargin(dp(8)));
         alertToggle.setOnClickListener(v->{
             if(Prefs.alertsEnabled(this)){
@@ -175,6 +177,7 @@ public final class MainActivity extends Activity {
                 results[0]!=android.content.pm.PackageManager.PERMISSION_GRANTED)){
             Prefs.setAlertsEnabled(this,false);
             MayaTrafficAlertJob.cancel(this);
+            if(mayaAlertToggle!=null)mayaAlertToggle.setText("فعال‌کردن هشدار زیر ۱۰ گیگ");
             toast("مجوز اعلان داده نشد؛ هشدار مایا غیرفعال شد");
         }
     }
