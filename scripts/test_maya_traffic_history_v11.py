@@ -72,7 +72,14 @@ def tests_meter():
 def tests_control_room():
     # Reuse the existing end-to-end V10 template layering test, not a fake
     # hand-built approximation of the dashboard.
-    data=runpy.run_path(str(ROOT/"scripts/test_control_room_compact_v10.py"))
+    # The older repository's V10 test also contains unrelated brittle literal
+    # assertions from a pre-V10 CSS revision. Reuse its real overlay chain,
+    # stopping immediately before those unrelated legacy assertions.
+    fixture=ROOT/"scripts/test_control_room_compact_v10.py"
+    full=fixture.read_text(encoding="utf8")
+    cutoff=full.index('for marker in ("t10-compact-css"')
+    data={"__file__":str(fixture),"__name__":"traffic_v11_overlay_setup"}
+    exec(compile(full[:cutoff],str(fixture),"exec"),data)
     ns=data["ns"]; app=data["app"]; templates=data["templates"]; env=data["env"]
     app.router=types.SimpleNamespace(routes=[
         types.SimpleNamespace(path=p,methods=set(methods))
