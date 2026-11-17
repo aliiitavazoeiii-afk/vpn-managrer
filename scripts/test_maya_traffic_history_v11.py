@@ -52,9 +52,10 @@ def tests_meter():
         no=meter.make_export("maya-s3",{},{"state":"unavailable"},first+1000,
                              datetime.fromtimestamp(first+1000,meter.ZONE).date())
         assert no["state"]=="unavailable" and no["rx_today_gb"] is None
-        today=datetime.fromtimestamp(first,meter.ZONE).date().isoformat()
+        noon=int(datetime(2026,11,17,12,0,0,tzinfo=ZoneInfo("Asia/Tehran")).timestamp())
+        today=datetime.fromtimestamp(noon,meter.ZONE).date().isoformat()
         entry={}
-        legacy={"day":today,"collected_at":first,
+        legacy={"day":today,"collected_at":noon,
                 "servers":{"maya1":{"state":"ok","rx_today_gb":5.2}}}
         meter.import_daily_carry(entry,"maya1",legacy,first,first)
         assert entry["carry_rx"]==5_200_000_000
@@ -64,7 +65,7 @@ def tests_meter():
                                   datetime.fromtimestamp(first+60,meter.ZONE).date())
         assert abs(result["rx_today_gb"]-5.22)<0.00001,"do not regress valid V10 day total"
         assert result["days"][-1]["unallocated_rx_gb"]==5.2
-        assert result["days"][-1]["hours"][23]["rx_gb"]==0.02
+        assert result["days"][-1]["hours"][12]["rx_gb"]==0.02
     print("PHYSICAL_NIC_HISTORY_SPLITS_RESETS_GAPS_CARRY=PASS")
 
 
