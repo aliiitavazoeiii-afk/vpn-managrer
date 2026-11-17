@@ -57,12 +57,12 @@ def tests_meter():
         entry={}
         legacy={"day":today,"collected_at":noon,
                 "servers":{"maya1":{"state":"ok","rx_today_gb":5.2}}}
-        meter.import_daily_carry(entry,"maya1",legacy,first,first)
+        meter.import_daily_carry(entry,"maya1",legacy,noon,noon)
         assert entry["carry_rx"]==5_200_000_000
-        meter.advance(entry,raw(first,1_000_000_000),first)
-        meter.advance(entry,raw(first+60,1_020_000_000),first+60)
-        result=meter.make_export("maya1",entry,{"state":"ok"},first+60,
-                                  datetime.fromtimestamp(first+60,meter.ZONE).date())
+        meter.advance(entry,raw(noon,1_000_000_000),noon)
+        meter.advance(entry,raw(noon+60,1_020_000_000),noon+60)
+        result=meter.make_export("maya1",entry,{"state":"ok"},noon+60,
+                                  datetime.fromtimestamp(noon+60,meter.ZONE).date())
         assert abs(result["rx_today_gb"]-5.22)<0.00001,"do not regress valid V10 day total"
         assert result["days"][-1]["unallocated_rx_gb"]==5.2
         assert result["days"][-1]["hours"][12]["rx_gb"]==0.02
