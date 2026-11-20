@@ -48,6 +48,22 @@ class TestDualHourly(unittest.TestCase):
         self.assertIsNone(row["paths"]["backhaul"]["https_avg_ms"])
         self.assertNotIn("filtered",str(row))
 
+    def test_maya1_new_socks_ports_and_legacy_compatibility(self):
+        text=modern_sample()
+        text=text.replace("152.237.230.140  SOCKS=21001",
+                          "82.152.132.159  SOCKS=21101")
+        text=text.replace("82.152.132.112   SOCKS=21002",
+                          "152.237.230.77   SOCKS=21102")
+        row=mod.parse_dual_status(text)
+        self.assertEqual(row["mode"],"dual_backhaul")
+        self.assertEqual(row["state"],"ok")
+        self.assertEqual(row["paths"]["backhaul"]["ip"],"82.152.132.159")
+        self.assertEqual(row["paths"]["mieru"]["ip"],"152.237.230.77")
+        self.assertEqual(row["paths"]["mieru"]["state"],"healthy")
+        with self.assertRaises(ValueError):
+            mod.parse_dual_status(text.replace("82.152.132.159","8.8.8.8"))
+        self.assertEqual(mod.parse_dual_status(sample())["mode"],"legacy")
+
     def test_maya3_observed_down_and_unmeasured_bulk(self):
         row=mod.parse_dual_status(modern_sample(first="DOWN",bulk2="False"))
         self.assertEqual(row["paths"]["backhaul"]["state"],"down")
