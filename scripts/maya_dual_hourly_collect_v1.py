@@ -49,58 +49,87 @@ def validate_config():
     return servers
 
 def parse_dual_status(text, sampled_at=None):
-    """Parse the exact text produced by upstream dual-backhaul-mieru-ha/v2/dual.py status."""
-    if not isinstance(text, str) or len(text) > MAX_STDOUT:
-        raise ValueError("Remote output size")
-    if "\x1b" in text:
-        raise ValueError("Unexpected terminal escape")
+    """Read BOTH old Backhaul+Mieru and Maya3 Backhaul1+Backhaul2 statuses.
+    Preserve legacy JSON path keys for the protected Control Room V1 API.
+    NO_COLOR SSH output only; escape sequences are always rejected.
+    """
+    if not isinstance(text, str) or len(text) > MAX_STDOUT or "\x1b" in text:
+        raise ValueError("Remote output size or terminal escapes")
     lines = text.splitlines()
     controller_age = None
     for line in lines:
-        m = re.search(r"health\.json age:\s*(\d+)s", line)
+        m = re.search(r"(?:health\.json age|Controller cache age):\s*(\d+)s", line)
         if m:
             controller_age = int(m.group(1))
             break
+    legacy = re.compile(
+        r"^\s*(BACKHAUL|MIERU)\s+(\S+)\s+local SOCKS 127\.0\.0\.1:(21001|21002)\s*$")
+    modern = re.compile(
+        r"^\s*(BACKHAUL1|BACKHAUL2)\s+foreign=(\S+)\s+SOCKS=(21001|21002)\s+(UP|DOWN|UNKNOWN|DISABLED)\s*$")
     paths = {}
+    mode = None
     for i, line in enumerate(lines[:-1]):
-        m = re.match(r"^\s*(BACKHAUL|MIERU)\s+(\S+)\s+local SOCKS 127\.0\.0\.1:(21001|21002)\s*$", line)
-        if not m:
+        old, new = legacy.match(line), modern.match(line)
+        if not old and not new:
             continue
-        name = m.group(1).lower()
-        if name in paths or m.group(3) != ("21001" if name == "backhaul" else "21002"):
+        if old and mode == "dual_backhaul" or new and mode == "legacy":
+            raise ValueError("Mixed tunnel status modes")
+        if new:
+            mode = "dual_backhaul"
+            role = "backhaul" if new.group(1) == "BACKHAUL1" else "mieru"
+            raw_ip, port, live_state = new.group(2), new.group(3), new.group(4)
+        else:
+            mode = "legacy"
+            role = old.group(1).lower()
+            raw_ip, port, live_state = old.group(2), old.group(3), None
+        if role in paths or port != ("21001" if role == "backhaul" else "21002"):
             raise ValueError("Duplicate/invalid role")
-        raw_ip = m.group(2)
         try:
             foreign_ip = str(ipaddress.IPv4Address(raw_ip))
             if not ipaddress.ip_address(foreign_ip).is_global:
                 foreign_ip = None
         except ipaddress.AddressValueError:
             foreign_ip = None
+        if foreign_ip is None:
+            raise ValueError("Invalid foreign server IPv4")
         detail = lines[i+1]
-        health = re.search(r"(?:HEALTHY\b|DOWN / health checks failed\b|UNKNOWN \(stale/missing controller data\))", detail)
-        https = re.search(r"https=(\d+)/(\d+)\s+avg=([0-9.]+|\?|None)s?", detail)
-        if not https or not health:
-            raise ValueError("Unrecognized dual status line")
-        passed, total = int(https.group(1)), int(https.group(2))
-        if total != 3 or passed > total:
-            raise ValueError("Unexpected probe totals")
         latency = None
-        try:
-            value = float(https.group(3))
-            if 0 <= value <= 120 and value != float("inf"):
-                latency = round(value * 1000)
-        except ValueError:
-            pass
-        line_state = health.group(0)
-        state = ("healthy" if line_state == "HEALTHY" and passed >= 2
-                 else "down" if line_state.startswith("DOWN") else "unknown")
+        if new:
+            https = re.search(r"HTTPS=(\d+)/(\d+)\s*\|\s*BULK=(True|False|not measured)", detail)
+            if not https:
+                raise ValueError("Unrecognized dual Backhaul health line")
+            passed, total = int(https.group(1)), int(https.group(2))
+            bulk_state = https.group(3)
+            # UP means both current HAProxy state and controller verification
+            # must confirm healthy. A failed or unmeasured bulk probe is not
+            # proof of filtering and must not display green.
+            state = ("healthy" if live_state == "UP" and passed >= 2 and bulk_state == "True"
+                     else "down" if live_state == "DOWN" else "unknown")
+        else:
+            health = re.search(
+                r"(?:HEALTHY\b|DOWN / health checks failed\b|UNKNOWN \(stale/missing controller data\))",
+                detail)
+            https = re.search(r"https=(\d+)/(\d+)\s+avg=([0-9.]+|\?|None)s?", detail)
+            if not https or not health:
+                raise ValueError("Unrecognized legacy status line")
+            passed, total = int(https.group(1)), int(https.group(2))
+            try:
+                value = float(https.group(3))
+                if 0 <= value <= 120 and value != float("inf"):
+                    latency = round(value * 1000)
+            except ValueError:
+                pass
+            observed = health.group(0)
+            state = ("healthy" if observed == "HEALTHY" and passed >= 2
+                     else "down" if observed.startswith("DOWN") else "unknown")
+        if total != 3 or not 0 <= passed <= total:
+            raise ValueError("Unexpected probe totals")
         if controller_age is None or controller_age > 30:
-            state = "stale"
-            latency = None
-        paths[name] = {
+            state, latency = "stale", None
+        paths[role] = {
             "ip": foreign_ip, "state": state,
             "https_passed": passed, "https_total": total,
-            "https_avg_ms": latency,
+            "https_avg_ms": latency
         }
     if set(paths) != {"backhaul", "mieru"}:
         raise ValueError("Dual roles absent")
@@ -108,6 +137,7 @@ def parse_dual_status(text, sampled_at=None):
         "state": "ok" if controller_age is not None and controller_age <= 30 else "stale",
         "sampled_at": int(time.time()) if sampled_at is None else int(sampled_at),
         "controller_age_s": controller_age,
+        "mode": mode,
         "paths": paths,
     }
 
