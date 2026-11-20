@@ -65,7 +65,7 @@ def parse_dual_status(text, sampled_at=None):
     legacy = re.compile(
         r"^\s*(BACKHAUL|MIERU)\s+(\S+)\s+local SOCKS 127\.0\.0\.1:(21001|21002)\s*$")
     modern = re.compile(
-        r"^\s*(BACKHAUL1|BACKHAUL2)\s+foreign=(\S+)\s+SOCKS=(21001|21002)\s+(UP|DOWN|UNKNOWN|DISABLED)\s*$")
+        r"^\s*(BACKHAUL1|BACKHAUL2)\s+foreign=(\S+)\s+SOCKS=(21001|21002|21101|21102)\s+(UP|DOWN|UNKNOWN|DISABLED)\s*$")
     paths = {}
     mode = None
     for i, line in enumerate(lines[:-1]):
@@ -82,8 +82,16 @@ def parse_dual_status(text, sampled_at=None):
             mode = "legacy"
             role = old.group(1).lower()
             raw_ip, port, live_state = old.group(2), old.group(3), None
-        if role in paths or port != ("21001" if role == "backhaul" else "21002"):
+        valid_ports = (("21001", "21101") if mode == "dual_backhaul" and role == "backhaul"
+                       else ("21002", "21102") if mode == "dual_backhaul"
+                       else ("21001",) if role == "backhaul" else ("21002",))
+        if role in paths or port not in valid_ports:
             raise ValueError("Duplicate/invalid role")
+        # 21101/21102 are valid ONLY for the pinned Maya1 two-Backhaul
+        # installation; never accept arbitrary hosts on these staged ports.
+        if new and port in ("21101", "21102") and raw_ip != (
+            "82.152.132.159" if role == "backhaul" else "152.237.230.77"):
+            raise ValueError("Unexpected Maya1 migrated Backhaul identity")
         try:
             foreign_ip = str(ipaddress.IPv4Address(raw_ip))
             if not ipaddress.ip_address(foreign_ip).is_global:
