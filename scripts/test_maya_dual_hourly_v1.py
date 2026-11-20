@@ -59,7 +59,7 @@ class TestDualHourly(unittest.TestCase):
         self.assertEqual(row["state"],"stale")
         self.assertTrue(all(x["state"]=="stale" for x in row["paths"].values()))
         with self.assertRaises(ValueError):
-            mod.parse_dual_status(modern_sample()+"\\x1b[31m")
+            mod.parse_dual_status(modern_sample()+"\x1b[31m")
 
     def test_maya3_overlay_scope_and_compatibility(self):
         import sys
