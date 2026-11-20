@@ -74,6 +74,7 @@ rollback(){
    echo "WARNING: manual admin-app rollback may be required"
   echo "BACKUP=$BACKUP"
  fi
+ rm -rf "$T"
  exit "$code"
 }
 trap rollback EXIT
@@ -134,6 +135,7 @@ PY
 done
 [[ $READY == 1 ]] || { echo "STOP: management runtime validation failed";false; }
 trap - EXIT
+rm -rf "$T"
 echo "SUCCESS=MAYA3_DUAL_BACKHAUL_RECOGNIZED"
 echo "MAYA1_MAYA4_LEGACY_MIERU_COMPATIBILITY=PRESERVED"
 echo "HOURLY_TIMER_AND_MANUAL_REFRESH=PRESERVED"
