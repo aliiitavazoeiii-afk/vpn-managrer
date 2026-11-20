@@ -8,6 +8,7 @@ on:
       - 'scripts/test_maya_dual_hourly_v1.py'
       - 'scripts/patch_maya3_dual_backhaul_ui_v1.py'
       - 'scripts/install_maya3_dual_backhaul_recognition_v1.sh'
+      - 'scripts/install_maya1_dual_backhaul_monitor_v1.sh'
       - '.github/workflows/test-maya3-dual-backhaul-recognition-v1.yml'
   workflow_dispatch:
 
@@ -22,6 +23,7 @@ jobs:
             scripts/test_maya_dual_hourly_v1.py \
             scripts/patch_maya3_dual_backhaul_ui_v1.py
           bash -n scripts/install_maya3_dual_backhaul_recognition_v1.sh
+          bash -n scripts/install_maya1_dual_backhaul_monitor_v1.sh
       - name: Legacy + Maya3 compatibility and label tests
         run: |
           python3 -m pip install --quiet jinja2
