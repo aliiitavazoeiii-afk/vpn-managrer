@@ -64,6 +64,35 @@ class TestDualHourly(unittest.TestCase):
             mod.parse_dual_status(text.replace("82.152.132.159","8.8.8.8"))
         self.assertEqual(mod.parse_dual_status(sample())["mode"],"legacy")
 
+    def test_exact_maya1_new_helper_status_and_green_gate(self):
+        # Exact field layout emitted by /usr/local/bin/dual on migrated Maya1.
+        text="""  DUAL BACKHAUL | MAYA1 | HAProxy leastconn
+  ---------------------------------------------------------------
+  IRAN: 94.184.4.38 | REALITY/x-ui: active
+  BACKHAUL1 foreign=82.152.132.159  SOCKS=21101 UP
+        active=356 total=919 weight=1 | HTTPS=3/3 | BULK=True | bytes=1048576 speed=172896 B/s
+  BACKHAUL2 foreign=152.237.230.77  SOCKS=21102 UP
+        active=357 total=921 weight=1 | HTTPS=3/3 | BULK=True | bytes=1048576 speed=139024 B/s
+  Controller cache age: 7s
+  Historical backend name 'mieru' actually carries BACKHAUL2.
+"""
+        result=mod.parse_dual_status(text,sampled_at=123)
+        self.assertEqual(result["mode"],"dual_backhaul")
+        self.assertEqual(result["state"],"ok")
+        self.assertEqual(result["sampled_at"],123)
+        self.assertEqual(result["paths"]["backhaul"]["ip"],"82.152.132.159")
+        self.assertEqual(result["paths"]["mieru"]["ip"],"152.237.230.77")
+        self.assertTrue(all(x["state"]=="healthy" for x in result["paths"].values()))
+        self.assertEqual(result["paths"]["backhaul"]["https_passed"],3)
+        self.assertEqual(result["paths"]["mieru"]["https_total"],3)
+        self.assertEqual(mod.parse_dual_status(text.replace(
+            "BACKHAUL2 foreign=152.237.230.77  SOCKS=21102 UP",
+            "BACKHAUL2 foreign=152.237.230.77  SOCKS=21102 UNKNOWN")
+        )["paths"]["mieru"]["state"],"unknown")
+        self.assertEqual(mod.parse_dual_status(text.replace(
+            "Controller cache age: 7s","Controller cache age: 60s")
+        )["paths"]["backhaul"]["state"],"stale")
+
     def test_maya3_observed_down_and_unmeasured_bulk(self):
         row=mod.parse_dual_status(modern_sample(first="DOWN",bulk2="False"))
         self.assertEqual(row["paths"]["backhaul"]["state"],"down")
