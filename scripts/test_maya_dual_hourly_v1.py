@@ -24,7 +24,59 @@ def sample(age="4", a="HEALTHY", b="HEALTHY", ip1="8.8.8.8", ip2="1.1.1.1"):
   health.json age: {age}s
 """
 
+def modern_sample(age="5", first="UP", second="UP", bulk1="True", bulk2="True"):
+    return f"""
+  DUAL BACKHAUL | MAYA3 | unchanged HAProxy leastconn
+  ----------------------------------------------------------------
+  IRAN: 185.215.230.221 | REALITY/x-ui: active
+  BACKHAUL1 foreign=152.237.230.140  SOCKS=21001 {first}
+        active=301 total=5499920 weight=1 | HTTPS=3/3 | BULK={bulk1} | bytes=262144 speed=185000 B/s
+  BACKHAUL2 foreign=82.152.132.112   SOCKS=21002 {second}
+        active=351 total=5329262 weight=1 | HTTPS=3/3 | BULK={bulk2} | bytes=262144 speed=310000 B/s
+  Controller cache age: {age}s
+"""
+
 class TestDualHourly(unittest.TestCase):
+    def test_maya3_dual_backhaul_new_layout_and_ip(self):
+        row=mod.parse_dual_status(modern_sample(),sampled_at=42)
+        self.assertEqual(row["mode"],"dual_backhaul")
+        self.assertEqual(row["state"],"ok")
+        self.assertEqual(row["paths"]["backhaul"]["ip"],"152.237.230.140")
+        self.assertEqual(row["paths"]["mieru"]["ip"],"82.152.132.112")
+        self.assertEqual(row["paths"]["backhaul"]["state"],"healthy")
+        self.assertEqual(row["paths"]["mieru"]["state"],"healthy")
+        self.assertIsNone(row["paths"]["backhaul"]["https_avg_ms"])
+        self.assertNotIn("filtered",str(row))
+
+    def test_maya3_observed_down_and_unmeasured_bulk(self):
+        row=mod.parse_dual_status(modern_sample(first="DOWN",bulk2="False"))
+        self.assertEqual(row["paths"]["backhaul"]["state"],"down")
+        self.assertEqual(row["paths"]["mieru"]["state"],"unknown")
+        self.assertEqual(mod.parse_dual_status(modern_sample(first="DISABLED"))["paths"]["backhaul"]["state"],"unknown")
+
+    def test_maya3_stale_and_ansi_rejected(self):
+        row=mod.parse_dual_status(modern_sample(age="60"))
+        self.assertEqual(row["state"],"stale")
+        self.assertTrue(all(x["state"]=="stale" for x in row["paths"].values()))
+        with self.assertRaises(ValueError):
+            mod.parse_dual_status(modern_sample()+"\\x1b[31m")
+
+    def test_maya3_overlay_scope_and_compatibility(self):
+        import sys
+        patch=ROOT/"scripts"/"patch_maya3_dual_backhaul_ui_v1.py"
+        spec=importlib.util.spec_from_file_location("maya3_ui",patch)
+        obj=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(obj)
+        original=(ROOT/"patches"/"control_room_dual_hourly_v1.py").read_text()
+        revised=obj.transform(original)
+        self.assertIn('item.mode==="dual_backhaul"',revised)
+        self.assertIn('role==="backhaul"?"Backhaul":"Mieru"',revised)
+        self.assertIn('Backhaul 2',revised)
+        self.assertIn('"mode": "dual_backhaul"',revised)
+        self.assertIn('"/control-room/dual-hourly/status"',revised)
+        with self.assertRaises(ValueError):
+            obj.transform(revised)
+
     def test_healthy_and_https_latency(self):
         result = mod.parse_dual_status(sample(), sampled_at=42)
         self.assertEqual(result["state"], "ok")
