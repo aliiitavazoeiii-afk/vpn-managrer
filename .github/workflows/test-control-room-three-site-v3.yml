@@ -23,6 +23,8 @@ jobs:
           python3 -m py_compile scripts/maya_dual_hourly_collect_v1.py scripts/patch_control_room_three_site_v3.py scripts/test_control_room_three_site_v3.py
           bash -n scripts/install_control_room_three_site_v3.sh
           python3 scripts/test_control_room_three_site_v3.py
+          python3 scripts/test_maya_dual_hourly_v1.py
+          python3 scripts/test_dual_manual_refresh_v2.py
       - name: Confirm installer only touches management source, app and local timer
         run: |
           set -euo pipefail
