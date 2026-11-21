@@ -96,7 +96,8 @@ class Tests(unittest.TestCase):
     def test_ui_literal_js_syntax_with_node_optional(self):
         import shutil,subprocess,tempfile
         base=(ROOT/"patches"/"control_room_dual_hourly_v1.py").read_text()
-        obj=ast.parse(v3.transform(v2.transform(base)))
+        result=v3.transform(v2.transform(base))
+        obj=ast.parse(result)
         constants={}
         for stmt in ast.walk(obj):
             if isinstance(stmt,ast.Assign) and len(stmt.targets)==1 and isinstance(stmt.targets[0],ast.Name):
