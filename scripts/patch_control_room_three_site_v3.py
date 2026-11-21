@@ -58,10 +58,7 @@ def transform(source):
                         (type(observed_age) is not int or observed_age<0 or
                          observed_age+age>1500)):
                         state="stale"
-                        for path_item in paths.values():
-                            if isinstance(path_item,dict):
-                                path_item=dict(path_item)
-                        # Keep the original snapshot, but do not mark routes green.
+                        # Do not claim current health from an expired probe.
                     output[sid] = {
                         "state": state, "age_s": age,''',
         "cached probe age check")
