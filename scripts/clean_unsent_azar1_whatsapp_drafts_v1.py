@@ -111,7 +111,11 @@ def verify_runtime():
     if len(found)!=1 or ast.literal_eval(found[0].value)!=NEW:
         stop("NEW_DEBT_MESSAGE_NOT_INSTALLED: run Azar1 text installer first")
     code=(
-        "from app.main import _ABAN_SMS_PATTERN\n"
+        "from app.main import _ABAN_SMS_PATTERN, _ns_enqueue\n"
+        "const=str(_ns_enqueue.__code__.co_consts)\n"
+        "assert 'PREVIOUS_SMS_UNCERTAIN_OR_PENDING_REVIEW' in const\n"
+        "assert 'CORRECTED_SMS_ALREADY_REGISTERED' in const\n"
+        "assert 'cancelled' in const\n"
         "assert _ABAN_SMS_PATTERN=="+
         repr(NEW)+"\n"
         "print('RUNNING_MESSAGE_IS_EXACT=YES')\n"
