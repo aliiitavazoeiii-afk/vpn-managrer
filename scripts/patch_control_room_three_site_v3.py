@@ -69,6 +69,10 @@ def transform(source):
     # Deliberately do not mutate the cached JSON or any path references above.
     # UI only paints positive green when the server itself is fresh.
     source=replace_once(source,
+        "#c2-root .dh1-meta{font-size:10px;color:#aeb5d2;margin-top:8px}",
+        "#c2-root .dh1-meta{font-size:10px;color:#aeb5d2;margin-top:8px}\\n#c2-root .dh3-sites.warn{color:#f1c876}",
+        "partial HTTPS warning style")
+    source=replace_once(source,
         '''   add(card,"div",title+" · میانگین HTTPS: "+latency,"dh1-meta");''',
         '''   if(item.health_interval_s===600 && item.mode==="dual_backhaul"){
      const sites=valid&&raw.https_sites;
@@ -76,7 +80,7 @@ def transform(source):
      const checks=sites&&["google","cloudflare","apple"].every(k=>typeof sites[k]==="boolean");
      if(checks){
        const note=["google","cloudflare","apple"].map(k=>symbols[k]+": "+(sites[k]?"OK":"FAIL")).join(" · ");
-       add(card,"div",note,"dh1-meta dh3-sites");
+       add(card,"div",note,raw.site_warning?"dh1-meta dh3-sites warn":"dh1-meta dh3-sites");
      }else{
        add(card,"div","وضعیت سه مقصد: نامشخص","dh1-meta");
      }
