@@ -73,6 +73,10 @@ def parse_dual_status(text, sampled_at=None):
         r"^\s*(BACKHAUL1|BACKHAUL2)\s+foreign=(\S+)\s+SOCKS=(21001|21002|21101|21102)\s+(UP|DOWN|UNKNOWN|DISABLED)\s*$")
     paths = {}
     mode = None
+    v3 = health_interval == 600
+    # Three HTTPS destinations must be present for each v3 path.
+    site_line = re.compile(
+        r"^\s*CHECKS:\s+Google=(OK|FAIL)\s+Cloudflare=(OK|FAIL)\s+Apple=(OK|FAIL)\s*$")
     for i, line in enumerate(lines[:-1]):
         old, new = legacy.match(line), modern.match(line)
         if not old and not new:
@@ -107,6 +111,15 @@ def parse_dual_status(text, sampled_at=None):
             raise ValueError("Invalid foreign server IPv4")
         detail = lines[i+1]
         latency = None
+        sites = None
+        if new and v3:
+            if i+2 >= len(lines):
+                raise ValueError("Missing v3 three-destination status")
+            match = site_line.match(lines[i+2])
+            if not match:
+                raise ValueError("Unrecognized v3 three-destination status")
+            sites = {key: value == "OK" for key, value in
+                     zip(("google","cloudflare","apple"),match.groups())}
         if new:
             https = re.search(r"HTTPS=(\d+)/(\d+)\s*\|\s*BULK=(True|False|not measured)", detail)
             if not https:
@@ -117,6 +130,9 @@ def parse_dual_status(text, sampled_at=None):
             # The Maya3/Maya1 dual helpers now show the actual HAProxy state.
             # Bulk=False is an advisory quality signal, NOT a tunnel outage.
             # HTTPS<2 remains unknown rather than fabricated "filtered/down".
+            # Fail closed on CLI-to-controller inconsistency. Never fake green.
+            if sites is not None and passed != sum(sites.values()):
+                raise ValueError("V3 HTTPS total and per-site results disagree")
             state = ("healthy" if live_state == "UP" and passed >= 2
                      else "down" if live_state == "DOWN" else "unknown")
         else:
@@ -143,7 +159,9 @@ def parse_dual_status(text, sampled_at=None):
         paths[role] = {
             "ip": foreign_ip, "state": state,
             "https_passed": passed, "https_total": total,
-            "https_avg_ms": latency
+            "https_avg_ms": latency,
+            "https_sites": sites,
+            "site_warning": bool(sites is not None and not all(sites.values()))
         }
     if set(paths) != {"backhaul", "mieru"}:
         raise ValueError("Dual roles absent")
