@@ -93,6 +93,29 @@ class Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             v3.transform(result)
 
+    def test_actual_production_overlay_with_appended_manual_refresh(self):
+        # Production has manual refresh overlay appended AFTER the hourly
+        # overlay. The caption occurs in both _DH1_HTML and _DM2_HEADING,
+        # so an unscoped source-string replacement would fail or break button.
+        base=(ROOT/"patches"/"control_room_dual_hourly_v1.py").read_text()
+        maya3=v2.transform(base)
+        manual=(ROOT/"patches"/"control_room_dual_manual_refresh_v2.py").read_text()
+        production=maya3+"\\n\\n"+manual
+        original_caption="بررسی خودکار هر ساعت · زمان پاسخ HTTPS، نه پینگ ICMP"
+        self.assertEqual(production.count(original_caption),2)
+        updated=v3.transform(production)
+        self.assertEqual(updated.count(original_caption),3)
+        self.assertIn('_DM2_HEADING=\'<span class="dh1-note">بررسی خودکار هر ساعت',updated)
+        self.assertIn('window.__HESAB_DUAL_REFRESH_NOW=refresh;',updated)
+        self.assertIn("child.nodeType===3",updated)
+        self.assertIn("child.textContent=child.textContent.replace(",updated)
+        self.assertIn("دریافت وضعیت هر ۱۰ دقیقه",updated)
+        self.assertIn('id="dm2-refresh"',updated)
+        self.assertIn("HESAB_DUAL_HOURLY_MANUAL_REFRESH_V2",updated)
+        ast.parse(updated)
+        with self.assertRaises(ValueError):
+            v3.transform(updated)
+
     def test_ui_literal_js_syntax_with_node_optional(self):
         import shutil,subprocess,tempfile
         base=(ROOT/"patches"/"control_room_dual_hourly_v1.py").read_text()
