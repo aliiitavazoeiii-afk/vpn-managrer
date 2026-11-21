@@ -105,6 +105,11 @@ class TestDualHourly(unittest.TestCase):
         output=modern_sample(age="652",bulk1="False",bulk2="False")
         output=output.replace("  Controller cache age:",
                               "  HTTPS targets: Google | Cloudflare | Apple; interval=600s\n  Controller cache age:")
+        # The new agent always reports all 3 named HTTPS destinations per lane.
+        output=output.replace("speed=185000 B/s",
+                              "speed=185000 B/s\n        CHECKS: Google=OK Cloudflare=OK Apple=OK")
+        output=output.replace("speed=310000 B/s",
+                              "speed=310000 B/s\n        CHECKS: Google=OK Cloudflare=OK Apple=OK")
         row=mod.parse_dual_status(output)
         self.assertEqual(row["state"],"ok")
         self.assertEqual(row["health_interval_s"],600)
