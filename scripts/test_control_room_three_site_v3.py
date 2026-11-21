@@ -100,7 +100,7 @@ class Tests(unittest.TestCase):
         base=(ROOT/"patches"/"control_room_dual_hourly_v1.py").read_text()
         maya3=v2.transform(base)
         manual=(ROOT/"patches"/"control_room_dual_manual_refresh_v2.py").read_text()
-        production=maya3+"\\n\\n"+manual
+        production=maya3+"\n\n"+manual
         original_caption="بررسی خودکار هر ساعت · زمان پاسخ HTTPS، نه پینگ ICMP"
         self.assertEqual(production.count(original_caption),2)
         updated=v3.transform(production)
