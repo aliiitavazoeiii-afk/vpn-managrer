@@ -96,8 +96,10 @@ class TestDualHourly(unittest.TestCase):
     def test_maya3_observed_down_and_unmeasured_bulk(self):
         row=mod.parse_dual_status(modern_sample(first="DOWN",bulk2="False"))
         self.assertEqual(row["paths"]["backhaul"]["state"],"down")
-        self.assertEqual(row["paths"]["mieru"]["state"],"unknown")
+        # BULK=False is a speed/quality warning, not a broken live HAProxy route.
+        self.assertEqual(row["paths"]["mieru"]["state"],"healthy")
         self.assertEqual(mod.parse_dual_status(modern_sample(first="DISABLED"))["paths"]["backhaul"]["state"],"unknown")
+        self.assertEqual(mod.parse_dual_status(modern_sample(bulk1="False",bulk2="False"))["paths"]["backhaul"]["state"],"healthy")
 
     def test_maya3_stale_and_ansi_rejected(self):
         row=mod.parse_dual_status(modern_sample(age="60"))
