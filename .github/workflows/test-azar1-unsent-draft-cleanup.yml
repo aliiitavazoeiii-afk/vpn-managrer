@@ -1,0 +1,24 @@
+name: Verify selective WhatsApp draft cleanup
+on:
+  push:
+    branches:
+      - feat/debts-azar1-renewal-message-v1
+    paths:
+      - "scripts/clean_unsent_azar1_whatsapp_drafts_v1.py"
+      - "scripts/test_clean_unsent_azar1_whatsapp_drafts_v1.py"
+      - "patches/sms_aban_default.py"
+      - ".github/workflows/test-azar1-unsent-draft-cleanup.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify old draft classification and no bulk destructive SQL
+        run: |
+          python3 -m py_compile scripts/clean_unsent_azar1_whatsapp_drafts_v1.py
+          python3 scripts/test_clean_unsent_azar1_whatsapp_drafts_v1.py
+          python3 scripts/test_debt_azar1_message_v1.py
