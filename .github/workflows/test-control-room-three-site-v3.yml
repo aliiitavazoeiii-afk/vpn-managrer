@@ -1,0 +1,39 @@
+name: Control Room Maya1 Maya3 three-site V3 health
+
+on:
+  push:
+    branches: [feat/maya-nic-traffic-history-v11]
+    paths:
+      - 'scripts/maya_dual_hourly_collect_v1.py'
+      - 'scripts/patch_control_room_three_site_v3.py'
+      - 'scripts/test_control_room_three_site_v3.py'
+      - 'scripts/install_control_room_three_site_v3.sh'
+      - '.github/workflows/test-control-room-three-site-v3.yml'
+  workflow_dispatch:
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Python, installer Bash, and 3-site V3 parser/overlay
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet jinja2
+          python3 -m py_compile scripts/maya_dual_hourly_collect_v1.py scripts/patch_control_room_three_site_v3.py scripts/test_control_room_three_site_v3.py
+          bash -n scripts/install_control_room_three_site_v3.sh
+          python3 scripts/test_control_room_three_site_v3.py
+      - name: Confirm installer only touches management source, app and local timer
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("scripts/install_control_room_three_site_v3.sh").read_text()
+          assert 'OnCalendar=*-*-* *:00/10:00' in s
+          assert '/usr/local/bin/dual status' in Path("scripts/maya_dual_hourly_collect_v1.py").read_text()
+          for forbidden in ('systemctl restart x-ui','systemctl restart dual-ha-v2-gateway',
+                            'set server dual_egress','docker compose down','iptables -F',
+                            'dual replace','rm -rf /etc/dual-ha'):
+              assert forbidden not in s
+          print("MANAGEMENT_ONLY_DEPLOYMENT_SCOPE=PASS")
+          PY
