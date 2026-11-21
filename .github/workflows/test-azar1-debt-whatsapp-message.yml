@@ -1,0 +1,36 @@
+name: Verify Azar 1 debt WhatsApp reminder
+on:
+  push:
+    branches:
+      - feat/debts-azar1-renewal-message-v1
+    paths:
+      - "patches/sms_aban_default.py"
+      - "scripts/test_debt_azar1_message_v1.py"
+      - "scripts/install_debt_azar1_message_v1.sh"
+      - ".github/workflows/test-azar1-debt-whatsapp-message.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify single canonical message, deadline and URL
+        run: |
+          python3 scripts/test_debt_azar1_message_v1.py
+          bash -n scripts/install_debt_azar1_message_v1.sh
+          python3 -m py_compile patches/sms_aban_default.py
+      - name: Guard no automatic send or account mutations in installer
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path("scripts/install_debt_azar1_message_v1.sh").read_text()
+          assert "ONLY_NEW_DRAFTS_AFFECTED=YES" in s
+          assert "NO_SEND_NO_ACCOUNT_OR_FINANCE_CHANGES=YES" in s
+          assert "DAY_SPECIFIC_AZAR1_TEXT" in s or "AZAR1_TEXT_NOT_VALID_TODAY" in s
+          for forbidden in ("docker compose down","DELETE FROM","UPDATE subscriptions","/sms/send","/sms/debt-send","/sms-gateway/v4/drafts"):
+              assert forbidden not in s,forbidden
+          print("NO_AUTOMATIC_SEND_OR_ACCOUNT_MUTATION=PASS")
+          PY
