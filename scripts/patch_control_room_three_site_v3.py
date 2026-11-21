@@ -48,10 +48,26 @@ def transform(source):
                             0<=info["controller_age_s"]<=86400 else None),
                         "paths": {role: _dh1_clean_path(paths.get(role))''',
         "api 10min snapshot fields")
+    # The original caption is also held in _DM2_HEADING as the manual-refresh
+    # button insertion anchor. Editing it in source would break the button
+    # during app bootstrap. Update only the visible TEXT node after DOM load.
+    # Never replace the parent span's textContent (that would remove button).
     source=replace_once(source,
-        "بررسی خودکار هر ساعت · زمان پاسخ HTTPS، نه پینگ ICMP",
-        "دریافت وضعیت هر ۱۰ دقیقه · سلامت HTTPS سه مقصد",
-        "collection cadence caption")
+        'const grid=document.getElementById("dh1-grid");\nif(!grid)return;',
+        '''const grid=document.getElementById("dh1-grid");
+if(!grid)return;
+const caption=document.querySelector("#dh1-root .dh1-note");
+if(caption){
+ for(const child of caption.childNodes){
+  if(child.nodeType===3 && child.textContent.includes("بررسی خودکار هر ساعت")){
+   child.textContent=child.textContent.replace(
+     "بررسی خودکار هر ساعت · زمان پاسخ HTTPS، نه پینگ ICMP",
+     "دریافت وضعیت هر ۱۰ دقیقه · سلامت HTTPS سه مقصد");
+   break;
+  }
+ }
+}''',
+        "visible heading caption without removing manual refresh button")
     # Server reports every 10min and management collection is cached.
     # Never show green from a snapshot whose actual underlying probe is >25min.
     source=replace_once(source,
