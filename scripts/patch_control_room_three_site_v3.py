@@ -70,7 +70,7 @@ def transform(source):
     # UI only paints positive green when the server itself is fresh.
     source=replace_once(source,
         "#c2-root .dh1-meta{font-size:10px;color:#aeb5d2;margin-top:8px}",
-        "#c2-root .dh1-meta{font-size:10px;color:#aeb5d2;margin-top:8px}\\n#c2-root .dh3-sites.warn{color:#f1c876}",
+        "#c2-root .dh1-meta{font-size:10px;color:#aeb5d2;margin-top:8px}\n#c2-root .dh3-sites.warn{color:#f1c876}",
         "partial HTTPS warning style")
     source=replace_once(source,
         '''   add(card,"div",title+" · میانگین HTTPS: "+latency,"dh1-meta");''',
