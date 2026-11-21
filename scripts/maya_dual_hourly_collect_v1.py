@@ -108,10 +108,11 @@ def parse_dual_status(text, sampled_at=None):
                 raise ValueError("Unrecognized dual Backhaul health line")
             passed, total = int(https.group(1)), int(https.group(2))
             bulk_state = https.group(3)
-            # UP means both current HAProxy state and controller verification
-            # must confirm healthy. A failed or unmeasured bulk probe is not
-            # proof of filtering and must not display green.
-            state = ("healthy" if live_state == "UP" and passed >= 2 and bulk_state == "True"
+            # Connectivity/routing must not be inferred from a speedtest.
+            # The Maya3/Maya1 dual helpers now show the actual HAProxy state.
+            # Bulk=False is an advisory quality signal, NOT a tunnel outage.
+            # HTTPS<2 remains unknown rather than fabricated "filtered/down".
+            state = ("healthy" if live_state == "UP" and passed >= 2
                      else "down" if live_state == "DOWN" else "unknown")
         else:
             health = re.search(
