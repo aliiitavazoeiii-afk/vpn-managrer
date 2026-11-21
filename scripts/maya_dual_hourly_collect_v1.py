@@ -56,6 +56,11 @@ def parse_dual_status(text, sampled_at=None):
     if not isinstance(text, str) or len(text) > MAX_STDOUT or "\x1b" in text:
         raise ValueError("Remote output size or terminal escapes")
     lines = text.splitlines()
+    # New Maya1/Maya3 agents run 3 HTTPS checks every 600 seconds, not 8.
+    # Their last result remains fresh until one scheduled cycle is overdue.
+    # Legacy Maya4 keeps the old short freshness window.
+    health_interval = 600 if "interval=600s" in text else 30
+    freshness_limit = 780 if health_interval == 600 else 30
     controller_age = None
     for line in lines:
         m = re.search(r"(?:health\.json age|Controller cache age):\s*(\d+)s", line)
@@ -133,7 +138,7 @@ def parse_dual_status(text, sampled_at=None):
                      else "down" if observed.startswith("DOWN") else "unknown")
         if total != 3 or not 0 <= passed <= total:
             raise ValueError("Unexpected probe totals")
-        if controller_age is None or controller_age > 30:
+        if controller_age is None or controller_age > freshness_limit:
             state, latency = "stale", None
         paths[role] = {
             "ip": foreign_ip, "state": state,
@@ -143,9 +148,10 @@ def parse_dual_status(text, sampled_at=None):
     if set(paths) != {"backhaul", "mieru"}:
         raise ValueError("Dual roles absent")
     return {
-        "state": "ok" if controller_age is not None and controller_age <= 30 else "stale",
+        "state": "ok" if controller_age is not None and controller_age <= freshness_limit else "stale",
         "sampled_at": int(time.time()) if sampled_at is None else int(sampled_at),
         "controller_age_s": controller_age,
+        "health_interval_s": health_interval,
         "mode": mode,
         "paths": paths,
     }
