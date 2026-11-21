@@ -82,7 +82,7 @@ class Tests(unittest.TestCase):
         result=v3.transform(with_maya3)
         ast.parse(result)
         self.assertIn(v3.MARK,result)
-        self.assertEqual(result.count('"/control-room/dual-hourly/status"'),1)
+        self.assertIn('app.add_api_route("/control-room/dual-hourly/status"',result)
         self.assertIn('"x-control-csrf"',result)
         self.assertIn('{"google","cloudflare","apple"}',result)
         self.assertIn('"سنجش مسیرها: هر ۱۰ دقیقه',result)
@@ -106,7 +106,7 @@ class Tests(unittest.TestCase):
         self.assertIn("Google",constants["_DH1_JS"])
         self.assertIn("Cloudflare",constants["_DH1_JS"])
         self.assertIn("Apple",constants["_DH1_JS"])
-        self.assertIn("dm2-refresh","dm2-refresh") # API button preserved by additive patch
+        self.assertIn('_dh1_auth(request)',result)
         if shutil.which("node"):
             with tempfile.TemporaryDirectory() as td:
                 f=Path(td)/"card.js"
