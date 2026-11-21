@@ -48,6 +48,10 @@ def transform(source):
                             0<=info["controller_age_s"]<=86400 else None),
                         "paths": {role: _dh1_clean_path(paths.get(role))''',
         "api 10min snapshot fields")
+    source=replace_once(source,
+        "بررسی خودکار هر ساعت · زمان پاسخ HTTPS، نه پینگ ICMP",
+        "دریافت وضعیت هر ۱۰ دقیقه · سلامت HTTPS سه مقصد",
+        "collection cadence caption")
     # Server reports every 10min and management collection is cached.
     # Never show green from a snapshot whose actual underlying probe is >25min.
     source=replace_once(source,
