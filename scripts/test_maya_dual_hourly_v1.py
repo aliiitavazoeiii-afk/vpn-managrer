@@ -101,6 +101,22 @@ class TestDualHourly(unittest.TestCase):
         self.assertEqual(mod.parse_dual_status(modern_sample(first="DISABLED"))["paths"]["backhaul"]["state"],"unknown")
         self.assertEqual(mod.parse_dual_status(modern_sample(bulk1="False",bulk2="False"))["paths"]["backhaul"]["state"],"healthy")
 
+    def test_ten_min_three_site_health_is_fresh_not_stale(self):
+        output=modern_sample(age="652",bulk1="False",bulk2="False")
+        output=output.replace("  Controller cache age:",
+                              "  HTTPS targets: Google | Cloudflare | Apple; interval=600s\n  Controller cache age:")
+        row=mod.parse_dual_status(output)
+        self.assertEqual(row["state"],"ok")
+        self.assertEqual(row["health_interval_s"],600)
+        self.assertEqual(row["paths"]["backhaul"]["state"],"healthy")
+        self.assertEqual(row["paths"]["mieru"]["state"],"healthy")
+        too_old=mod.parse_dual_status(output.replace("age: 652s","age: 781s"))
+        self.assertEqual(too_old["state"],"stale")
+        self.assertEqual(too_old["paths"]["mieru"]["state"],"stale")
+        legacy=mod.parse_dual_status(modern_sample(age="90"))
+        self.assertEqual(legacy["health_interval_s"],30)
+        self.assertEqual(legacy["state"],"stale")
+
     def test_maya3_stale_and_ansi_rejected(self):
         row=mod.parse_dual_status(modern_sample(age="60"))
         self.assertEqual(row["state"],"stale")
