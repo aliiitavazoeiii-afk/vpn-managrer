@@ -119,9 +119,10 @@ def _hp2_plan(db, s):
         if safe and len(set(sidrefs))<=1:
             event_ids.append(int(r["id"]))
         else:
-            reasons.append("رویداد مشترک یا غیرقابل‌تفکیک مرتبط با شناسه")
+            counts["retained_ambiguous_audits"] = counts.get("retained_ambiguous_audits",0)+1
 
     counts["exclusive_audits"] = len(event_ids)
+    counts.setdefault("retained_ambiguous_audits",0)
     return sorted(set(reasons)), counts, sorted(set(event_ids))
 
 
@@ -148,6 +149,7 @@ def _hp2_preview(sid:int, request:_hp2_Request,
            f"<li>تخصیص‌های پرداخت درگاه: <b>{counts['ayria_payment_allocations']}</b></li>"
            f"<li>مبنای مالی: <b>{counts['billing_anchor']}</b></li>"
            f"<li>پیام‌های دارای پیوند مستقیم: <b>{counts['native_linked']}</b></li>"
+           f"<li>رویدادهای مشترک/نامطمئنِ حفظ‌شده: <b>{counts['retained_ambiguous_audits']}</b></li>"
            f"<li>سایر اکانت‌های همین شماره: <b>{counts['same_phone_other_accounts']}</b> (محفوظ)</li></ul>"
            "<p class='warn'><b>هشدار:</b> حذف پرداخت‌های اختصاصی، "
            "گزارش‌های مالی و جمع فروش تاریخی را تغییر می‌دهد. "
