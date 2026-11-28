@@ -1,0 +1,25 @@
+name: Test safeguarded profile permanent delete
+on:
+  push:
+    branches:
+      - feat/profile-hard-delete-safeguarded-v1
+    paths:
+      - "patches/profile_hard_delete_v1.py"
+      - "scripts/install_profile_hard_delete_v1.sh"
+      - "scripts/test_profile_hard_delete_v1.py"
+      - ".github/workflows/test-profile-hard-delete-v1.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python syntax and safety checks
+        run: |
+          python3 -m py_compile patches/profile_hard_delete_v1.py scripts/test_profile_hard_delete_v1.py
+          python3 scripts/test_profile_hard_delete_v1.py
+      - name: Installer syntax
+        run: bash -n scripts/install_profile_hard_delete_v1.sh
