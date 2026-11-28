@@ -122,6 +122,23 @@ PY
   sleep 2
 done
 [[ "$READY" == 1 ]] || { echo "STOP=PROFILE_RUNTIME_VERIFY_FAILED";false; }
+# Unauthorized requests must NOT be served a deletion confirmation form.
+compose exec -T app python3 - <<'PY'
+import urllib.request,urllib.error
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self,*args,**kwargs):
+        return None
+opener=urllib.request.build_opener(NoRedirect())
+try:
+    response=opener.open(
+        "http://127.0.0.1:8000/users/1/permanent-delete",timeout=8)
+    code=response.getcode()
+except urllib.error.HTTPError as error:
+    code=error.code
+assert code in (301,302,303,307,308,401,403), (
+    "UNAUTHENTICATED_PROFILE_DELETE_ROUTE_EXPOSED",code)
+print("UNAUTHENTICATED_DELETE_PROBE=BLOCKED",code)
+PY
 trap - EXIT
 echo "SUCCESS=PROFILE_GUARDED_PERMANENT_DELETE_UI_INSTALLED"
 echo "DB_USER_OR_PAYMENT_ROWS_CHANGED=NO"
