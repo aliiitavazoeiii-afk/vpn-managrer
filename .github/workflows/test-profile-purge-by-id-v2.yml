@@ -1,0 +1,25 @@
+name: Verify per-ID profile purge V2
+on:
+  push:
+    branches: [feat/profile-hard-delete-safeguarded-v1]
+    paths:
+      - "patches/profile_purge_by_id_v2.py"
+      - "patches/profile_hard_delete_v1.py"
+      - "scripts/install_profile_purge_by_id_v2.sh"
+      - "scripts/test_profile_purge_by_id_v2.py"
+      - ".github/workflows/test-profile-purge-by-id-v2.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Python code and combined overlay syntax
+        run: |
+          python3 -m py_compile patches/profile_purge_by_id_v2.py patches/profile_hard_delete_v1.py
+          python3 scripts/test_profile_purge_by_id_v2.py
+      - name: Validate isolated safe installer
+        run: bash -n scripts/install_profile_purge_by_id_v2.sh
