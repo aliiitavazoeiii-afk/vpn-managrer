@@ -229,7 +229,9 @@ def _hd_inspection(db, s):
     for ev in events[:3000]:
         msg = str(ev["message"] or "")
         kind = str(ev["kind"] or "")
-        safe_sid = bool(_hd_re.search(r"(?<![0-9])sid="+str(sid)+r";", msg))
+        referenced_sids = _hd_re.findall(r"(?<![0-9])sid=([0-9]+);", msg)
+        safe_sid = (kind in ("followup_waiting", "followup_cut", "followup_clear")
+                    and referenced_sids == [str(sid)])
         safe_add = kind=="user_add" and bool(_hd_re.search(
             r"(?<![0-9])id="+str(sid)+r";",msg))
         safe_archive = kind=="user_archive" and bool(_hd_re.fullmatch(
