@@ -34,6 +34,18 @@ if _hd_begin < 0 or _hd_end < 0:
     raise RuntimeError("Profile content block missing; refusing blind modification")
 _hd_profile = _hd_profile[:_hd_end] + _hd_inject + _hd_profile[_hd_end:]
 TEMPLATES["user_detail.html"] = _hd_profile
+_hd_users = TEMPLATES.get("user_status.html", "")
+if _hd_users and 'hard_deleted' not in _hd_users:
+    _hd_users = _hd_users.replace(
+        '<div class="lc-searchbar">',
+        '''{% if request.query_params.get("hard_deleted") %}
+<div style="padding:12px 16px;margin-bottom:16px;background:#123d32;
+border:1px solid #32826c;border-radius:12px;color:#c4f6e8">
+اکانت انتخاب‌شده از دیتابیس مدیریتی حذف شد؛ اطلاعات مالی، پیام‌ها
+و دیگر وابستگی‌های محافظت‌شده قبلاً بررسی شده‌اند.</div>
+{% endif %}
+<div class="lc-searchbar">''', 1)
+    TEMPLATES["user_status.html"] = _hd_users
 if hasattr(env.loader, "mapping"):
     env.loader.mapping.update(TEMPLATES)
 
