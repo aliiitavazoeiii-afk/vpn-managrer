@@ -242,7 +242,7 @@ def _hd_inspection(db, s):
     return sorted(set(blockers)), sorted(set(audit_ids))
 
 
-def _hd_preview(sid, request:_hd_Request, db:_hd_Session=_hd_Depends(get_db)):
+def _hd_preview(sid:int, request:_hd_Request, db:_hd_Session=_hd_Depends(get_db)):
     if not _hd_auth(request):
         return _hd_page("دسترسی مجاز نیست", "<p>ابتدا وارد پنل مدیریت شوید.</p>",403)
     s = db.get(Subscription, sid)
